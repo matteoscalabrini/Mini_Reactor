@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MINI-REACTOR // CONTROL</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="scanlines"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="/logo.svg" class="logo" alt="">
+    <div class="brandtext">
+      <h1>MINI&#8209;REACTOR</h1>
+      <span class="sub">FERMENTATION&nbsp;CONTROL&nbsp;SYSTEM</span>
+    </div>
+  </div>
+  <div class="statusstrip">
+    <span class="stat"><i>LINK</i><b id="st-link" class="v">····</b></span>
+    <span class="stat"><i>VBUS</i><b id="st-vbus" class="v">··</b></span>
+    <span class="stat"><i>SD</i><b id="st-sd" class="v">··</b></span>
+    <span class="stat"><i>UPTIME</i><b id="st-uptime" class="v">··:··:··</b></span>
+    <span class="led off" id="led" title="telemetry link"></span>
+  </div>
+</header>
+
+<main class="grid">
+
+  <section class="panel span2 p-temp">
+    <h2>LIQUID&nbsp;TEMPERATURE<span class="tag" id="temp-tag">—</span></h2>
+    <div class="tempwrap">
+      <div class="readout"><span id="temp">--.-</span><i>°C</i></div>
+      <div class="tmeta">
+        <div><i>SETPOINT</i><b id="setp">--.-</b><u>°C</u></div>
+        <div><i>ERROR</i><b id="err">--</b><u>°C</u></div>
+        <div><i>HEATER&nbsp;PROBE</i><b id="heaterc">--</b><u>°C</u></div>
+      </div>
+    </div>
+    <canvas id="chart" height="200"></canvas>
+    <div class="bar">
+      <label>HEATER&nbsp;DUTY</label>
+      <div class="track"><div id="heatfill" class="fill"></div></div>
+      <span id="heatpct" class="barval">0%</span>
+    </div>
+  </section>
+
+  <section class="panel p-run">
+    <h2>RUN&nbsp;CONTROL</h2>
+    <div class="field">
+      <label>TARGET&nbsp;TEMPERATURE <b class="fv"><span id="t-target">30.0</span>°C</b></label>
+      <input type="number" id="in-target" step="0.5" min="0" max="60" value="30">
+    </div>
+    <div class="field">
+      <label>AGITATOR&nbsp;SPEED <b class="fv"><span id="t-motor">40</span>%</b></label>
+      <input type="range" id="in-motor" min="0" max="100" value="40">
+    </div>
+    <div class="field">
+      <label>DURATION <b class="fv"><span id="t-dur">∞</span></b></label>
+      <input type="number" id="in-dur" min="0" value="0" placeholder="minutes (0 = until stopped)">
+    </div>
+    <div class="btns">
+      <button id="btn-start" class="go">▶ START&nbsp;RUN</button>
+      <button id="btn-stop" class="stop">■ STOP</button>
+    </div>
+    <div class="runstate">
+      <div><i>STATE</i><b id="rs-state" class="idle">IDLE</b></div>
+      <div><i>ELAPSED</i><b id="rs-elapsed">00:00:00</b></div>
+      <div><i>REMAIN</i><b id="rs-remain">—</b></div>
+    </div>
+  </section>
+
+  <section class="panel p-motor">
+    <h2>AGITATOR</h2>
+    <div class="dial">
+      <div class="dialnum"><span id="motor-val">0</span><i>%</i></div>
+      <div class="dialsub"><b id="motor-rpm">0</b> RPM</div>
+    </div>
+    <div class="bar">
+      <label>SPEED</label>
+      <div class="track"><div id="motorfill" class="fill amber"></div></div>
+    </div>
+  </section>
+
+  <section class="panel p-data">
+    <h2>DATA&nbsp;LOG</h2>
+    <p class="kv">CARD <b id="sdstate">—</b></p>
+    <p class="muted">Telemetry rows are written to <code>reactor_log.csv</code> on the SD card.</p>
+    <div class="btns">
+      <a class="btn" id="dl" href="/api/log" download="reactor_log.csv">⬇ DOWNLOAD&nbsp;CSV</a>
+      <button id="btn-clear" class="ghost">CLEAR&nbsp;LOG</button>
+    </div>
+  </section>
+
+  <section class="panel span2 p-net">
+    <h2>NETWORK<span class="tag" id="net-mode">—</span></h2>
+    <p class="kv">ADDRESS <b id="net-ip">—</b></p>
+    <div class="field">
+      <label>NETWORK</label>
+      <div class="row">
+        <select id="net-ssid"><option value="">— scan for networks —</option></select>
+        <button id="btn-scan" class="ghost">SCAN</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>PASSWORD</label>
+      <input type="password" id="net-pass" placeholder="network password">
+    </div>
+    <div class="btns">
+      <button id="btn-connect" class="go">CONNECT</button>
+      <button id="btn-forget" class="ghost">FORGET</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  MINI-REACTOR&nbsp;·&nbsp;ESP32-S3&nbsp;·&nbsp;rotating-disk bioreactor&nbsp;·&nbsp;<span id="foot-status">awaiting telemetry…</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
