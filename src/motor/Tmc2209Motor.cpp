@@ -94,6 +94,14 @@ void Tmc2209Motor::setDirection(bool reverse) {
 
 uint32_t Tmc2209Motor::drvStatus() { return driver_.DRV_STATUS(); }
 
+uint16_t Tmc2209Motor::stallGuardResult() { return driver_.SG_RESULT(); }
+
+DrvStatusFlags Tmc2209Motor::driverFlags() {
+  DrvStatusFlags f = decodeDrvStatus(driver_.DRV_STATUS());
+  f.stall = digitalRead(cfg_.pinDiag) != 0;
+  return f;
+}
+
 int32_t Tmc2209Motor::vactualForMicrostepHz(float microstepsPerSecond) {
   // speed[µsteps/s] = VACTUAL * fCLK / 2^24  →  VACTUAL = speed * 2^24 / fCLK
   const float vactual = microstepsPerSecond * 16777216.0f / kTmcClockHz;

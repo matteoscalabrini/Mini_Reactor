@@ -19,6 +19,7 @@
 
 #include <Arduino.h>
 #include <TMCStepper.h>
+#include "motor/DrvStatus.hpp"
 
 class Tmc2209Motor {
  public:
@@ -112,6 +113,15 @@ class Tmc2209Motor {
 
   /* drvStatus() — Raw DRV_STATUS (over-temp, open-load, stall, etc.). */
   uint32_t drvStatus();
+
+  /* stallGuardResult() — StallGuard SG_RESULT (relative load index; lower = more
+   * load). Only meaningful while the motor is moving. One UART read. */
+  uint16_t stallGuardResult();
+
+  /* driverFlags() — Decoded DRV_STATUS (one UART read) with `stall` filled from
+   * the DIAG pin. Note: DIAG/stall requires StallGuard (SGTHRS) tuning to be
+   * meaningful — out of scope here; it reads the raw pin level. */
+  DrvStatusFlags driverFlags();
 
   /* Underlying TMCStepper object for advanced use. */
   TMC2209Stepper& driver() { return driver_; }
