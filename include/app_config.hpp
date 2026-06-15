@@ -18,6 +18,9 @@
 
 namespace AppConfig {
 
+// API + firmware version reported in telemetry.
+static constexpr const char* kFirmwareVersion = "1.0.0";
+
 // Serial debug output.
 static constexpr uint32_t kSerialBaud = 115200;
 static constexpr uint16_t kSerialStartupDelayMs = 3000;  // USB-CDC enumerate
@@ -53,7 +56,7 @@ static constexpr int      kCardDetectPin = 14;        // GPIO14 -> SD DET
 static constexpr uint32_t kFreqHz        = 10000000;  // 10 MHz bring-up speed
 static constexpr const char* kLogPath    = "/reactor_log.csv";
 static constexpr const char* kLogHeader  =
-    "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,motor_pct,fault,safety";
+    "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety";
 }  // namespace Sd
 
 // ── TMC2209 stepper driver (U4), single-wire UART ────────────────────────────
@@ -71,6 +74,7 @@ static constexpr uint8_t  kAddress          = 0b00;    // MS1/MS2 -> GND
 static constexpr uint32_t kUartBaud         = 115200;
 static constexpr uint16_t kCurrentMilliamps = 600;     // RMS, generic NEMA-17
 static constexpr uint16_t kMicrosteps       = 16;
+static constexpr uint16_t kStepsPerRev = 200;  // full steps/rev, direct 1:1 drivetrain
 // Demo spin speed in microsteps/second (~1 rev/s at 200 steps * 16 microsteps).
 static constexpr float    kSpinMicrostepHz  = 3200.0f;
 }  // namespace Motor
@@ -115,7 +119,7 @@ static constexpr float kPidKd = 0.4f;
 static constexpr float kDutyMin = 0.0f;
 static constexpr float kDutyMax = 1.0f;
 
-static constexpr float kDefaultSetpointC = 30.0f;  // typical fermentation temp
+static constexpr float kDefaultSetpointC = 36.0f;  // bacterial-cellulose operating point
 
 // Safety limits (heater forced off when violated):
 static constexpr float    kHeaterSafetyMaxC = 80.0f;  // NTC heater-probe over-temp
@@ -125,9 +129,11 @@ static constexpr uint32_t kSafetyCheckMs    = 200;    // fast NTC safety poll
 
 // ── Process / run defaults ───────────────────────────────────────────────────
 namespace Process {
-static constexpr uint8_t  kDefaultMotorPercent = 40;  // disk rotation speed
-static constexpr uint16_t kDefaultDurationMin  = 0;   // 0 = run until stopped
-static constexpr const char* kPrefsNamespace   = "reactor";
+static constexpr float    kDefaultRpm      = 8.0f;   // disc operating speed
+static constexpr float    kMinRpm          = 0.5f;   // allowed run range
+static constexpr float    kMaxRpm          = 30.0f;
+static constexpr uint16_t kDefaultDurationMin = 0;   // 0 = run until stopped
+static constexpr const char* kPrefsNamespace  = "reactor";
 }  // namespace Process
 
 // ── WiFi (STA + AP captive-portal onboarding) ────────────────────────────────

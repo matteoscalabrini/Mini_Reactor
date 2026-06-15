@@ -192,7 +192,7 @@ void WebInterface::applyPending() {
   if (p.runStart) reactor_.start(p.runTargetC, p.runMotorPct, p.runDurMin);
   if (p.runStop) reactor_.stop();
   if (p.setTarget) reactor_.setTargetC(p.setTargetC);
-  if (p.setMotor) reactor_.setMotorPercent(p.setMotorPct);
+  if (p.setMotor) reactor_.setRpm(p.setMotorPct);
   if (p.wifiConnect) wifi_.connect(p.wifiSsid, p.wifiPass);
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();

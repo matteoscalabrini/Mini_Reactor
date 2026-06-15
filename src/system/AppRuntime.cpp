@@ -45,6 +45,7 @@ Tmc2209Motor::Config makeMotorConfig() {
   c.uartBaud = AppConfig::Motor::kUartBaud;
   c.currentMilliamps = AppConfig::Motor::kCurrentMilliamps;
   c.microsteps = AppConfig::Motor::kMicrosteps;
+  c.stepsPerRev = AppConfig::Motor::kStepsPerRev;
   c.topSpeedMicrostepHz = AppConfig::Motor::kSpinMicrostepHz;
   return c;
 }
@@ -91,9 +92,14 @@ ThermalController::Config makeThermalConfig() {
 
 Reactor::Config makeReactorConfig() {
   Reactor::Config c;
-  c.defaultMotorPercent = AppConfig::Process::kDefaultMotorPercent;
+  c.defaultRpm = AppConfig::Process::kDefaultRpm;
+  c.minRpm = AppConfig::Process::kMinRpm;
+  c.maxRpm = AppConfig::Process::kMaxRpm;
   c.defaultSetpointC = AppConfig::Thermal::kDefaultSetpointC;
   c.defaultDurationMin = AppConfig::Process::kDefaultDurationMin;
+  c.defaultDiscCurrentMa = AppConfig::Motor::kCurrentMilliamps;
+  c.defaultDiscMicrosteps = AppConfig::Motor::kMicrosteps;
+  c.defaultDiscReverse = false;
   c.prefsNamespace = AppConfig::Process::kPrefsNamespace;
   return c;
 }
@@ -196,7 +202,7 @@ String buildStatusJson() {
   }
   r["setpointC"] = t.setpointC;
   r["heaterPct"] = roundf(t.heaterDutyPct * 10) / 10.0f;
-  r["motorPct"] = t.motorPercent;
+  r["rpm"] = t.rpm;
   r["fault"] = t.sensorFault;
   r["safety"] = t.safetyTripped;
   r["elapsedSec"] = t.elapsedSec;
