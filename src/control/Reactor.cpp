@@ -149,7 +149,8 @@ String Reactor::csvRow() const {
            (unsigned long)millis(), t.running ? 1 : 0,
            isnan(t.liquidTempC) ? 0.0f : t.liquidTempC,
            isnan(t.heaterTempC) ? 0.0f : t.heaterTempC, t.setpointC,
-           t.heaterDutyPct, t.rpm, /*load*/ 0, t.sensorFault ? 1 : 0,
+           t.heaterDutyPct, t.rpm, running_ ? (int)motor_.stallGuardResult() : 0,
+           t.sensorFault ? 1 : 0,
            t.safetyTripped ? 1 : 0);
   return String(buf);
 }

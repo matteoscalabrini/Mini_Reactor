@@ -18,7 +18,9 @@
 #include "control/Reactor.hpp"
 #include "control/ThermalController.hpp"
 #include "heater/Heater.hpp"
+#include "motor/DrvStatus.hpp"
 #include "motor/Tmc2209Motor.hpp"
+#include "system/AlarmTracker.hpp"
 #include "net/WebInterface.hpp"
 #include "net/WifiManager.hpp"
 #include "power/Husb238.hpp"
@@ -227,11 +229,24 @@ String buildStatusJson() {
   disc["currentMa"] = g_motor.currentMilliamps();
   disc["microsteps"] = g_motor.microstepsValue();
   disc["enabled"] = g_motor.enabledState();
+  const bool drvConnected = g_motor.connected();
+  const DrvStatusFlags dflags = drvConnected ? g_motor.driverFlags() : DrvStatusFlags{};
+  // load: StallGuard, only meaningful while running + linked.
+  if (t.running && drvConnected) disc["load"] = g_motor.stallGuardResult();
+  else disc["load"] = nullptr;
   JsonObject drv = disc["driver"].to<JsonObject>();
   char ver[8];
   snprintf(ver, sizeof(ver), "0x%02X", g_motor.version());
   drv["version"] = ver;
-  drv["connected"] = g_motor.connected();
+  drv["connected"] = drvConnected;
+  JsonObject dfl = drv["flags"].to<JsonObject>();
+  dfl["otpw"] = dflags.otpw;
+  dfl["ot"] = dflags.ot;
+  dfl["stall"] = dflags.stall;
+  dfl["openLoadA"] = dflags.openLoadA;
+  dfl["openLoadB"] = dflags.openLoadB;
+  dfl["shortA"] = dflags.shortA;
+  dfl["shortB"] = dflags.shortB;
 
   JsonObject run = doc["run"].to<JsonObject>();
   run["active"] = t.running;
@@ -253,18 +268,24 @@ String buildStatusJson() {
   storage["logBytes"] = nullptr;  // accurate size arrives with the SD-mgmt phase
   storage["logging"] = g_sd.mounted();
 
+  static AlarmTracker s_alarms;
+  s_alarms.beginFrame(millis() / 1000UL);
+  if (t.sensorFault) s_alarms.add("sensor_fault", "warn");
+  if (isnan(t.heaterTempC)) s_alarms.add("heater_probe_fault", "warn");
+  if (t.safetyTripped) s_alarms.add("safety_tripped", "critical");
+  if (drvConnected) {
+    if (dflags.ot) s_alarms.add("driver_ot", "critical");
+    else if (dflags.otpw) s_alarms.add("driver_otpw", "warn");
+    if (dflags.stall) s_alarms.add("driver_stall", "warn");
+    if (dflags.openLoadA || dflags.openLoadB) s_alarms.add("driver_open_load", "warn");
+  }
+  s_alarms.endFrame();
   JsonArray alarms = doc["alarms"].to<JsonArray>();
-  if (t.sensorFault) {
+  for (int i = 0; i < s_alarms.size(); ++i) {
     JsonObject a = alarms.add<JsonObject>();
-    a["code"] = "sensor_fault"; a["severity"] = "warn";
-  }
-  if (isnan(t.heaterTempC)) {
-    JsonObject a = alarms.add<JsonObject>();
-    a["code"] = "heater_probe_fault"; a["severity"] = "warn";
-  }
-  if (t.safetyTripped) {
-    JsonObject a = alarms.add<JsonObject>();
-    a["code"] = "safety_tripped"; a["severity"] = "critical";
+    a["code"] = s_alarms[i].code;
+    a["severity"] = s_alarms[i].severity;
+    a["since"] = s_alarms[i].sinceSec;
   }
 
   String out;
