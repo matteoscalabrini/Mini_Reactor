@@ -134,6 +134,13 @@ void WebInterface::registerRoutes() {
   auto* setHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/setpoint", [this](AsyncWebServerRequest* req, JsonVariant& json) {
         JsonObject o = json.as<JsonObject>();
+        if (!o["targetC"].isNull()) {
+          const float targetC = o["targetC"].as<float>();
+          if (targetC < 0.0f || targetC > 55.0f) {  // processMaxC ceiling
+            sendError(req, 400, "out_of_range", "targetC must be 0..55");
+            return;
+          }
+        }
         xSemaphoreTake(mutex_, portMAX_DELAY);
         if (!o["targetC"].isNull()) {
           pending_.setTarget = true;
