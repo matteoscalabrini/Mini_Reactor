@@ -211,7 +211,7 @@ void WebInterface::registerRoutes() {
 
   server_->onNotFound([](AsyncWebServerRequest* req) {
     if (req->url().startsWith("/api/")) {
-      req->send(404, "application/json", "{\"ok\":false,\"error\":{\"code\":\"not_found\",\"message\":\"unknown endpoint\"}}");
+      sendError(req, 404, "not_found", "unknown endpoint");
       return;
     }
     if (SPIFFS.exists("/index.html")) {
