@@ -186,9 +186,8 @@ void requestPd() {
   }
 }
 
-// Build the nested /api/v1 telemetry object (spec §4). P1 fields only;
-// pid terms, StallGuard load, driver flags, and the NTC raw/calibration block
-// are added by later phases.
+// Build the nested /api/v1 telemetry object (spec §4). P1+P2 fields;
+// pid terms and the NTC raw/calibration block are added by later phases.
 String buildStatusJson() {
   JsonDocument doc;
   const ReactorTelemetry t = g_reactor.telemetry();
