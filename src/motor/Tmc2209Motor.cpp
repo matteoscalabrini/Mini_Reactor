@@ -7,6 +7,7 @@
  */
 
 #include "motor/Tmc2209Motor.hpp"
+#include "motor/RpmKinematics.hpp"
 
 namespace {
 constexpr float kTmcClockHz = 12000000.0f;  // internal oscillator
@@ -49,15 +50,19 @@ bool Tmc2209Motor::connected() { return driver_.test_connection() == 0; }
 uint8_t Tmc2209Motor::version() { return driver_.version(); }
 
 void Tmc2209Motor::enable(bool on) {
+  enabled_ = on;
   digitalWrite(cfg_.pinEnable, on ? LOW : HIGH);  // active-low
 }
 
 void Tmc2209Motor::setCurrentMilliamps(uint16_t milliamps) {
+  currentMa_ = milliamps;
   driver_.rms_current(milliamps);
 }
 
 void Tmc2209Motor::setMicrosteps(uint16_t microsteps) {
+  cfg_.microsteps = microsteps;
   driver_.microsteps(microsteps);
+  if (lastRpm_ > 0.0f) setRpm(lastRpm_);  // keep rpm constant across resolution change
 }
 
 void Tmc2209Motor::spin(int32_t velocity) {
@@ -73,6 +78,18 @@ void Tmc2209Motor::setSpeedPercent(float percent) {
   if (percent > 100.0f) percent = 100.0f;
   if (percent < -100.0f) percent = -100.0f;
   spin(vactualForMicrostepHz(cfg_.topSpeedMicrostepHz * percent / 100.0f));
+}
+
+void Tmc2209Motor::setRpm(float rpm) {
+  lastRpm_ = (rpm < 0.0f) ? 0.0f : rpm;
+  const int32_t v =
+      RpmKinematics::rpmToVactual(lastRpm_, cfg_.stepsPerRev, cfg_.microsteps);
+  spin(reverse_ ? -v : v);  // spin() sets the shaft (direction) bit from the sign
+}
+
+void Tmc2209Motor::setDirection(bool reverse) {
+  reverse_ = reverse;
+  if (lastRpm_ > 0.0f) setRpm(lastRpm_);
 }
 
 uint32_t Tmc2209Motor::drvStatus() { return driver_.DRV_STATUS(); }

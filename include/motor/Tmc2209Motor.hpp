@@ -51,6 +51,7 @@ class Tmc2209Motor {
     uint16_t currentMilliamps = 600;
     uint16_t microsteps = 16;
     float topSpeedMicrostepHz = 3200.0f;  // 100% setSpeedPercent maps here
+    uint16_t stepsPerRev = 200;           // full steps/rev (direct 1:1 drivetrain)
   };
 
   explicit Tmc2209Motor(const Config& config);
@@ -94,6 +95,21 @@ class Tmc2209Motor {
    */
   void setSpeedPercent(float percent);
 
+  /* setRpm() — Spin the disc at an absolute rpm (0 = stop). Uses the current
+   * microsteps + stepsPerRev; honours the direction set by setDirection(). */
+  void setRpm(float rpm);
+
+  /* setDirection() — false = cw (forward), true = ccw (reverse). Re-applies the
+   * current speed in the new direction if already spinning. */
+  void setDirection(bool reverse);
+
+  // Drive-state getters (for telemetry).
+  float    rpm() const { return lastRpm_; }
+  bool     reversed() const { return reverse_; }
+  bool     enabledState() const { return enabled_; }
+  uint16_t currentMilliamps() const { return currentMa_; }
+  uint16_t microstepsValue() const { return cfg_.microsteps; }
+
   /* drvStatus() — Raw DRV_STATUS (over-temp, open-load, stall, etc.). */
   uint32_t drvStatus();
 
@@ -106,4 +122,8 @@ class Tmc2209Motor {
  private:
   Config cfg_;
   TMC2209Stepper driver_;
+  float lastRpm_ = 0.0f;
+  bool reverse_ = false;
+  bool enabled_ = false;
+  uint16_t currentMa_ = 600;
 };
