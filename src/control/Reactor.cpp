@@ -111,9 +111,13 @@ void Reactor::setDiscReverse(bool reverse) {
 }
 
 void Reactor::setDiscEnabled(bool on) {
-  motor_.enable(on);
-  if (!on) motor_.stop();
-  else if (running_) motor_.setRpm(rpm_);
+  if (!on) {
+    motor_.stop();
+    motor_.enable(false);
+  } else {
+    motor_.enable(true);
+    if (running_) motor_.setRpm(rpm_);
+  }
 }
 
 ReactorTelemetry Reactor::telemetry() const {

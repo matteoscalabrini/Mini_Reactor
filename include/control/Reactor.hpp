@@ -2,7 +2,7 @@
  * Reactor.hpp — fermentation process orchestrator (the "brain").
  *
  * Ties the ThermalController and the motor into a single run. A run holds a
- * target temperature, a disk rotation speed (motor %), and an optional duration
+ * target temperature, a disc rotation speed (rpm), and an optional duration
  * timer. start()/stop() begin and end a run; update() advances the run timer and
  * applies live setpoint changes. telemetry() returns a snapshot for the web UI;
  * csvRow() formats a line for the SD logger. Setpoints persist in NVS.
