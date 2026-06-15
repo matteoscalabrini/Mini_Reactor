@@ -30,9 +30,13 @@ state = {
     "durationMin": 0, "tempC": AMBIENT, "heaterPct": 0.0, "startMs": 0.0,
     "fault": False, "heaterProbeFault": False, "heaterTempC": 24.0, "safetyTripped": False,
     "currentMa": 600, "microsteps": 16, "reverse": False, "enabled": True,
+    "load": 280, "loadBias": 0.0,
+    "drvOt": False, "drvOtpw": False, "drvStall": False,
+    "drvOpenLoadA": False, "drvOpenLoadB": False, "drvShortA": False, "drvShortB": False,
     "ssid": "LAB-NET-5G", "connected": True, "ap": False, "ip": "192.168.1.42",
 }
 clients = set()
+_alarm_since = {}
 
 
 def status():
@@ -45,13 +49,30 @@ def status():
     err = None if temp is None else round(state["targetC"] - state["tempC"], 2)
     heaterC = None if state["heaterProbeFault"] else round(state["heaterTempC"], 1)
     rpm = state["rpm"] if state["running"] else 0.0
-    alarms = []
+    active = []
     if state["fault"]:
-        alarms.append({"code": "sensor_fault", "severity": "warn"})
+        active.append(("sensor_fault", "warn"))
     if state["heaterProbeFault"]:
-        alarms.append({"code": "heater_probe_fault", "severity": "warn"})
+        active.append(("heater_probe_fault", "warn"))
     if state["safetyTripped"]:
-        alarms.append({"code": "safety_tripped", "severity": "critical"})
+        active.append(("safety_tripped", "critical"))
+    if state["drvOt"]:
+        active.append(("driver_ot", "critical"))
+    elif state["drvOtpw"]:
+        active.append(("driver_otpw", "warn"))
+    if state["drvStall"]:
+        active.append(("driver_stall", "warn"))
+    if state["drvOpenLoadA"] or state["drvOpenLoadB"]:
+        active.append(("driver_open_load", "warn"))
+    now = int(time.monotonic())
+    codes = {c for c, _ in active}
+    for c in list(_alarm_since):
+        if c not in codes:
+            del _alarm_since[c]
+    alarms = []
+    for code, sev in active:
+        _alarm_since.setdefault(code, now)
+        alarms.append({"code": code, "severity": sev, "since": _alarm_since[code]})
     return {
         "apiVersion": "1.0", "uptimeSec": int(now),
         "system": {"firmware": "1.0.0-mock", "freeHeap": 142000,
@@ -69,7 +90,11 @@ def status():
             "direction": "ccw" if state["reverse"] else "cw",
             "currentMa": state["currentMa"], "microsteps": state["microsteps"],
             "enabled": state["enabled"],
-            "driver": {"version": "0x21", "connected": True},
+            "load": state["load"] if state["running"] else None,
+            "driver": {"version": "0x21", "connected": True, "flags": {
+                "otpw": state["drvOtpw"], "ot": state["drvOt"], "stall": state["drvStall"],
+                "openLoadA": state["drvOpenLoadA"], "openLoadB": state["drvOpenLoadB"],
+                "shortA": state["drvShortA"], "shortB": state["drvShortB"]}},
         },
         "run": {"active": state["running"], "elapsedSec": elapsed,
                 "remainingSec": remaining, "durationMin": state["durationMin"]},
@@ -91,6 +116,8 @@ async def simulate():
             duty = s["heaterPct"] / 100.0
             s["tempC"] += (0.6 * duty - 0.02 * (s["tempC"] - AMBIENT)) * dt
             s["heaterTempC"] = s["tempC"] + 18.0 * duty  # heater runs hotter than bath
+            s["loadBias"] = min(120.0, s["loadBias"] + 0.05)   # biofilm slowly loads the disc
+            s["load"] = int(max(0, 380 - s["loadBias"] + random.uniform(-8, 8)))
             if s["durationMin"] > 0 and \
                time.monotonic() - s["startMs"] >= s["durationMin"] * 60:
                 s["running"] = False
@@ -98,6 +125,8 @@ async def simulate():
             s["heaterPct"] = 0.0
             s["tempC"] += (-0.02 * (s["tempC"] - AMBIENT)) * dt
             s["heaterTempC"] += (-0.05 * (s["heaterTempC"] - AMBIENT)) * dt
+            s["load"] = 0
+            s["loadBias"] = 0.0
         s["tempC"] += random.uniform(-0.04, 0.04)
         payload = json.dumps(status())
         for ws in list(clients):
