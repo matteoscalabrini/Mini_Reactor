@@ -16,7 +16,7 @@ AMBIENT = 22.0
 state = {
     "running": False, "targetC": 36.0, "rpm": 8.0, "rpmSetpoint": 8.0,
     "durationMin": 0, "tempC": AMBIENT, "heaterPct": 0.0, "startMs": 0.0,
-    "fault": False, "heaterTempC": 24.0, "safetyTripped": False,
+    "fault": False, "heaterProbeFault": False, "heaterTempC": 24.0, "safetyTripped": False,
     "currentMa": 600, "microsteps": 16, "reverse": False, "enabled": True,
     "ssid": "LAB-NET-5G", "connected": True, "ap": False, "ip": "192.168.1.42",
 }
@@ -31,10 +31,13 @@ def status():
         remaining = max(0, state["durationMin"] * 60 - elapsed)
     temp = None if state["fault"] else round(state["tempC"], 2)
     err = None if temp is None else round(state["targetC"] - state["tempC"], 2)
+    heaterC = None if state["heaterProbeFault"] else round(state["heaterTempC"], 1)
     rpm = state["rpm"] if state["running"] else 0.0
     alarms = []
     if state["fault"]:
         alarms.append({"code": "sensor_fault", "severity": "warn"})
+    if state["heaterProbeFault"]:
+        alarms.append({"code": "heater_probe_fault", "severity": "warn"})
     if state["safetyTripped"]:
         alarms.append({"code": "safety_tripped", "severity": "critical"})
     return {
@@ -45,7 +48,7 @@ def status():
             "tempC": temp, "setpointC": state["targetC"], "errorC": err,
             "heaterPct": round(state["heaterPct"], 1), "fault": state["fault"],
             "safety": {"tripped": state["safetyTripped"],
-                       "heaterTempC": round(state["heaterTempC"], 1),
+                       "heaterTempC": heaterC,
                        "heaterMaxC": 80.0, "processMaxC": 55.0},
         },
         "disc": {
