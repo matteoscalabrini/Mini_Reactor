@@ -1,0 +1,343 @@
+openapi: 3.0.3
+info:
+  title: Mini-Reactor API
+  version: 1.0.0
+  description: >
+    HTTP control surface for the Mini-Reactor rotating-disc bioreactor (ESP32-S3 firmware).
+    As-built Phase 1 contract.
+
+
+    In addition to these REST endpoints, the device pushes the same telemetry object
+    (`#/components/schemas/Telemetry`) over a WebSocket at `ws://<host>/ws` (~4 Hz, read-only;
+    the server ignores inbound WS messages). WebSocket is not modelled by OpenAPI; use the
+    `Telemetry` schema as the message payload.
+
+
+    Access is open on the LAN (no auth; `Access-Control-Allow-Origin: *`). Endpoints under
+    "Planned" in docs/API.md (e.g. /pid, /calibration, /sd, /system) are NOT yet implemented and
+    return 404.
+servers:
+  - url: http://{host}/api/v1
+    variables:
+      host:
+        default: mini-reactor.local
+        description: Device hostname or IP address.
+
+paths:
+  /status:
+    get:
+      summary: Full telemetry snapshot
+      operationId: getStatus
+      tags: [Status]
+      responses:
+        '200':
+          description: Current telemetry (identical to the WebSocket push payload).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Telemetry' }
+
+  /run:
+    post:
+      summary: Start or stop a run
+      operationId: postRun
+      tags: [Run]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400':
+          description: out_of_range (rpm 0..30 / targetC 0..55) or invalid_request (bad action).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /setpoint:
+    post:
+      summary: Live setpoint change (no run restart)
+      operationId: postSetpoint
+      description: >
+        Updates targetC and/or rpm in place. Only the fields present are applied. rpm is clamped
+        to [0.5, 30] (0 stops the disc); targetC is range-checked.
+      tags: [Run]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetpointRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400':
+          description: out_of_range (targetC 0..55).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /disc:
+    post:
+      summary: Set disc-drive parameters
+      operationId: postDisc
+      description: >
+        Apply drive parameters. All fields optional; only those present are applied.
+        currentMa/microsteps/direction persist to NVS. rpm is clamped (not rejected);
+        currentMa is clamped to 100..1500.
+      tags: [Disc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiscRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /wifi/scan:
+    get:
+      summary: WiFi scan results
+      operationId: getWifiScan
+      description: Returns cached results and triggers a fresh async scan. Poll until scanning is false.
+      tags: [WiFi]
+      responses:
+        '200':
+          description: Scan state + networks.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WifiScanResult' }
+
+  /wifi/connect:
+    post:
+      summary: Connect to a WiFi network
+      operationId: postWifiConnect
+      tags: [WiFi]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WifiConnectRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+        '400':
+          description: wifi_ssid_required (empty/missing ssid).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /wifi/forget:
+    post:
+      summary: Forget credentials and return to setup AP
+      operationId: postWifiForget
+      tags: [WiFi]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+  /log:
+    get:
+      summary: Download the telemetry CSV log
+      operationId: getLog
+      tags: [Storage]
+      responses:
+        '200':
+          description: CSV log file.
+          content:
+            text/csv:
+              schema: { type: string }
+              example: |
+                t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety
+        '503':
+          description: no_log (no SD card mounted or no log file).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /log/clear:
+    post:
+      summary: Clear/rotate the SD log
+      operationId: postLogClear
+      tags: [Storage]
+      responses:
+        '200': { $ref: '#/components/responses/Ok' }
+
+components:
+  responses:
+    Ok:
+      description: Command accepted.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Ok' }
+
+  schemas:
+    Ok:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+
+    Error:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_request, out_of_range, wifi_ssid_required, no_log, not_found]
+            message: { type: string }
+
+    RunRequest:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [start, stop] }
+        targetC:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 55
+          default: 36
+          description: Bath setpoint °C (start only).
+        rpm:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 30
+          default: 8
+          description: Disc rpm (start only); 0 = disc stopped, otherwise clamped to >= 0.5.
+        durationMin:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Run duration in minutes (start only); 0 = until stopped.
+
+    SetpointRequest:
+      type: object
+      properties:
+        targetC: { type: number, format: float, minimum: 0, maximum: 55 }
+        rpm: { type: number, format: float, description: 'Clamped to [0.5, 30]; 0 = stop.' }
+
+    DiscRequest:
+      type: object
+      properties:
+        rpm: { type: number, format: float, description: 'Clamped to [0.5, 30]; 0 = stop.' }
+        currentMa: { type: integer, minimum: 100, maximum: 1500, description: RMS coil current. }
+        microsteps: { type: integer, enum: [1, 2, 4, 8, 16, 32, 64, 128, 256] }
+        direction: { type: string, enum: [cw, ccw] }
+        enabled: { type: boolean, description: false de-energises and stops the driver. }
+
+    WifiConnectRequest:
+      type: object
+      required: [ssid]
+      properties:
+        ssid: { type: string }
+        password: { type: string, description: Optional for open networks. }
+
+    WifiScanResult:
+      type: object
+      properties:
+        scanning: { type: boolean }
+        networks:
+          type: array
+          items:
+            type: object
+            properties:
+              ssid: { type: string }
+              rssi: { type: integer, description: dBm. }
+              secure: { type: boolean }
+
+    Alarm:
+      type: object
+      required: [code, severity]
+      properties:
+        code:
+          type: string
+          enum: [sensor_fault, heater_probe_fault, safety_tripped]
+        severity:
+          type: string
+          enum: [info, warn, critical]
+
+    Telemetry:
+      type: object
+      description: Served by GET /status and pushed on ws://<host>/ws.
+      properties:
+        apiVersion: { type: string, example: '1.0' }
+        uptimeSec: { type: integer }
+        system:
+          type: object
+          properties:
+            firmware: { type: string }
+            freeHeap: { type: integer, description: bytes }
+            vbus: { type: string, description: 'Negotiated USB-PD profile, e.g. 12V.' }
+            sdMounted: { type: boolean }
+        thermal:
+          type: object
+          properties:
+            tempC:
+              type: number
+              format: float
+              nullable: true
+              description: DS18B20 liquid temp (PID process value); null on probe fault.
+            setpointC: { type: number, format: float }
+            errorC:
+              type: number
+              format: float
+              nullable: true
+              description: setpoint - temp; null when temp is null.
+            heaterPct: { type: number, format: float, description: 0..100 PWM duty. }
+            fault: { type: boolean, description: Liquid (DS18B20) probe disconnected. }
+            safety:
+              type: object
+              description: Heater-mounted NTC high-limit, independent of the PID.
+              properties:
+                tripped: { type: boolean }
+                heaterTempC:
+                  type: number
+                  format: float
+                  nullable: true
+                  description: NTC heater-probe temp; null on probe fault.
+                heaterMaxC: { type: number, format: float, description: Over-temp cutoff. }
+                processMaxC: { type: number, format: float, description: Liquid sanity ceiling. }
+        disc:
+          type: object
+          properties:
+            running: { type: boolean }
+            rpm: { type: number, format: float, description: Commanded disc rpm (0 when stopped). }
+            rpmSetpoint: { type: number, format: float }
+            direction: { type: string, enum: [cw, ccw] }
+            currentMa: { type: integer }
+            microsteps: { type: integer }
+            enabled: { type: boolean }
+            driver:
+              type: object
+              properties:
+                version: { type: string, description: 'TMC2209 chip version byte, e.g. 0x21.' }
+                connected: { type: boolean, description: UART link OK. }
+        run:
+          type: object
+          properties:
+            active: { type: boolean }
+            elapsedSec: { type: integer }
+            remainingSec:
+              type: integer
+              nullable: true
+              description: null when durationMin == 0 (indefinite).
+            durationMin: { type: integer }
+        wifi:
+          type: object
+          properties:
+            mode: { type: string, enum: [sta, ap] }
+            connected: { type: boolean }
+            ssid: { type: string }
+            ip: { type: string }
+            rssi: { type: integer, nullable: true, description: dBm; null in AP mode. }
+        storage:
+          type: object
+          properties:
+            sdMounted: { type: boolean }
+            logBytes: { type: integer, nullable: true, description: Current CSV size (null in P1). }
+            logging: { type: boolean }
+        alarms:
+          type: array
+          items: { $ref: '#/components/schemas/Alarm' }
