@@ -13,6 +13,18 @@ from aiohttp import web
 DATA = pathlib.Path(__file__).resolve().parent.parent / "data"
 AMBIENT = 22.0
 
+
+def clamp_rpm(rpm):
+    # Mirror the firmware's Reactor::setRpm clamp: 0 = stop, else [0.5, 30].
+    if rpm <= 0:
+        return 0.0
+    if rpm < 0.5:
+        return 0.5
+    if rpm > 30:
+        return 30.0
+    return rpm
+
+
 state = {
     "running": False, "targetC": 36.0, "rpm": 8.0, "rpmSetpoint": 8.0,
     "durationMin": 0, "tempC": AMBIENT, "heaterPct": 0.0, "startMs": 0.0,
@@ -126,6 +138,7 @@ async def api_run(req):
             return web.json_response(
                 {"ok": False, "error": {"code": "out_of_range",
                                         "message": "targetC must be 0..55"}}, status=400)
+        rpm = clamp_rpm(rpm)
         state.update(running=True, targetC=targetC,
                      rpm=rpm, rpmSetpoint=rpm,
                      durationMin=int(b.get("durationMin", 0)),
@@ -149,14 +162,14 @@ async def api_setpoint(req):
                                         "message": "targetC must be 0..55"}}, status=400)
         state["targetC"] = targetC
     if "rpm" in b:
-        state["rpm"] = state["rpmSetpoint"] = float(b["rpm"])
+        state["rpm"] = state["rpmSetpoint"] = clamp_rpm(float(b["rpm"]))
     return web.json_response({"ok": True})
 
 
 async def api_disc(req):
     b = await req.json()
     if "rpm" in b:
-        state["rpm"] = state["rpmSetpoint"] = float(b["rpm"])
+        state["rpm"] = state["rpmSetpoint"] = clamp_rpm(float(b["rpm"]))
     if "currentMa" in b:
         state["currentMa"] = int(b["currentMa"])
     if "microsteps" in b:
