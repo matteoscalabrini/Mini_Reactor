@@ -11,6 +11,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <WiFi.h>
 #include <Wire.h>
 
 #include "app_config.hpp"
@@ -183,41 +184,88 @@ void requestPd() {
   }
 }
 
-// Build the full status JSON consumed by GET /api/status and the WS feed.
+// Build the nested /api/v1 telemetry object (spec §4). P1 fields only;
+// pid terms, StallGuard load, driver flags, and the NTC raw/calibration block
+// are added by later phases.
 String buildStatusJson() {
   JsonDocument doc;
-
   const ReactorTelemetry t = g_reactor.telemetry();
-  JsonObject r = doc["reactor"].to<JsonObject>();
-  r["running"] = t.running;
+
+  doc["apiVersion"] = "1.0";
+  doc["uptimeSec"] = millis() / 1000UL;
+
+  JsonObject sys = doc["system"].to<JsonObject>();
+  sys["firmware"] = AppConfig::kFirmwareVersion;
+  sys["freeHeap"] = ESP.getFreeHeap();
+  Husb238::Status ps;
+  sys["vbus"] = g_pd.refreshStatus(ps) ? voltageCodeStr(ps.voltage) : "?";
+  sys["sdMounted"] = g_sd.mounted();
+
+  JsonObject th = doc["thermal"].to<JsonObject>();
   if (t.sensorFault) {
-    r["tempC"] = nullptr;  // liquid (process) probe
+    th["tempC"] = nullptr;
+    th["errorC"] = nullptr;
   } else {
-    r["tempC"] = roundf(t.liquidTempC * 100) / 100.0f;
+    th["tempC"] = roundf(t.liquidTempC * 100) / 100.0f;
+    th["errorC"] = roundf((t.setpointC - t.liquidTempC) * 100) / 100.0f;
+  }
+  th["setpointC"] = t.setpointC;
+  th["heaterPct"] = roundf(t.heaterDutyPct * 10) / 10.0f;
+  th["fault"] = t.sensorFault;
+  JsonObject safety = th["safety"].to<JsonObject>();
+  safety["tripped"] = t.safetyTripped;
+  if (isnan(t.heaterTempC)) safety["heaterTempC"] = nullptr;
+  else safety["heaterTempC"] = roundf(t.heaterTempC * 10) / 10.0f;
+  safety["heaterMaxC"] = AppConfig::Thermal::kHeaterSafetyMaxC;
+  safety["processMaxC"] = AppConfig::Thermal::kProcessMaxC;
+
+  JsonObject disc = doc["disc"].to<JsonObject>();
+  disc["running"] = t.running;
+  disc["rpm"] = t.rpm;
+  disc["rpmSetpoint"] = g_reactor.rpmSetpoint();
+  disc["direction"] = g_motor.reversed() ? "ccw" : "cw";
+  disc["currentMa"] = g_motor.currentMilliamps();
+  disc["microsteps"] = g_motor.microstepsValue();
+  disc["enabled"] = g_motor.enabledState();
+  JsonObject drv = disc["driver"].to<JsonObject>();
+  char ver[8];
+  snprintf(ver, sizeof(ver), "0x%02X", g_motor.version());
+  drv["version"] = ver;
+  drv["connected"] = g_motor.connected();
+
+  JsonObject run = doc["run"].to<JsonObject>();
+  run["active"] = t.running;
+  run["elapsedSec"] = t.elapsedSec;
+  if (t.running && t.durationMin > 0) run["remainingSec"] = t.remainingSec;
+  else run["remainingSec"] = nullptr;
+  run["durationMin"] = t.durationMin;
+
+  JsonObject wifi = doc["wifi"].to<JsonObject>();
+  wifi["mode"] = g_wifi.apActive() ? "ap" : "sta";
+  wifi["connected"] = g_wifi.staConnected();
+  wifi["ssid"] = WiFi.SSID();
+  wifi["ip"] = g_wifi.ipAddress();
+  if (g_wifi.staConnected()) wifi["rssi"] = WiFi.RSSI();
+  else wifi["rssi"] = nullptr;
+
+  JsonObject storage = doc["storage"].to<JsonObject>();
+  storage["sdMounted"] = g_sd.mounted();
+  storage["logBytes"] = nullptr;  // accurate size arrives with the SD-mgmt phase
+  storage["logging"] = g_sd.mounted();
+
+  JsonArray alarms = doc["alarms"].to<JsonArray>();
+  if (t.sensorFault) {
+    JsonObject a = alarms.add<JsonObject>();
+    a["code"] = "sensor_fault"; a["severity"] = "warn";
   }
   if (isnan(t.heaterTempC)) {
-    r["heaterC"] = nullptr;  // heater NTC safety probe
-  } else {
-    r["heaterC"] = roundf(t.heaterTempC * 10) / 10.0f;
+    JsonObject a = alarms.add<JsonObject>();
+    a["code"] = "heater_probe_fault"; a["severity"] = "warn";
   }
-  r["setpointC"] = t.setpointC;
-  r["heaterPct"] = roundf(t.heaterDutyPct * 10) / 10.0f;
-  r["rpm"] = t.rpm;
-  r["fault"] = t.sensorFault;
-  r["safety"] = t.safetyTripped;
-  r["elapsedSec"] = t.elapsedSec;
-  r["remainingSec"] = t.remainingSec;
-  r["durationMin"] = t.durationMin;
-
-  JsonObject w = doc["wifi"].to<JsonObject>();
-  w["connected"] = g_wifi.staConnected();
-  w["ap"] = g_wifi.apActive();
-  w["ip"] = g_wifi.ipAddress();
-
-  Husb238::Status s;
-  doc["vbus"] = g_pd.refreshStatus(s) ? voltageCodeStr(s.voltage) : "?";
-  doc["sdMounted"] = g_sd.mounted();
-  doc["uptimeSec"] = millis() / 1000UL;
+  if (t.safetyTripped) {
+    JsonObject a = alarms.add<JsonObject>();
+    a["code"] = "safety_tripped"; a["severity"] = "critical";
+  }
 
   String out;
   serializeJson(doc, out);

@@ -63,13 +63,21 @@ class WebInterface {
   struct Pending {
     bool runStart = false;
     float runTargetC = 0;
-    float runMotorPct = 0;
+    float runRpm = 0;
     uint16_t runDurMin = 0;
     bool runStop = false;
+
     bool setTarget = false;
     float setTargetC = 0;
-    bool setMotor = false;
-    float setMotorPct = 0;
+    bool setRpm = false;
+    float setRpmVal = 0;
+
+    bool discRpm = false;     float discRpmVal = 0;
+    bool discCurrent = false; uint16_t discCurrentMa = 0;
+    bool discMicro = false;   uint16_t discMicrosteps = 0;
+    bool discDir = false;     bool discReverse = false;
+    bool discEnable = false;  bool discEnableVal = false;
+
     bool wifiConnect = false;
     String wifiSsid;
     String wifiPass;

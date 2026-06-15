@@ -3,16 +3,17 @@
  * See include/net/WebInterface.hpp.
  *
  * Routes:
- *   GET  /                  static UI from SPIFFS (index.html, app.css, app.js, logo.svg)
- *   GET  /api/status        cached reactor + wifi + system status JSON
- *   POST /api/run           {action:"start"|"stop", targetC, motorPercent, durationMin}
- *   POST /api/setpoint      {targetC?, motorPercent?}  (live changes)
- *   GET  /api/wifi/scan     cached scan results (also triggers a fresh scan)
- *   POST /api/wifi/connect  {ssid, password}
- *   POST /api/wifi/forget
- *   GET  /api/log           download the SD CSV log
- *   POST /api/log/clear     rotate (clear) the SD log
- *   WS   /ws                telemetry push
+ *   GET  /                      static UI from SPIFFS (index.html, app.css, app.js, logo.svg)
+ *   GET  /api/v1/status         cached reactor + wifi + system status JSON
+ *   POST /api/v1/run            {action:"start"|"stop", targetC, rpm, durationMin}
+ *   POST /api/v1/setpoint       {targetC?, rpm?}  (live changes)
+ *   POST /api/v1/disc           {rpm?, currentMa?, microsteps?, direction?, enabled?}
+ *   GET  /api/v1/wifi/scan      cached scan results (also triggers a fresh scan)
+ *   POST /api/v1/wifi/connect   {ssid, password}
+ *   POST /api/v1/wifi/forget
+ *   GET  /api/v1/log            download the SD CSV log
+ *   POST /api/v1/log/clear      rotate (clear) the SD log
+ *   WS   /ws                    telemetry push
  */
 
 #include "net/WebInterface.hpp"
@@ -54,6 +55,17 @@ static void sendJson(AsyncWebServerRequest* req, const String& body) {
   req->send(resp);
 }
 
+static void sendOk(AsyncWebServerRequest* req) { sendJson(req, "{\"ok\":true}"); }
+
+static void sendError(AsyncWebServerRequest* req, int status, const char* code,
+                      const char* msg) {
+  String body = String("{\"ok\":false,\"error\":{\"code\":\"") + code +
+                "\",\"message\":\"" + msg + "\"}}";
+  AsyncWebServerResponse* resp = req->beginResponse(status, "application/json", body);
+  resp->addHeader("Access-Control-Allow-Origin", "*");
+  req->send(resp);
+}
+
 void WebInterface::registerRoutes() {
   // ── WebSocket ──
   ws_->onEvent([this](AsyncWebSocket*, AsyncWebSocketClient* client,
@@ -67,17 +79,18 @@ void WebInterface::registerRoutes() {
   });
   server_->addHandler(ws_);
 
-  // ── GET status / scan ──
-  server_->on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* req) {
+  // ── GET status ──
+  server_->on("/api/v1/status", HTTP_GET, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
     const String body = statusJson_;
     xSemaphoreGive(mutex_);
     sendJson(req, body);
   });
 
-  server_->on("/api/wifi/scan", HTTP_GET, [this](AsyncWebServerRequest* req) {
+  // ── GET wifi scan ──
+  server_->on("/api/v1/wifi/scan", HTTP_GET, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
-    pending_.wifiScan = true;  // trigger a fresh scan for next time
+    pending_.wifiScan = true;
     const String body = scanJson_;
     xSemaphoreGive(mutex_);
     sendJson(req, body);
@@ -85,48 +98,78 @@ void WebInterface::registerRoutes() {
 
   // ── POST run ──
   auto* runHandler = new AsyncCallbackJsonWebHandler(
-      "/api/run", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+      "/api/v1/run", [this](AsyncWebServerRequest* req, JsonVariant& json) {
         JsonObject o = json.as<JsonObject>();
         const String action = o["action"] | "";
-        xSemaphoreTake(mutex_, portMAX_DELAY);
         if (action == "start") {
+          const float rpm = o["rpm"] | 8.0f;
+          const float targetC = o["targetC"] | 36.0f;
+          if (rpm < 0.0f || rpm > 30.0f) {  // kMinRpm..kMaxRpm
+            sendError(req, 400, "out_of_range", "rpm must be 0..30");
+            return;
+          }
+          if (targetC < 0.0f || targetC > 55.0f) {  // processMaxC ceiling
+            sendError(req, 400, "out_of_range", "targetC must be 0..55");
+            return;
+          }
+          xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStart = true;
-          pending_.runTargetC = o["targetC"] | 30.0f;
-          pending_.runMotorPct = o["motorPercent"] | 40.0f;
+          pending_.runTargetC = targetC;
+          pending_.runRpm = rpm;
           pending_.runDurMin = o["durationMin"] | 0;
+          xSemaphoreGive(mutex_);
+          sendOk(req);
         } else if (action == "stop") {
+          xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStop = true;
+          xSemaphoreGive(mutex_);
+          sendOk(req);
+        } else {
+          sendError(req, 400, "invalid_request", "action must be start|stop");
         }
-        xSemaphoreGive(mutex_);
-        sendJson(req, "{\"ok\":true}");
       });
   server_->addHandler(runHandler);
 
-  // ── POST setpoint (live changes) ──
+  // ── POST setpoint (live targetC / rpm) ──
   auto* setHandler = new AsyncCallbackJsonWebHandler(
-      "/api/setpoint", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+      "/api/v1/setpoint", [this](AsyncWebServerRequest* req, JsonVariant& json) {
         JsonObject o = json.as<JsonObject>();
         xSemaphoreTake(mutex_, portMAX_DELAY);
         if (!o["targetC"].isNull()) {
           pending_.setTarget = true;
           pending_.setTargetC = o["targetC"].as<float>();
         }
-        if (!o["motorPercent"].isNull()) {
-          pending_.setMotor = true;
-          pending_.setMotorPct = o["motorPercent"].as<float>();
+        if (!o["rpm"].isNull()) {
+          pending_.setRpm = true;
+          pending_.setRpmVal = o["rpm"].as<float>();
         }
         xSemaphoreGive(mutex_);
-        sendJson(req, "{\"ok\":true}");
+        sendOk(req);
       });
   server_->addHandler(setHandler);
 
+  // ── POST disc (drive params) ──
+  auto* discHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/disc", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        JsonObject o = json.as<JsonObject>();
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        if (!o["rpm"].isNull())       { pending_.discRpm = true; pending_.discRpmVal = o["rpm"].as<float>(); }
+        if (!o["currentMa"].isNull()) { pending_.discCurrent = true; pending_.discCurrentMa = o["currentMa"].as<uint16_t>(); }
+        if (!o["microsteps"].isNull()){ pending_.discMicro = true; pending_.discMicrosteps = o["microsteps"].as<uint16_t>(); }
+        if (!o["direction"].isNull()) { pending_.discDir = true; pending_.discReverse = (o["direction"].as<String>() == "ccw"); }
+        if (!o["enabled"].isNull())   { pending_.discEnable = true; pending_.discEnableVal = o["enabled"].as<bool>(); }
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(discHandler);
+
   // ── POST wifi connect ──
   auto* wifiHandler = new AsyncCallbackJsonWebHandler(
-      "/api/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+      "/api/v1/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
         JsonObject o = json.as<JsonObject>();
         const String ssid = o["ssid"] | "";
         if (ssid.isEmpty()) {
-          sendJson(req, "{\"ok\":false,\"error\":\"ssid_required\"}");
+          sendError(req, 400, "wifi_ssid_required", "ssid is required");
           return;
         }
         xSemaphoreTake(mutex_, portMAX_DELAY);
@@ -134,21 +177,21 @@ void WebInterface::registerRoutes() {
         pending_.wifiSsid = ssid;
         pending_.wifiPass = o["password"] | "";
         xSemaphoreGive(mutex_);
-        sendJson(req, "{\"ok\":true}");
+        sendOk(req);
       });
   server_->addHandler(wifiHandler);
 
-  server_->on("/api/wifi/forget", HTTP_POST, [this](AsyncWebServerRequest* req) {
+  server_->on("/api/v1/wifi/forget", HTTP_POST, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.wifiForget = true;
     xSemaphoreGive(mutex_);
-    sendJson(req, "{\"ok\":true}");
+    sendOk(req);
   });
 
   // ── SD log download / clear ──
-  server_->on("/api/log", HTTP_GET, [this](AsyncWebServerRequest* req) {
+  server_->on("/api/v1/log", HTTP_GET, [this](AsyncWebServerRequest* req) {
     if (!sd_.mounted() || !SD.exists(sd_.logPath())) {
-      req->send(503, "application/json", "{\"error\":\"no_log\"}");
+      sendError(req, 503, "no_log", "no log file on the SD card");
       return;
     }
     AsyncWebServerResponse* resp =
@@ -156,19 +199,19 @@ void WebInterface::registerRoutes() {
     req->send(resp);
   });
 
-  server_->on("/api/log/clear", HTTP_POST, [this](AsyncWebServerRequest* req) {
+  server_->on("/api/v1/log/clear", HTTP_POST, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.logClear = true;
     xSemaphoreGive(mutex_);
-    sendJson(req, "{\"ok\":true}");
+    sendOk(req);
   });
 
-  // ── Static UI + captive-portal / SPA fallback ──
+  // ── Static UI + SPA fallback ──
   server_->serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
   server_->onNotFound([](AsyncWebServerRequest* req) {
     if (req->url().startsWith("/api/")) {
-      req->send(404, "application/json", "{\"error\":\"not_found\"}");
+      req->send(404, "application/json", "{\"ok\":false,\"error\":{\"code\":\"not_found\",\"message\":\"unknown endpoint\"}}");
       return;
     }
     if (SPIFFS.exists("/index.html")) {
@@ -182,17 +225,21 @@ void WebInterface::registerRoutes() {
 }
 
 void WebInterface::applyPending() {
-  // Snapshot + clear under the mutex, then act in this (loop) context.
   Pending p;
   xSemaphoreTake(mutex_, portMAX_DELAY);
   p = pending_;
   pending_ = Pending{};
   xSemaphoreGive(mutex_);
 
-  if (p.runStart) reactor_.start(p.runTargetC, p.runMotorPct, p.runDurMin);
+  if (p.runStart) reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
   if (p.runStop) reactor_.stop();
   if (p.setTarget) reactor_.setTargetC(p.setTargetC);
-  if (p.setMotor) reactor_.setRpm(p.setMotorPct);
+  if (p.setRpm) reactor_.setRpm(p.setRpmVal);
+  if (p.discRpm) reactor_.setRpm(p.discRpmVal);
+  if (p.discCurrent) reactor_.setDiscCurrentMa(p.discCurrentMa);
+  if (p.discMicro) reactor_.setDiscMicrosteps(p.discMicrosteps);
+  if (p.discDir) reactor_.setDiscReverse(p.discReverse);
+  if (p.discEnable) reactor_.setDiscEnabled(p.discEnableVal);
   if (p.wifiConnect) wifi_.connect(p.wifiSsid, p.wifiPass);
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();
