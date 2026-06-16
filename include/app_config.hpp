@@ -111,6 +111,10 @@ static constexpr float kNtcBeta       = 3950.0f;   // NTC Beta coefficient
 static constexpr float kNtcT0C        = 25.0f;     // NTC nominal temperature
 static constexpr float kVSupplyMv     = 3300.0f;   // divider top rail
 
+// Plausible heater-NTC reading window; outside -> probe fault (heater off / start refused).
+static constexpr float kNtcMinPlausibleC = 0.0f;
+static constexpr float kNtcMaxPlausibleC = 110.0f;
+
 // PID (output is heater duty 0..1). Conservative starting gains for a slow
 // liquid bath; tune on hardware. The loop steps on each fresh DS18B20 sample.
 static constexpr float kPidKp = 0.08f;

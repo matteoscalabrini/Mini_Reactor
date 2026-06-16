@@ -29,6 +29,8 @@ class Thermistor {
     float t0C = 25.0f;
     float vSupplyMv = 3300.0f;    // divider top rail
     int samples = 8;              // averaged ADC reads
+    float minPlausibleC = 0.0f;   // reading below this -> probe fault
+    float maxPlausibleC = 110.0f; // reading above this -> probe fault
     const char* prefsNamespace = "cal";
   };
 
