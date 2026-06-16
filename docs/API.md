@@ -1,6 +1,6 @@
 # Mini-Reactor API Reference (`/api/v1`)
 
-**As-built — Phases 1–2.** This documents the endpoints the firmware actually serves today
+**As-built — Phases 1–3.** This documents the endpoints the firmware actually serves today
 (merged to `main`, build `1.0.0`). Endpoints planned for later phases are listed at the
 end under [Planned](#planned-not-yet-implemented) and are **not** callable yet.
 
@@ -25,7 +25,7 @@ For the full design rationale and the future contract, see
 
 ## Telemetry object
 
-Returned by `GET /api/v1/status` and pushed on `/ws` (identical). Phase-1 fields:
+Returned by `GET /api/v1/status` and pushed on `/ws` (identical). Fields:
 
 ```jsonc
 {
@@ -45,6 +45,13 @@ Returned by `GET /api/v1/status` and pushed on `/ws` (identical). Phase-1 fields
       "heaterTempC": 44.0,   // NTC heater-probe temp; null on probe fault
       "heaterMaxC": 80.0,    // over-temp cutoff
       "processMaxC": 55.0    // liquid sanity ceiling
+    },
+    "pid": {                 // bath PID controller
+      "kp": 0.08, "ki": 0.0015, "kd": 0.4,   // active gains
+      "p": 0.0, "i": 0.31, "d": -0.02,        // last term contributions
+      "out": 0.41,                            // 0..1 controller output (duty)
+      "mode": "auto",                         // "auto" | "manual" | "autotune"
+      "autotune": { "active": false, "progress": 0, "result": null }  // result null|"ok"|"failed"
     }
   },
 
@@ -135,6 +142,25 @@ Body:
 ```
 - `200 { "ok": true }`
 
+### Thermal / PID
+
+#### `POST /api/v1/pid`
+Set PID gains and/or control mode. To change gains, send `kp`, `ki`, `kd` **together** (all three are required as a set); they persist to NVS. `mode` is independent of gains.
+
+Body: `{ "kp": 0.08, "ki": 0.0015, "kd": 0.4, "mode": "auto" }`  ·  `mode`: `"auto"` | `"manual"`
+- `200 { "ok": true }`
+
+> `manual` freezes the heater at its last duty. The active gains + live terms are in `thermal.pid` (read from `/status`).
+
+#### `POST /api/v1/pid/autotune`
+Start or cancel a relay (Åström-Hägglund) autotune around the current setpoint. On success it applies + persists the tuned gains and returns to `auto`; live progress/result are in `thermal.pid.autotune`.
+
+Body: `{ "action": "start" | "cancel" }`
+- `200 { "ok": true }`
+- `400 invalid_request` — `action` not `start`/`cancel`
+
+> There are no `GET /pid` / `GET /pid/autotune` endpoints — the same data is in `/status` `thermal.pid`.
+
 ### WiFi
 
 #### `GET /api/v1/wifi/scan`
@@ -181,6 +207,5 @@ These are specified in the design doc but **return `404 not_found` today**. They
 
 | Phase | Endpoints / telemetry additions |
 |---|---|
-| **P3** — PID + autotune | `GET/POST /api/v1/pid`, `POST/GET /api/v1/pid/autotune`; `thermal.pid` telemetry block |
 | **P4** — NTC calibration | `GET /api/v1/calibration`, `POST /api/v1/calibration/{point,compute,reset}`; `thermal.safety.probe` telemetry |
 | **SD / system** | `GET /api/v1/sd`, `POST /api/v1/sd/format`, `GET /api/v1/system`, `POST /api/v1/system/restart`; `storage.logBytes` |
