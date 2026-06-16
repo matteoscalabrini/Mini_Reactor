@@ -50,11 +50,14 @@ void Reactor::start(float targetC, float rpm, uint16_t durationMin) {
   durationMin_ = durationMin;
   persist();
 
+  thermal_.setSetpoint(targetC_);
+  if (!thermal_.enable(true)) {  // heater NTC faulted / over-limit -> refuse start
+    running_ = false;
+    return;
+  }
   running_ = true;
   startMs_ = millis();
 
-  thermal_.setSetpoint(targetC_);
-  thermal_.enable(true);
   motor_.enable(true);
   motor_.setCurrentMilliamps(discCurrentMa_);
   motor_.setMicrosteps(discMicrosteps_);
