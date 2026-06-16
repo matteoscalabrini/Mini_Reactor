@@ -219,6 +219,14 @@ String buildStatusJson() {
   else safety["heaterTempC"] = roundf(t.heaterTempC * 10) / 10.0f;
   safety["heaterMaxC"] = AppConfig::Thermal::kHeaterSafetyMaxC;
   safety["processMaxC"] = AppConfig::Thermal::kProcessMaxC;
+  JsonObject probe = safety["probe"].to<JsonObject>();
+  const ThermistorCalibration& ncal = g_thermal.ntcCalibration();
+  probe["adcRaw"] = g_thermal.ntcRawAdc();
+  const float nres = g_thermal.ntcResistanceOhms();
+  if (isnan(nres)) probe["resistanceOhms"] = nullptr;
+  else probe["resistanceOhms"] = roundf(nres);
+  probe["calibrated"] = ncal.calibrated();
+  probe["method"] = ncal.methodStr();
 
   JsonObject pid = th["pid"].to<JsonObject>();
   pid["kp"] = g_thermal.kp();
@@ -308,6 +316,20 @@ String buildStatusJson() {
   return out;
 }
 
+String buildCalJson() {
+  JsonDocument doc;
+  const ThermistorCalibration& c = g_thermal.ntcCalibration();
+  doc["method"] = c.methodStr();
+  doc["calibrated"] = c.calibrated();
+  JsonArray pts = doc["points"].to<JsonArray>();
+  for (int i = 0; i < c.pointCount(); i++) {
+    JsonObject p = pts.add<JsonObject>();
+    p["referenceC"] = c.pointRefC(i);
+    p["resistanceOhms"] = roundf(c.pointR(i));
+  }
+  String out; serializeJson(doc, out); return out;
+}
+
 }  // namespace
 
 // ─── ENTRY POINTS ─────────────────────────────────────────────────────────────
@@ -362,6 +384,7 @@ void tick() {
     lastStatusMs = now;
     statusJson = buildStatusJson();
     scanJson = g_wifi.scanJson();
+    g_web.cacheCalJson(buildCalJson());
   }
   g_web.update(statusJson, scanJson);
 

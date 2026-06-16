@@ -207,6 +207,46 @@ void WebInterface::registerRoutes() {
       });
   server_->addHandler(autotuneHandler);
 
+  // ── GET calibration ──
+  server_->on("/api/v1/calibration", HTTP_GET, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    const String body = calJson_;
+    xSemaphoreGive(mutex_);
+    sendJson(req, body);
+  });
+
+  // ── POST calibration/point ──
+  auto* calPointHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/calibration/point", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        JsonObject o = json.as<JsonObject>();
+        if (o["referenceC"].isNull()) {
+          sendError(req, 400, "invalid_request", "referenceC required");
+          return;
+        }
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        pending_.calPoint = true;
+        pending_.calRefC = o["referenceC"].as<float>();
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(calPointHandler);
+
+  // ── POST calibration/compute ──
+  server_->on("/api/v1/calibration/compute", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.calCompute = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
+  // ── POST calibration/reset ──
+  server_->on("/api/v1/calibration/reset", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.calReset = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
   // ── POST wifi connect ──
   auto* wifiHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
@@ -288,10 +328,19 @@ void WebInterface::applyPending() {
   if (p.pidMode) reactor_.setPidMode(p.pidModeStr.c_str());
   if (p.autotuneStart) reactor_.startAutotune();
   if (p.autotuneCancel) reactor_.cancelAutotune();
+  if (p.calPoint) reactor_.addCalibrationPoint(p.calRefC);
+  if (p.calCompute) reactor_.computeCalibration();
+  if (p.calReset) reactor_.resetCalibration();
   if (p.wifiConnect) wifi_.connect(p.wifiSsid, p.wifiPass);
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();
   if (p.logClear) sd_.clearLog();
+}
+
+void WebInterface::cacheCalJson(const String& calJson) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  calJson_ = calJson;
+  xSemaphoreGive(mutex_);
 }
 
 void WebInterface::update(const String& statusJson, const String& scanJson) {
