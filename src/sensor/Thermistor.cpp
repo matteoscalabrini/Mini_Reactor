@@ -73,6 +73,7 @@ void Thermistor::loadCalibration() {
 }
 
 void Thermistor::persistCalibration() {
+  prefs_.clear();  // drop stale point keys; the "cal" namespace is calibration-only
   const ThermistorCalibration& c = cal_;
   prefs_.putBool("cal", c.calibrated());
   prefs_.putInt("npts", c.pointCount());

@@ -1,12 +1,12 @@
 /*
- * Thermistor.hpp — NTC thermistor temperature sensor (ADC + Beta equation).
+ * Thermistor.hpp — NTC thermistor temperature sensor (ADC + calibrated model).
  *
  * High-side divider on this board:
  *   +3.3V ── seriesOhms (R39 10k) ── THERM_ADC node ── NTC ── GND
  * So the NTC resistance is:
  *   R_ntc = seriesOhms * Vadc / (Vsupply - Vadc)
- * and temperature comes from the Beta equation:
- *   1/T = 1/T0 + (1/Beta) * ln(R_ntc / R0)
+ * Temperature conversion is routed through ThermistorCalibration (offset /
+ * Beta refit / Steinhart-Hart), seeded from the factory Beta parameters below.
  *
  * Implementation: src/sensor/Thermistor.cpp
  */
