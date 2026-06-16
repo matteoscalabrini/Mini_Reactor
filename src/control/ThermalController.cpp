@@ -42,7 +42,7 @@ void ThermalController::enable(bool on) {
   pid_.reset();
   lastPidMs_ = 0;
   if (!on) {
-    if (mode_ == Mode::Autotune) mode_ = Mode::Auto;
+    cancelAutotune();  // clears autotuneResult_ + returns to Auto if mid-tune
     applyOff();
   }
 }
