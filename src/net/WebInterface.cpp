@@ -170,6 +170,43 @@ void WebInterface::registerRoutes() {
       });
   server_->addHandler(discHandler);
 
+  // ── POST pid (gains + mode) ──
+  auto* pidHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/pid", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        JsonObject o = json.as<JsonObject>();
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        if (!o["kp"].isNull() && !o["ki"].isNull() && !o["kd"].isNull()) {
+          pending_.pidGains = true;
+          pending_.pidKp = o["kp"].as<float>();
+          pending_.pidKi = o["ki"].as<float>();
+          pending_.pidKd = o["kd"].as<float>();
+        }
+        if (!o["mode"].isNull()) {
+          pending_.pidMode = true;
+          pending_.pidModeStr = o["mode"].as<String>();
+        }
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(pidHandler);
+
+  // ── POST pid/autotune (start|cancel) ──
+  auto* autotuneHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/pid/autotune", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        JsonObject o = json.as<JsonObject>();
+        const String action = o["action"] | "";
+        if (action != "start" && action != "cancel") {
+          sendError(req, 400, "invalid_request", "action must be start|cancel");
+          return;
+        }
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        if (action == "start") pending_.autotuneStart = true;
+        else pending_.autotuneCancel = true;
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(autotuneHandler);
+
   // ── POST wifi connect ──
   auto* wifiHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
@@ -247,6 +284,10 @@ void WebInterface::applyPending() {
   if (p.discMicro) reactor_.setDiscMicrosteps(p.discMicrosteps);
   if (p.discDir) reactor_.setDiscReverse(p.discReverse);
   if (p.discEnable) reactor_.setDiscEnabled(p.discEnableVal);
+  if (p.pidGains) reactor_.setPidGains(p.pidKp, p.pidKi, p.pidKd);
+  if (p.pidMode) reactor_.setPidMode(p.pidModeStr.c_str());
+  if (p.autotuneStart) reactor_.startAutotune();
+  if (p.autotuneCancel) reactor_.cancelAutotune();
   if (p.wifiConnect) wifi_.connect(p.wifiSsid, p.wifiPass);
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();

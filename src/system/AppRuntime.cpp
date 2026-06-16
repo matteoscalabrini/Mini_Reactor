@@ -220,6 +220,22 @@ String buildStatusJson() {
   safety["heaterMaxC"] = AppConfig::Thermal::kHeaterSafetyMaxC;
   safety["processMaxC"] = AppConfig::Thermal::kProcessMaxC;
 
+  JsonObject pid = th["pid"].to<JsonObject>();
+  pid["kp"] = g_thermal.kp();
+  pid["ki"] = g_thermal.ki();
+  pid["kd"] = g_thermal.kd();
+  pid["p"] = g_thermal.pTerm();
+  pid["i"] = g_thermal.iTerm();
+  pid["d"] = g_thermal.dTerm();
+  pid["out"] = roundf(g_thermal.outputDuty() * 1000) / 1000.0f;
+  pid["mode"] = g_thermal.modeStr();
+  JsonObject at = pid["autotune"].to<JsonObject>();
+  at["active"] = g_thermal.autotuneActive();
+  at["progress"] = g_thermal.autotuneProgress();
+  const char* ares = g_thermal.autotuneResult();
+  if (ares) at["result"] = ares;
+  else at["result"] = nullptr;
+
   JsonObject disc = doc["disc"].to<JsonObject>();
   disc["running"] = t.running;
   disc["rpm"] = t.rpm;

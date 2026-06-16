@@ -78,6 +78,11 @@ class WebInterface {
     bool discDir = false;     bool discReverse = false;
     bool discEnable = false;  bool discEnableVal = false;
 
+    bool pidGains = false;  float pidKp = 0, pidKi = 0, pidKd = 0;
+    bool pidMode = false;   String pidModeStr;
+    bool autotuneStart = false;
+    bool autotuneCancel = false;
+
     bool wifiConnect = false;
     String wifiSsid;
     String wifiPass;
