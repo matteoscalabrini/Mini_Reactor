@@ -14,6 +14,9 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Preferences.h>
+
+#include "sensor/ThermistorCalibration.hpp"
 
 class Thermistor {
  public:
@@ -26,19 +29,38 @@ class Thermistor {
     float t0C = 25.0f;
     float vSupplyMv = 3300.0f;    // divider top rail
     int samples = 8;              // averaged ADC reads
+    const char* prefsNamespace = "cal";
   };
 
   explicit Thermistor(const Config& config);
 
   void begin();
 
-  /* readCelsius() — Sampled temperature in °C. Returns NAN if the divider
-   * reading is out of range (open/short — e.g. no probe connected). */
+  /* readCelsius() — Sampled temperature in °C via the active calibration. NAN on
+   * open/short (no probe). */
   float readCelsius();
 
   /* readMilliVolts() — Raw averaged ADC voltage at the divider node. */
   uint32_t readMilliVolts();
 
+  /* readRawAdc() — Averaged raw 12-bit ADC count (0..4095). */
+  uint16_t readRawAdc();
+
+  /* readResistanceOhms() — Computed NTC resistance, or NAN on open/short. */
+  float readResistanceOhms();
+
+  /* Calibration ops (return false if the live resistance is faulty / incomplete). */
+  bool addCalibrationPoint(float referenceC);  // captures live resistance
+  bool computeCalibration();                    // fits + persists on success
+  void resetCalibration();                      // factory Beta + persists
+
+  /* Calibration state (for telemetry / GET). */
+  const ThermistorCalibration& calibration() const { return cal_; }
+
  private:
   Config cfg_;
+  ThermistorCalibration cal_;
+  Preferences prefs_;
+  void loadCalibration();
+  void persistCalibration();
 };
