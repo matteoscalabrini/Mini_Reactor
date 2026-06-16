@@ -4,12 +4,9 @@ import { get } from "./core/api.js";
 import { el, clear, hhmmss } from "./core/ui.js";
 import * as monitor from "./screens/monitor.js";
 import * as run from "./screens/run.js";
+import * as settings from "./screens/settings.js";
 
-const screens = {
-  monitor,
-  run,
-  settings: { mount: (root) => { root.append(el("div", { class: "card" }, "Settings — wiring pending.")); } },
-};
+const screens = { monitor, run, settings };
 
 let teardown = null;
 function route() {
