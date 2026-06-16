@@ -68,6 +68,8 @@ class RelayAutotune {
     const float a = ampSum_ / cycles_;                   // PV amplitude
     if (a <= 1e-4f || Tu <= 1e-3f) return false;
     const float d = (cfg_.relayHigh - cfg_.relayLow) / 2.0f;
+    // Simple Ku = 4d/(pi*a); ignores the hysteresis band (conservative for a
+    // first-cut tune). The corrected form is Ku = 4d/(pi*sqrt(a^2 - h^2)).
     const float Ku = (4.0f * d) / (3.14159265f * a);
     kp = 0.45f * Ku;
     ki = kp / (2.2f * Tu);
