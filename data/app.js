@@ -3,10 +3,11 @@ import { start as startWs } from "./core/ws.js";
 import { get } from "./core/api.js";
 import { el, clear, hhmmss } from "./core/ui.js";
 import * as monitor from "./screens/monitor.js";
+import * as run from "./screens/run.js";
 
 const screens = {
   monitor,
-  run: { mount: (root) => { root.append(el("div", { class: "card" }, "Run — wiring pending.")); } },
+  run,
   settings: { mount: (root) => { root.append(el("div", { class: "card" }, "Settings — wiring pending.")); } },
 };
 
