@@ -23,8 +23,15 @@
 #include "sensor/Ds18b20.hpp"
 #include "sensor/Thermistor.hpp"
 
+#include <Preferences.h>
+
+#include "control/PidController.hpp"
+#include "control/RelayAutotune.hpp"
+
 class ThermalController {
  public:
+  enum class Mode { Auto, Manual, Autotune };
+
   // Config — built from AppConfig::Thermal.
   struct Config {
     float kp = 0.08f;
@@ -36,6 +43,7 @@ class ThermalController {
     float heaterSafetyMaxC = 80.0f;  // NTC heater-probe over-temp cutoff
     float processMaxC = 55.0f;       // liquid sanity ceiling
     uint32_t safetyCheckMs = 200;    // NTC safety poll cadence
+    const char* prefsNamespace = "pid";
   };
 
   ThermalController(Ds18b20& liquid, Thermistor& heaterNtc, Heater& heater,
@@ -49,6 +57,32 @@ class ThermalController {
   void setSetpoint(float celsius);
   float setpoint() const { return setpoint_; }
 
+  /* Gains — runtime-settable and persisted in NVS. */
+  void setGains(float kp, float ki, float kd);
+  float kp() const { return pid_.kp(); }
+  float ki() const { return pid_.ki(); }
+  float kd() const { return pid_.kd(); }
+
+  /* Mode. setModeStr accepts "auto"|"manual"; startAutotune/cancelAutotune
+   * drive the autotune lifecycle. */
+  void setMode(Mode m);
+  void setModeStr(const char* m);          // "auto"|"manual"
+  void startAutotune();
+  void cancelAutotune();
+  Mode mode() const { return mode_; }
+  const char* modeStr() const;
+
+  /* PID telemetry. */
+  float pTerm() const { return pid_.pTerm(); }
+  float iTerm() const { return pid_.iTerm(); }
+  float dTerm() const { return pid_.dTerm(); }
+  float outputDuty() const { return duty_; }  // 0..1 controller output
+
+  /* Autotune telemetry. */
+  bool autotuneActive() const { return mode_ == Mode::Autotune; }
+  int autotuneProgress() const { return autotune_.progressPct(); }
+  const char* autotuneResult() const { return autotuneResult_; }  // null|"ok"|"failed"
+
   void update();
 
   float temperatureC() const { return liquidC_; }   // process value (liquid)
@@ -59,11 +93,19 @@ class ThermalController {
 
  private:
   void applyOff();
+  void loadGains();
+  void persistGains();
 
   Ds18b20& liquid_;
   Thermistor& ntc_;
   Heater& heater_;
   Config cfg_;
+
+  PidController pid_;
+  RelayAutotune autotune_;
+  Mode mode_ = Mode::Auto;
+  const char* autotuneResult_ = nullptr;
+  Preferences prefs_;
 
   bool enabled_ = false;
   float setpoint_ = 30.0f;
@@ -72,9 +114,6 @@ class ThermalController {
   float duty_ = 0.0f;
   bool safetyTrip_ = false;
 
-  float integral_ = 0.0f;
-  float prevError_ = 0.0f;
-  bool havePrev_ = false;
   uint32_t lastSafetyMs_ = 0;
   uint32_t lastPidMs_ = 0;
 };

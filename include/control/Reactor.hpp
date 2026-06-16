@@ -70,6 +70,12 @@ class Reactor {
   void setDiscReverse(bool reverse);
   void setDiscEnabled(bool on);
 
+  /* PID control surface (delegates to the ThermalController). */
+  void setPidGains(float kp, float ki, float kd) { thermal_.setGains(kp, ki, kd); }
+  void setPidMode(const char* m) { thermal_.setModeStr(m); }
+  void startAutotune() { thermal_.startAutotune(); }
+  void cancelAutotune() { thermal_.cancelAutotune(); }
+
   ReactorTelemetry telemetry() const;
   String csvRow() const;
 
