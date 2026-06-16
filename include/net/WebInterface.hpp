@@ -42,6 +42,9 @@ class WebInterface {
    *   - broadcasts telemetry over the WebSocket at wsPushPeriodMs. */
   void update(const String& statusJson, const String& scanJson);
 
+  /* Cache the calibration JSON (built in the loop) for GET /calibration. */
+  void cacheCalJson(const String& calJson);
+
  private:
   void registerRoutes();
   void applyPending();
@@ -57,6 +60,7 @@ class WebInterface {
   SemaphoreHandle_t mutex_ = nullptr;
   String statusJson_ = "{}";
   String scanJson_ = "{\"scanning\":false,\"networks\":[]}";
+  String calJson_ = "{}";
   uint32_t lastPushMs_ = 0;
 
   // Pending commands set by async handlers, drained in update() (loop context).
@@ -82,6 +86,10 @@ class WebInterface {
     bool pidMode = false;   String pidModeStr;
     bool autotuneStart = false;
     bool autotuneCancel = false;
+
+    bool calPoint = false;   float calRefC = 0;
+    bool calCompute = false;
+    bool calReset = false;
 
     bool wifiConnect = false;
     String wifiSsid;

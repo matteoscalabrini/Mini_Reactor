@@ -76,6 +76,11 @@ class Reactor {
   void startAutotune() { thermal_.startAutotune(); }
   void cancelAutotune() { thermal_.cancelAutotune(); }
 
+  /* Heater-NTC calibration delegates. */
+  bool addCalibrationPoint(float referenceC) { return thermal_.addCalibrationPoint(referenceC); }
+  bool computeCalibration() { return thermal_.computeCalibration(); }
+  void resetCalibration() { thermal_.resetCalibration(); }
+
   ReactorTelemetry telemetry() const;
   String csvRow() const;
 

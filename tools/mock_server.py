@@ -36,6 +36,7 @@ state = {
     "ssid": "LAB-NET-5G", "connected": True, "ap": False, "ip": "192.168.1.42",
     "kp": 0.08, "ki": 0.0015, "kd": 0.4, "pidMode": "auto",
     "atActive": False, "atProgress": 0, "atResult": None, "atStartMs": 0.0,
+    "calMethod": "beta", "calibrated": False, "calPoints": [], "ntcAdc": 1820, "ntcR": 9120.0,
 }
 clients = set()
 _alarm_since = {}
@@ -84,7 +85,11 @@ def status():
             "heaterPct": round(state["heaterPct"], 1), "fault": state["fault"],
             "safety": {"tripped": state["safetyTripped"],
                        "heaterTempC": heaterC,
-                       "heaterMaxC": 80.0, "processMaxC": 55.0},
+                       "heaterMaxC": 80.0, "processMaxC": 55.0,
+                       "probe": {"adcRaw": state["ntcAdc"],
+                                 "resistanceOhms": round(state["ntcR"]),
+                                 "calibrated": state["calibrated"],
+                                 "method": state["calMethod"]}},
             "pid": {
                 "kp": state["kp"], "ki": state["ki"], "kd": state["kd"],
                 "p": 0.0, "i": 0.0, "d": 0.0,
@@ -282,6 +287,37 @@ async def api_autotune(req):
                                 "message": "action must be start|cancel"}}, status=400)
 
 
+async def api_calibration(req):
+    return web.json_response({"method": state["calMethod"], "calibrated": state["calibrated"],
+                              "points": state["calPoints"]})
+
+
+async def api_cal_point(req):
+    b = await req.json()
+    if "referenceC" not in b:
+        return web.json_response(
+            {"ok": False, "error": {"code": "invalid_request",
+                                    "message": "referenceC required"}}, status=400)
+    state["calPoints"].append({"referenceC": float(b["referenceC"]),
+                               "resistanceOhms": round(state["ntcR"])})
+    return web.json_response({"ok": True})
+
+
+async def api_cal_compute(req):
+    # Mirrors the firmware's async ack: always {"ok":true}; 0 points → no change
+    # (calibrated stays False), observed via GET /calibration.
+    n = len(state["calPoints"])
+    if n >= 1:
+        state["calMethod"] = "offset" if n == 1 else ("beta" if n == 2 else "steinhart")
+        state["calibrated"] = True
+    return web.json_response({"ok": True})
+
+
+async def api_cal_reset(req):
+    state.update(calMethod="beta", calibrated=False, calPoints=[])
+    return web.json_response({"ok": True})
+
+
 def main():
     app = web.Application()
     app.router.add_get("/ws", ws_handler)
@@ -296,6 +332,10 @@ def main():
     app.router.add_post("/api/v1/log/clear", api_log_clear)
     app.router.add_post("/api/v1/pid", api_pid)
     app.router.add_post("/api/v1/pid/autotune", api_autotune)
+    app.router.add_get("/api/v1/calibration", api_calibration)
+    app.router.add_post("/api/v1/calibration/point", api_cal_point)
+    app.router.add_post("/api/v1/calibration/compute", api_cal_compute)
+    app.router.add_post("/api/v1/calibration/reset", api_cal_reset)
     app.router.add_get("/", lambda r: web.FileResponse(DATA / "index.html"))
     app.router.add_static("/", DATA)
 

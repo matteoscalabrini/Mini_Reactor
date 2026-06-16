@@ -83,6 +83,14 @@ class ThermalController {
   int autotuneProgress() const { return autotune_.progressPct(); }
   const char* autotuneResult() const { return autotuneResult_; }  // null|"ok"|"failed"
 
+  /* Heater-NTC calibration (delegates to the safety thermistor). */
+  bool addCalibrationPoint(float referenceC) { return ntc_.addCalibrationPoint(referenceC); }
+  bool computeCalibration() { return ntc_.computeCalibration(); }
+  void resetCalibration() { ntc_.resetCalibration(); }
+  uint16_t ntcRawAdc() { return ntc_.readRawAdc(); }
+  float ntcResistanceOhms() { return ntc_.readResistanceOhms(); }
+  const ThermistorCalibration& ntcCalibration() const { return ntc_.calibration(); }
+
   void update();
 
   float temperatureC() const { return liquidC_; }   // process value (liquid)
