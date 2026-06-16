@@ -13,6 +13,10 @@
  *   POST /api/v1/wifi/forget
  *   GET  /api/v1/log            download the SD CSV log
  *   POST /api/v1/log/clear      rotate (clear) the SD log
+ *   GET  /api/v1/calibration          returns cached calibration state (method, calibrated, points)
+ *   POST /api/v1/calibration/point    {referenceC}; queues capture of a calibration point (live NTC resistance)
+ *   POST /api/v1/calibration/compute  queues fit (offset/Beta/Steinhart by point count); result via GET
+ *   POST /api/v1/calibration/reset    queues revert to factory Beta
  *   WS   /ws                    telemetry push
  */
 
