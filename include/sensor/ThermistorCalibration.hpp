@@ -33,7 +33,7 @@ class ThermistorCalibration {
     return true;
   }
   int pointCount() const { return nPoints_; }
-  void clearPoints() { nPoints_ = 0; }
+  // Point accessors — caller must ensure 0 <= i < pointCount().
   float pointRefC(int i) const { return points_[i].refC; }
   float pointR(int i) const { return points_[i].rOhms; }
 
@@ -64,6 +64,7 @@ class ThermistorCalibration {
   void reset() { begin(factory_); }
 
   float resistanceToCelsius(float R) const {
+    if (R <= 0.0f) return NAN;  // log of non-positive R is undefined
     switch (method_) {
       case Method::Offset: return betaCelsius(R) + offsetC_;
       case Method::Steinhart: {
