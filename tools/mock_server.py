@@ -34,6 +34,8 @@ state = {
     "drvOt": False, "drvOtpw": False, "drvStall": False,
     "drvOpenLoadA": False, "drvOpenLoadB": False, "drvShortA": False, "drvShortB": False,
     "ssid": "LAB-NET-5G", "connected": True, "ap": False, "ip": "192.168.1.42",
+    "kp": 0.08, "ki": 0.0015, "kd": 0.4, "pidMode": "auto",
+    "atActive": False, "atProgress": 0, "atResult": None, "atStartMs": 0.0,
 }
 clients = set()
 _alarm_since = {}
@@ -83,6 +85,15 @@ def status():
             "safety": {"tripped": state["safetyTripped"],
                        "heaterTempC": heaterC,
                        "heaterMaxC": 80.0, "processMaxC": 55.0},
+            "pid": {
+                "kp": state["kp"], "ki": state["ki"], "kd": state["kd"],
+                "p": 0.0, "i": 0.0, "d": 0.0,
+                "out": round(state["heaterPct"] / 100.0, 3),
+                "mode": "autotune" if state["atActive"] else state["pidMode"],
+                "autotune": {"active": state["atActive"],
+                             "progress": state["atProgress"],
+                             "result": state["atResult"]},
+            },
         },
         "disc": {
             "running": state["running"], "rpm": rpm,
@@ -127,6 +138,13 @@ async def simulate():
             s["heaterTempC"] += (-0.05 * (s["heaterTempC"] - AMBIENT)) * dt
             s["load"] = 0
             s["loadBias"] = 0.0
+        if s["atActive"]:
+            s["atProgress"] = min(100, s["atProgress"] + 5)
+            if s["atProgress"] >= 100:
+                s["atActive"] = False
+                s["atResult"] = "ok"
+                s["kp"], s["ki"], s["kd"] = 0.12, 0.0021, 0.55  # "tuned" gains
+                s["pidMode"] = "auto"
         s["tempC"] += random.uniform(-0.04, 0.04)
         payload = json.dumps(status())
         for ws in list(clients):
@@ -241,6 +259,29 @@ async def api_log_clear(req):
     return web.json_response({"ok": True})
 
 
+async def api_pid(req):
+    b = await req.json()
+    if "kp" in b and "ki" in b and "kd" in b:
+        state["kp"], state["ki"], state["kd"] = float(b["kp"]), float(b["ki"]), float(b["kd"])
+    if "mode" in b:
+        state["pidMode"] = "manual" if b["mode"] == "manual" else "auto"
+    return web.json_response({"ok": True})
+
+
+async def api_autotune(req):
+    b = await req.json()
+    action = b.get("action")
+    if action == "start":
+        state.update(atActive=True, atProgress=0, atResult=None, atStartMs=time.monotonic())
+        return web.json_response({"ok": True})
+    if action == "cancel":
+        state.update(atActive=False, atResult=None)
+        return web.json_response({"ok": True})
+    return web.json_response(
+        {"ok": False, "error": {"code": "invalid_request",
+                                "message": "action must be start|cancel"}}, status=400)
+
+
 def main():
     app = web.Application()
     app.router.add_get("/ws", ws_handler)
@@ -253,6 +294,8 @@ def main():
     app.router.add_post("/api/v1/wifi/forget", api_forget)
     app.router.add_get("/api/v1/log", api_log)
     app.router.add_post("/api/v1/log/clear", api_log_clear)
+    app.router.add_post("/api/v1/pid", api_pid)
+    app.router.add_post("/api/v1/pid/autotune", api_autotune)
     app.router.add_get("/", lambda r: web.FileResponse(DATA / "index.html"))
     app.router.add_static("/", DATA)
 
