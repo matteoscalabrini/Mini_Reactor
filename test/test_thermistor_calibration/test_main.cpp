@@ -69,6 +69,28 @@ void test_reset_back_to_beta() {
   TEST_ASSERT_EQUAL_INT(0, c.pointCount());
 }
 
+// Plausible-resistance band over the real 0..110C window (factory 10k/3950/25):
+// R(0C) ~= 33618 ohm, R(110C) ~= 529 ohm. Out-of-band -> implausible (probe fault).
+void test_plausible_band_window() {
+  ThermistorCalibration c; c.begin(kBeta, 0.0f, 110.0f);
+  TEST_ASSERT_TRUE(c.plausibleResistance(10000.0f));   // 25C nominal, in band
+  TEST_ASSERT_TRUE(c.plausibleResistance(33000.0f));   // just inside cold edge
+  TEST_ASSERT_TRUE(c.plausibleResistance(600.0f));     // just inside hot edge
+  TEST_ASSERT_FALSE(c.plausibleResistance(240.0f));    // ~140C disconnect: too low
+  TEST_ASSERT_FALSE(c.plausibleResistance(50000.0f));  // ~-7C: too high
+  TEST_ASSERT_FALSE(c.plausibleResistance(500.0f));    // below R(110C): too low
+  TEST_ASSERT_FALSE(c.plausibleResistance(34000.0f));  // above R(0C): too high
+}
+
+// The band survives a reset (it is a fixed probe property, not a user calibration).
+void test_plausible_band_survives_reset() {
+  ThermistorCalibration c; c.begin(kBeta, 0.0f, 110.0f);
+  c.addPoint(36.0f, 9000.0f); c.compute();  // a user calibration on top
+  c.reset();
+  TEST_ASSERT_FALSE(c.plausibleResistance(240.0f));    // still rejects out-of-band
+  TEST_ASSERT_TRUE(c.plausibleResistance(10000.0f));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_beta_default);
@@ -77,5 +99,7 @@ int main(int, char**) {
   RUN_TEST(test_three_point_steinhart);
   RUN_TEST(test_compute_zero_points_fails);
   RUN_TEST(test_reset_back_to_beta);
+  RUN_TEST(test_plausible_band_window);
+  RUN_TEST(test_plausible_band_survives_reset);
   return UNITY_END();
 }

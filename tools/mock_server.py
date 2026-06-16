@@ -87,7 +87,8 @@ def status():
                        "heaterTempC": heaterC,
                        "heaterMaxC": 80.0, "processMaxC": 55.0,
                        "probe": {"adcRaw": state["ntcAdc"],
-                                 "resistanceOhms": round(state["ntcR"]),
+                                 "resistanceOhms": None if state["heaterProbeFault"]
+                                                   else round(state["ntcR"]),
                                  "calibrated": state["calibrated"],
                                  "method": state["calMethod"]}},
             "pid": {
@@ -191,6 +192,10 @@ async def api_run(req):
                 {"ok": False, "error": {"code": "out_of_range",
                                         "message": "targetC must be 0..55"}}, status=400)
         rpm = clamp_rpm(rpm)
+        if state["heaterProbeFault"]:
+            # Mirror firmware pre-flight: heater NTC faulted -> start refused, run stays
+            # idle. /run still acks (async queue); refusal observed via GET /status.
+            return web.json_response({"ok": True})
         state.update(running=True, targetC=targetC,
                      rpm=rpm, rpmSetpoint=rpm,
                      durationMin=int(b.get("durationMin", 0)),
@@ -202,6 +207,13 @@ async def api_run(req):
     return web.json_response(
         {"ok": False, "error": {"code": "invalid_request",
                                 "message": "action must be start|stop"}}, status=400)
+
+
+async def api_debug_probe_fault(req):
+    # Mock-only: simulate a disconnected/faulted heater NTC for UI/integration testing.
+    b = await req.json()
+    state["heaterProbeFault"] = bool(b.get("fault", False))
+    return web.json_response({"ok": True, "heaterProbeFault": state["heaterProbeFault"]})
 
 
 async def api_setpoint(req):
@@ -323,6 +335,7 @@ def main():
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/api/v1/status", api_status)
     app.router.add_post("/api/v1/run", api_run)
+    app.router.add_post("/api/v1/debug/probe-fault", api_debug_probe_fault)
     app.router.add_post("/api/v1/setpoint", api_setpoint)
     app.router.add_post("/api/v1/disc", api_disc)
     app.router.add_get("/api/v1/wifi/scan", api_scan)

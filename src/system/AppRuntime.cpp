@@ -76,6 +76,8 @@ Thermistor::Config makeThermistorConfig() {  // heater NTC safety probe
   c.beta = AppConfig::Thermal::kNtcBeta;
   c.t0C = AppConfig::Thermal::kNtcT0C;
   c.vSupplyMv = AppConfig::Thermal::kVSupplyMv;
+  c.minPlausibleC = AppConfig::Thermal::kNtcMinPlausibleC;
+  c.maxPlausibleC = AppConfig::Thermal::kNtcMaxPlausibleC;
   return c;
 }
 

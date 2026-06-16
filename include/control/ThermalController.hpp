@@ -51,7 +51,7 @@ class ThermalController {
 
   void begin();
 
-  void enable(bool on);
+  bool enable(bool on);  // returns the resulting enabled state; false => start refused
   bool enabled() const { return enabled_; }
 
   void setSetpoint(float celsius);

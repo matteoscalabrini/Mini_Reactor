@@ -18,11 +18,17 @@ class ThermistorCalibration {
   struct BetaParams { float r0Ohms; float beta; float t0C; };
   static constexpr int kMaxPoints = 6;
 
-  void begin(const BetaParams& beta) {
+  void begin(const BetaParams& beta,
+             float minPlausibleC = -50.0f, float maxPlausibleC = 200.0f) {
     factory_ = beta;
     r0_ = beta.r0Ohms; beta_ = beta.beta; t0C_ = beta.t0C;
     method_ = Method::Beta; offsetC_ = 0.0f;
     a_ = b_ = c_ = 0.0f; nPoints_ = 0; calibrated_ = false;
+    // Plausible-resistance band, calibration-INDEPENDENT (always factory Beta).
+    // Cold -> high R, hot -> low R: the min-temp edge gives the max resistance.
+    minPlausibleC_ = minPlausibleC; maxPlausibleC_ = maxPlausibleC;
+    rMaxPlausible_ = factoryResistanceAt(minPlausibleC_);
+    rMinPlausible_ = factoryResistanceAt(maxPlausibleC_);
   }
 
   bool addPoint(float referenceC, float resistanceOhms) {
@@ -61,7 +67,12 @@ class ThermistorCalibration {
     return false;  // 0 points
   }
 
-  void reset() { begin(factory_); }
+  void reset() { begin(factory_, minPlausibleC_, maxPlausibleC_); }
+
+  // True when R is within the factory-Beta plausible band; false => probe fault.
+  bool plausibleResistance(float r) const {
+    return r >= rMinPlausible_ && r <= rMaxPlausible_;
+  }
 
   float resistanceToCelsius(float R) const {
     if (R <= 0.0f) return NAN;  // log of non-positive R is undefined
@@ -95,6 +106,13 @@ class ThermistorCalibration {
     return 1.0f / invT - 273.15f;
   }
 
+  // Resistance at temperature tC on the FACTORY Beta curve (calibration-independent).
+  float factoryResistanceAt(float tC) const {
+    const float t0K = factory_.t0C + 273.15f;
+    const float tK = tC + 273.15f;
+    return factory_.r0Ohms * std::exp(factory_.beta * (1.0f / tK - 1.0f / t0K));
+  }
+
   // Solve [[1,L1,L1^3],[1,L2,L2^3],[1,L3,L3^3]] [a,b,c]^T = [1/T1,1/T2,1/T3]^T (Cramer).
   bool solveSteinhart(const Point& p0, const Point& p1, const Point& p2) {
     const float L1 = std::log(p0.rOhms), L2 = std::log(p1.rOhms), L3 = std::log(p2.rOhms);
@@ -121,4 +139,7 @@ class ThermistorCalibration {
   bool calibrated_ = false;
   Point points_[kMaxPoints];
   int nPoints_ = 0;
+  // Plausible-resistance band (permissive until begin() sets it).
+  float minPlausibleC_ = -50.0f, maxPlausibleC_ = 200.0f;
+  float rMinPlausible_ = 0.0f, rMaxPlausible_ = 1e12f;
 };

@@ -36,8 +36,16 @@ void ThermalController::persistGains() {
   prefs_.putFloat("kd", pid_.kd());
 }
 
-void ThermalController::enable(bool on) {
-  if (on == enabled_) return;
+bool ThermalController::enable(bool on) {
+  if (on == enabled_) return enabled_;
+  if (on) {
+    // Pre-flight: refuse to start if the heater NTC is faulted or already over-limit.
+    heaterC_ = ntc_.readCelsius();
+    if (isnan(heaterC_) || heaterC_ >= cfg_.heaterSafetyMaxC) {
+      applyOff();  // leave enabled_ false; the run never begins
+      return false;
+    }
+  }
   enabled_ = on;
   pid_.reset();
   lastPidMs_ = 0;
@@ -45,6 +53,7 @@ void ThermalController::enable(bool on) {
     cancelAutotune();  // clears autotuneResult_ + returns to Auto if mid-tune
     applyOff();
   }
+  return enabled_;
 }
 
 void ThermalController::setSetpoint(float celsius) { setpoint_ = celsius; }

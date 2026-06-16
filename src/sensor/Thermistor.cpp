@@ -12,7 +12,7 @@ Thermistor::Thermistor(const Config& config) : cfg_(config) {}
 void Thermistor::begin() {
   analogReadResolution(12);
   analogSetPinAttenuation(cfg_.adcPin, ADC_11db);  // full ~0..3.3V range
-  cal_.begin({cfg_.r0Ohms, cfg_.beta, cfg_.t0C});
+  cal_.begin({cfg_.r0Ohms, cfg_.beta, cfg_.t0C}, cfg_.minPlausibleC, cfg_.maxPlausibleC);
   loadCalibration();
 }
 
@@ -30,8 +30,10 @@ uint16_t Thermistor::readRawAdc() {
 
 float Thermistor::readResistanceOhms() {
   const float vAdc = static_cast<float>(readMilliVolts());
-  if (vAdc <= 1.0f || vAdc >= cfg_.vSupplyMv - 1.0f) return NAN;  // open/short
-  return cfg_.seriesOhms * vAdc / (cfg_.vSupplyMv - vAdc);
+  if (vAdc <= 1.0f || vAdc >= cfg_.vSupplyMv - 1.0f) return NAN;  // rail: short / open
+  const float r = cfg_.seriesOhms * vAdc / (cfg_.vSupplyMv - vAdc);
+  if (!cal_.plausibleResistance(r)) return NAN;                  // out-of-band: probe fault
+  return r;
 }
 
 float Thermistor::readCelsius() {
