@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: >
     HTTP control surface for the Mini-Reactor rotating-disc bioreactor (ESP32-S3 firmware).
-    As-built Phase 1 contract.
+    As-built Phases 1-2 contract.
 
 
     In addition to these REST endpoints, the device pushes the same telemetry object
@@ -249,14 +249,17 @@ components:
 
     Alarm:
       type: object
-      required: [code, severity]
+      required: [code, severity, since]
       properties:
         code:
           type: string
-          enum: [sensor_fault, heater_probe_fault, safety_tripped]
+          enum: [sensor_fault, heater_probe_fault, safety_tripped, driver_ot, driver_otpw, driver_stall, driver_open_load]
         severity:
           type: string
           enum: [info, warn, critical]
+        since:
+          type: integer
+          description: uptimeSec when the alarm was first raised; held while it stays active.
 
     Telemetry:
       type: object
@@ -309,11 +312,26 @@ components:
             currentMa: { type: integer }
             microsteps: { type: integer }
             enabled: { type: boolean }
+            load:
+              type: integer
+              nullable: true
+              description: StallGuard SG_RESULT load index (lower = more load); null when stopped/offline.
             driver:
               type: object
               properties:
                 version: { type: string, description: 'TMC2209 chip version byte, e.g. 0x21.' }
                 connected: { type: boolean, description: UART link OK. }
+                flags:
+                  type: object
+                  description: Decoded DRV_STATUS; stall sourced from the DIAG pin.
+                  properties:
+                    otpw: { type: boolean }
+                    ot: { type: boolean }
+                    stall: { type: boolean }
+                    openLoadA: { type: boolean }
+                    openLoadB: { type: boolean }
+                    shortA: { type: boolean }
+                    shortB: { type: boolean }
         run:
           type: object
           properties:

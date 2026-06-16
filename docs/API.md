@@ -1,7 +1,7 @@
 # Mini-Reactor API Reference (`/api/v1`)
 
-**As-built — Phase 1.** This documents the endpoints the firmware actually serves today
-(branch merged to `main`, build `1.0.0`). Endpoints planned for later phases are listed at the
+**As-built — Phases 1–2.** This documents the endpoints the firmware actually serves today
+(merged to `main`, build `1.0.0`). Endpoints planned for later phases are listed at the
 end under [Planned](#planned-not-yet-implemented) and are **not** callable yet.
 
 For the full design rationale and the future contract, see
@@ -56,7 +56,13 @@ Returned by `GET /api/v1/status` and pushed on `/ws` (identical). Phase-1 fields
     "currentMa": 600,        // RMS coil current
     "microsteps": 16,
     "enabled": true,
-    "driver": { "version": "0x21", "connected": true }   // TMC2209
+    "load": 142,             // StallGuard SG_RESULT load index; null when stopped/offline
+    "driver": {              // TMC2209
+      "version": "0x21",
+      "connected": true,
+      "flags": { "otpw": false, "ot": false, "stall": false,
+                 "openLoadA": false, "openLoadB": false, "shortA": false, "shortB": false }
+    }
   },
 
   "run":     { "active": true, "elapsedSec": 2882, "remainingSec": 4318, "durationMin": 120 },
@@ -64,12 +70,15 @@ Returned by `GET /api/v1/status` and pushed on `/ws` (identical). Phase-1 fields
   "wifi":    { "mode": "sta", "connected": true, "ssid": "LAB-NET-5G",
                "ip": "192.168.1.42", "rssi": -54 },       // rssi null in AP mode
   "storage": { "sdMounted": true, "logBytes": null, "logging": true },
-  "alarms":  [ ]            // active alarms; e.g. { "code": "safety_tripped", "severity": "critical" }
+  "alarms":  [ ]            // active alarms; e.g. { "code": "safety_tripped", "severity": "critical", "since": 15010 }
 }
 ```
 
-**Alarm codes (P1):** `sensor_fault` (liquid probe, `warn`), `heater_probe_fault` (NTC, `warn`),
-`safety_tripped` (heater force-off, `critical`). Each: `{ "code", "severity": "info"|"warn"|"critical" }`.
+**Alarm codes:** `sensor_fault` (liquid probe, `warn`), `heater_probe_fault` (NTC, `warn`),
+`safety_tripped` (heater force-off, `critical`), `driver_ot` (`critical`), `driver_otpw` (`warn`),
+`driver_stall` (`warn`), `driver_open_load` (`warn`). Each alarm:
+`{ "code", "severity": "info"|"warn"|"critical", "since": <uptimeSec when first raised> }`.
+`since` is set when the alarm first appears and held while it stays active.
 
 ---
 
@@ -149,7 +158,7 @@ Streams the telemetry CSV (`text/csv`). Header:
 ```
 t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety
 ```
-(`load` is written `0` until Phase 2 populates StallGuard.)
+(`load` is the StallGuard SG_RESULT while running, else `0`.)
 - `200` CSV body
 - `503 no_log` — no SD card mounted or no log file
 
@@ -172,7 +181,6 @@ These are specified in the design doc but **return `404 not_found` today**. They
 
 | Phase | Endpoints / telemetry additions |
 |---|---|
-| **P2** — motor telemetry | `disc.load` (StallGuard), `disc.driver.flags` (otpw/ot/stall/openLoad/short), alarm `since` timestamps |
 | **P3** — PID + autotune | `GET/POST /api/v1/pid`, `POST/GET /api/v1/pid/autotune`; `thermal.pid` telemetry block |
 | **P4** — NTC calibration | `GET /api/v1/calibration`, `POST /api/v1/calibration/{point,compute,reset}`; `thermal.safety.probe` telemetry |
 | **SD / system** | `GET /api/v1/sd`, `POST /api/v1/sd/format`, `GET /api/v1/system`, `POST /api/v1/system/restart`; `storage.logBytes` |
