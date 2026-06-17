@@ -337,28 +337,33 @@ void WebInterface::applyPending() {
   pending_ = Pending{};
   xSemaphoreGive(mutex_);
 
-  if (p.runStart) reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
-  if (p.runStop) reactor_.stop();
-  if (p.setTarget) reactor_.setTargetC(p.setTargetC);
-  if (p.setRpm) reactor_.setRpm(p.setRpmVal);
-  if (p.discRpm) reactor_.setRpm(p.discRpmVal);
-  if (p.discCurrent) reactor_.setDiscCurrentMa(p.discCurrentMa);
-  if (p.discMicro) reactor_.setDiscMicrosteps(p.discMicrosteps);
-  if (p.discDir) reactor_.setDiscReverse(p.discReverse);
-  if (p.discEnable) reactor_.setDiscEnabled(p.discEnableVal);
-  if (p.pidGains) reactor_.setPidGains(p.pidKp, p.pidKi, p.pidKd);
-  if (p.pidMode) reactor_.setPidMode(p.pidModeStr.c_str());
-  if (p.autotuneStart) reactor_.startAutotune();
-  if (p.autotuneCancel) reactor_.cancelAutotune();
-  if (p.calPoint) reactor_.addCalibrationPoint(p.calRefC);
-  if (p.calCompute) reactor_.computeCalibration();
-  if (p.calReset) reactor_.resetCalibration();
-  if (p.wifiConnect) wifi_.connect(p.wifiSsid, p.wifiPass);
-  if (p.wifiForget) wifi_.forget();
-  if (p.wifiScan) wifi_.requestScan();
-  if (p.logClear) sd_.clearLog();
-  if (p.sdErase) sd_.eraseAll();
-  if (p.motorTest) reactor_.startMotorTest();
+  // Log each triggered command to serial ([CMD]) for on-device debugging.
+  if (p.runStart) {
+    Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin\n",
+                  p.runTargetC, p.runRpm, (unsigned)p.runDurMin);
+    reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
+  }
+  if (p.runStop) { Serial.println("[CMD] run stop"); reactor_.stop(); }
+  if (p.setTarget) { Serial.printf("[CMD] setpoint target=%.1fC\n", p.setTargetC); reactor_.setTargetC(p.setTargetC); }
+  if (p.setRpm) { Serial.printf("[CMD] setpoint rpm=%.1f\n", p.setRpmVal); reactor_.setRpm(p.setRpmVal); }
+  if (p.discRpm) { Serial.printf("[CMD] disc rpm=%.1f\n", p.discRpmVal); reactor_.setRpm(p.discRpmVal); }
+  if (p.discCurrent) { Serial.printf("[CMD] disc current=%umA\n", (unsigned)p.discCurrentMa); reactor_.setDiscCurrentMa(p.discCurrentMa); }
+  if (p.discMicro) { Serial.printf("[CMD] disc microsteps=%u\n", (unsigned)p.discMicrosteps); reactor_.setDiscMicrosteps(p.discMicrosteps); }
+  if (p.discDir) { Serial.printf("[CMD] disc direction=%s\n", p.discReverse ? "ccw" : "cw"); reactor_.setDiscReverse(p.discReverse); }
+  if (p.discEnable) { Serial.printf("[CMD] disc enable=%d\n", p.discEnableVal); reactor_.setDiscEnabled(p.discEnableVal); }
+  if (p.pidGains) { Serial.printf("[CMD] pid gains kp=%.4f ki=%.4f kd=%.4f\n", p.pidKp, p.pidKi, p.pidKd); reactor_.setPidGains(p.pidKp, p.pidKi, p.pidKd); }
+  if (p.pidMode) { Serial.printf("[CMD] pid mode=%s\n", p.pidModeStr.c_str()); reactor_.setPidMode(p.pidModeStr.c_str()); }
+  if (p.autotuneStart) { Serial.println("[CMD] autotune start"); reactor_.startAutotune(); }
+  if (p.autotuneCancel) { Serial.println("[CMD] autotune cancel"); reactor_.cancelAutotune(); }
+  if (p.calPoint) { Serial.printf("[CMD] calibration point ref=%.1fC\n", p.calRefC); reactor_.addCalibrationPoint(p.calRefC); }
+  if (p.calCompute) { Serial.println("[CMD] calibration compute"); reactor_.computeCalibration(); }
+  if (p.calReset) { Serial.println("[CMD] calibration reset"); reactor_.resetCalibration(); }
+  if (p.wifiConnect) { Serial.printf("[CMD] wifi connect ssid='%s'\n", p.wifiSsid.c_str()); wifi_.connect(p.wifiSsid, p.wifiPass); }
+  if (p.wifiForget) { Serial.println("[CMD] wifi forget"); wifi_.forget(); }
+  if (p.wifiScan) { Serial.println("[CMD] wifi scan requested"); wifi_.requestScan(); }
+  if (p.logClear) { Serial.println("[CMD] sd log clear"); sd_.clearLog(); }
+  if (p.sdErase) { Serial.println("[CMD] sd ERASE all files"); sd_.eraseAll(); }
+  if (p.motorTest) { Serial.println("[CMD] motor test jog"); reactor_.startMotorTest(); }
 }
 
 void WebInterface::cacheCalJson(const String& calJson) {

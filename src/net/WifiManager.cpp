@@ -163,6 +163,7 @@ void WifiManager::serviceScan() {
   if (scanRequested_ && !scanning_ && now - lastScanDoneMs_ > kScanCooldownMs) {
     scanRequested_ = false;
     scanning_ = true;
+    Serial.println("[WIFI] scan started");
     WiFi.scanNetworks(true /*async*/, true /*show hidden*/);
   }
   if (scanning_) {
@@ -183,9 +184,11 @@ void WifiManager::serviceScan() {
       WiFi.scanDelete();
       scanning_ = false;
       lastScanDoneMs_ = now;
+      Serial.printf("[WIFI] scan done: %d networks\n", n);
     } else if (n == WIFI_SCAN_FAILED) {  // -2: don't get stuck "scanning" forever
       scanning_ = false;
       lastScanDoneMs_ = now;
+      Serial.println("[WIFI] scan failed");
     }
   }
 }
