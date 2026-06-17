@@ -17,6 +17,7 @@
  *   POST /api/v1/calibration/point    {referenceC}; queues capture of a calibration point (live NTC resistance)
  *   POST /api/v1/calibration/compute  queues fit (offset/Beta/Steinhart by point count); result via GET
  *   POST /api/v1/calibration/reset    queues revert to factory Beta
+ *   POST /api/v1/disc/test            brief disc jog to confirm the drive turns (~8 rpm, 3 s)
  *   POST /api/v1/sd/erase             erase ALL files on the SD card, then recreate the log
  *   WS   /ws                    telemetry push
  */

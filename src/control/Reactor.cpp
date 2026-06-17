@@ -47,6 +47,7 @@ void Reactor::persist() {
 }
 
 void Reactor::start(float targetC, float rpm, uint16_t durationMin) {
+  motorTesting_ = false;
   targetC_ = targetC;
   rpm_ = RpmKinematics::clampRpm(rpm, cfg_.minRpm, cfg_.maxRpm);
   durationMin_ = durationMin;
@@ -75,16 +76,20 @@ void Reactor::stop() {
 
 void Reactor::startMotorTest() {
   if (running_) return;  // don't interfere with an active run
+  motor_.setCurrentMilliamps(discCurrentMa_);
+  motor_.setMicrosteps(discMicrosteps_);
+  motor_.setDirection(discReverse_);
   motor_.enable(true);
   motor_.setRpm(AppConfig::Motor::kMotorTestRpm);
-  motorTestUntilMs_ = millis() + AppConfig::Motor::kMotorTestMs;
+  motorTesting_ = true;
+  motorTestStartMs_ = millis();
 }
 
 void Reactor::update() {
-  if (motorTestUntilMs_ != 0 && millis() >= motorTestUntilMs_) {
+  if (motorTesting_ && (millis() - motorTestStartMs_) >= AppConfig::Motor::kMotorTestMs) {
     motor_.setRpm(0);
     motor_.enable(false);
-    motorTestUntilMs_ = 0;
+    motorTesting_ = false;
   }
   if (!running_) return;
   if (durationMin_ > 0) {

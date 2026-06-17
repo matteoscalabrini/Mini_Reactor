@@ -96,7 +96,8 @@ class Reactor {
   Preferences prefs_;
 
   bool running_ = false;
-  uint32_t motorTestUntilMs_ = 0;  // 0 = no test active
+  bool motorTesting_ = false;
+  uint32_t motorTestStartMs_ = 0;
   float targetC_ = 36.0f;
   float rpm_ = 8.0f;
   uint16_t discCurrentMa_ = 600;
