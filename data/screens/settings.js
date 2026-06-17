@@ -35,10 +35,23 @@ export function mount(root) {
 
   // SD / log
   const sdInfo = el("p", { class: "muted" }, "—");
+  function eraseModal() {
+    const input = el("input", { type: "text", placeholder: "type: erase" });
+    const ok = el("button", { class: "stop", disabled: "", onclick: async () => { await api.post("/api/v1/sd/erase"); toast("Erasing…", "ok"); bg.remove(); } }, "Erase card");
+    input.addEventListener("input", () => { if (input.value.trim() === "erase") ok.removeAttribute("disabled"); else ok.setAttribute("disabled", ""); });
+    const bg = el("div", { class: "modal-bg" },
+      el("div", { class: "modal" },
+        el("h4", {}, "Erase SD card"),
+        el("p", {}, "This permanently deletes ALL files on the card, including logs. Type \"erase\" to confirm."),
+        el("div", { class: "field" }, input),
+        el("div", { class: "btns" }, ok, el("button", { class: "ghost", onclick: () => bg.remove() }, "Cancel"))));
+    document.body.append(bg);
+  }
   const sd = sec("DATA LOG", sdInfo,
     el("div", { class: "btns" },
       el("a", { class: "btn", href: "/api/v1/log", download: "reactor_log.csv" }, "⬇ Download CSV"),
-      el("button", { class: "ghost", onclick: () => { if (confirm("Clear the SD log?")) api.logClear(); } }, "Clear log")));
+      el("button", { class: "ghost", onclick: () => { if (confirm("Clear the SD log?")) api.logClear(); } }, "Clear log"),
+      el("button", { class: "stop", onclick: eraseModal }, "Erase all files")));
 
   // PID + autotune
   const kp = el("input", { type: "number", step: "0.001" }), ki = el("input", { type: "number", step: "0.0001" }), kd = el("input", { type: "number", step: "0.01" });
@@ -67,9 +80,16 @@ export function mount(root) {
   // Motor
   const curMa = el("input", { type: "number", step: "10", min: "0" }), micro = el("input", { type: "number", step: "1" });
   const dirSel = el("select", {}, el("option", { value: "cw" }, "CW"), el("option", { value: "ccw" }, "CCW"));
+  const testBtn = el("button", { class: "ghost", onclick: async () => {
+    testBtn.disabled = true; testBtn.textContent = "Testing…";
+    await api.post("/api/v1/disc/test");
+    setTimeout(() => { testBtn.disabled = false; testBtn.textContent = "Test"; }, 3200);
+  } }, "Test");
   const motor = sec("MOTOR",
     el("div", { class: "row" }, field("CURRENT mA", curMa), field("MICROSTEPS", micro), field("DIRECTION", dirSel)),
-    el("div", { class: "btns" }, el("button", { class: "go", onclick: () => api.disc({ currentMa: +curMa.value, microsteps: +micro.value, direction: dirSel.value }) }, "Apply")));
+    el("div", { class: "btns" },
+      el("button", { class: "go", onclick: () => api.disc({ currentMa: +curMa.value, microsteps: +micro.value, direction: dirSel.value }) }, "Apply"),
+      testBtn));
 
   // System (read-only)
   const sysInfo = el("p", { class: "muted" }, "—");
@@ -85,6 +105,7 @@ export function mount(root) {
     sdInfo.textContent = st.sdMounted ? "Card mounted · logging" : "No card";
     atInfo.textContent = at.active ? `running ${at.progress || 0}%` : (at.result || "idle");
     sysInfo.textContent = `Firmware ${s.firmware || "—"} · heap ${s.freeHeap || "—"} · VBUS ${s.vbus || "—"} · driver ${drv.version || "—"} (${drv.connected ? "ok" : "—"})`;
+    if (!testBtn.disabled || testBtn.textContent === "Test") testBtn.disabled = (d.run || {}).active === true;
     if (!primed) {
       primed = true;
       kp.value = p.kp ?? ""; ki.value = p.ki ?? ""; kd.value = p.kd ?? ""; if (p.mode) modeSel.value = p.mode;

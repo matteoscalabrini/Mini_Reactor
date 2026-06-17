@@ -72,3 +72,7 @@ button.ghost{background:var(--surface-2)} button:disabled{opacity:.5;cursor:not-
 .htable th{text-align:right;font-size:9px;letter-spacing:.1em;color:var(--faint);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border)}
 .htable td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--border-2);font-family:var(--mono)}
 .htable td:first-child,.htable th:first-child{text-align:left}
+.modal-bg{position:fixed;inset:0;background:rgba(20,40,55,.45);display:flex;align-items:center;justify-content:center;z-index:20}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px;max-width:420px;width:90%}
+.modal h4{margin:0 0 8px;font-size:15px}
+.modal p{color:var(--muted);font-size:13px;margin:0 0 12px}
