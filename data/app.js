@@ -4,9 +4,10 @@ import { get } from "./core/api.js";
 import { el, clear, hhmmss } from "./core/ui.js";
 import * as monitor from "./screens/monitor.js";
 import * as run from "./screens/run.js";
+import * as history from "./screens/history.js";
 import * as settings from "./screens/settings.js";
 
-const screens = { monitor, run, settings };
+const screens = { monitor, run, history, settings };
 
 let teardown = null;
 function route() {

@@ -68,3 +68,7 @@ button.ghost{background:var(--surface-2)} button:disabled{opacity:.5;cursor:not-
 .toast.err{background:var(--bad);color:#fff} .toast.ok{background:var(--ok);color:#fff}
 .set-sec{margin-bottom:14px}
 .muted{color:var(--muted);font-size:12px}
+.htable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.htable th{text-align:right;font-size:9px;letter-spacing:.1em;color:var(--faint);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border)}
+.htable td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--border-2);font-family:var(--mono)}
+.htable td:first-child,.htable th:first-child{text-align:left}
