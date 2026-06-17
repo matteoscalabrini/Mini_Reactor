@@ -26,11 +26,11 @@ def clamp_rpm(rpm):
 
 
 state = {
-    "running": False, "targetC": 36.0, "rpm": 8.0, "rpmSetpoint": 8.0,
-    "durationMin": 0, "tempC": AMBIENT, "heaterPct": 0.0, "startMs": 0.0,
-    "fault": False, "heaterProbeFault": False, "heaterTempC": 24.0, "safetyTripped": False,
+    "running": True, "targetC": 36.0, "rpm": 8.0, "rpmSetpoint": 8.0,
+    "durationMin": 0, "tempC": 36.0, "heaterPct": 47.0, "startMs": 0.0,
+    "fault": False, "heaterProbeFault": False, "heaterTempC": 44.0, "safetyTripped": False,
     "currentMa": 600, "microsteps": 16, "reverse": False, "enabled": True,
-    "load": 280, "loadBias": 0.0,
+    "load": 330, "loadBias": 50.0,
     "drvOt": False, "drvOtpw": False, "drvStall": False,
     "drvOpenLoadA": False, "drvOpenLoadB": False, "drvShortA": False, "drvShortB": False,
     "ssid": "LAB-NET-5G", "connected": True, "ap": False, "ip": "192.168.1.42",
@@ -131,7 +131,11 @@ async def simulate():
         s = state
         if s["running"]:
             err = s["targetC"] - s["tempC"]
-            s["heaterPct"] = max(0.0, min(100.0, 12.0 * err))
+            # Feed-forward the duty that holds the setpoint against ambient loss, plus a
+            # proportional trim — so the bath settles AT the setpoint (a "good" 36 C),
+            # not a few degrees under it.
+            hold = 100.0 * 0.02 * (s["targetC"] - AMBIENT) / 0.6
+            s["heaterPct"] = max(0.0, min(100.0, hold + 14.0 * err))
             duty = s["heaterPct"] / 100.0
             s["tempC"] += (0.6 * duty - 0.02 * (s["tempC"] - AMBIENT)) * dt
             s["heaterTempC"] = s["tempC"] + 18.0 * duty  # heater runs hotter than bath
@@ -384,6 +388,7 @@ def main():
     app.router.add_static("/", DATA)
 
     async def on_start(a):
+        state["startMs"] = time.monotonic()  # anchor elapsed for the demo's initial run
         a["sim"] = asyncio.create_task(simulate())
 
     async def on_stop(a):
