@@ -66,6 +66,8 @@ button.ghost{background:var(--surface-2)} button:disabled{opacity:.5;cursor:not-
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 16px;border-radius:10px;
   font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:9}
 .toast.err{background:var(--bad);color:#fff} .toast.ok{background:var(--ok);color:#fff}
+.applied-note{align-self:center;font-size:11px;font-weight:600;white-space:nowrap;opacity:0;transition:opacity .18s}
+.applied-note.show{opacity:1} .applied-note.ok{color:var(--ok)} .applied-note.err{color:var(--bad)}
 .set-sec{margin-bottom:14px}
 .muted{color:var(--muted);font-size:12px}
 .htable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}

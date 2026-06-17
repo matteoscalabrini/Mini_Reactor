@@ -1,5 +1,5 @@
 import * as store from "../core/store.js";
-import { el, hhmmss, toast } from "../core/ui.js";
+import { el, hhmmss, toast, flashApplied } from "../core/ui.js";
 import { runStart, runStop, setpoint } from "../core/api.js";
 
 export function mount(root) {
@@ -18,8 +18,8 @@ export function mount(root) {
   } }, "▶ Start run");
   const stop = el("button", { class: "stop", onclick: () => runStop() }, "■ Stop");
 
-  inTarget.addEventListener("change", () => { if ((store.getStatus()?.run || {}).active) setpoint({ targetC: +inTarget.value }); });
-  inRpm.addEventListener("change", () => { if ((store.getStatus()?.run || {}).active) setpoint({ rpm: +inRpm.value }); });
+  inTarget.addEventListener("change", async () => { if ((store.getStatus()?.run || {}).active) { const r = await setpoint({ targetC: +inTarget.value }); flashApplied(inTarget, r.ok); } });
+  inRpm.addEventListener("change", async () => { if ((store.getStatus()?.run || {}).active) { const r = await setpoint({ rpm: +inRpm.value }); flashApplied(inRpm, r.ok); } });
 
   root.append(el("div", { class: "grid" },
     el("div", { class: "card" }, el("h3", {}, "RUN CONTROL"),

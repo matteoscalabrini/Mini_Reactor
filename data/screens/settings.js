@@ -1,5 +1,5 @@
 import * as store from "../core/store.js";
-import { el, toast } from "../core/ui.js";
+import { el, toast, flashApplied } from "../core/ui.js";
 import * as api from "../core/api.js";
 import { pollScan } from "../core/wifiscan.js";
 
@@ -61,8 +61,8 @@ export function mount(root) {
     el("div", { class: "row" }, field("Kp", kp), field("Ki", ki), field("Kd", kd)),
     field("MODE", modeSel),
     el("div", { class: "btns" },
-      el("button", { class: "go", onclick: () => api.pidGains(+kp.value, +ki.value, +kd.value) }, "Apply gains"),
-      el("button", { class: "ghost", onclick: () => api.pidMode(modeSel.value) }, "Set mode"),
+      el("button", { class: "go", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidGains(+kp.value, +ki.value, +kd.value); flashApplied(b, r.ok); } }, "Apply gains"),
+      el("button", { class: "ghost", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidMode(modeSel.value); flashApplied(b, r.ok); } }, "Set mode"),
       el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune"),
       el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel")),
     el("p", { class: "muted" }, "Autotune: ", atInfo));
@@ -88,7 +88,7 @@ export function mount(root) {
   const motor = sec("MOTOR",
     el("div", { class: "row" }, field("CURRENT mA", curMa), field("MICROSTEPS", micro), field("DIRECTION", dirSel)),
     el("div", { class: "btns" },
-      el("button", { class: "go", onclick: () => api.disc({ currentMa: +curMa.value, microsteps: +micro.value, direction: dirSel.value }) }, "Apply"),
+      el("button", { class: "go", onclick: async (e) => { const b = e.currentTarget; const r = await api.disc({ currentMa: +curMa.value, microsteps: +micro.value, direction: dirSel.value }); flashApplied(b, r.ok); } }, "Apply"),
       testBtn));
 
   // System (read-only)

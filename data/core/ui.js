@@ -34,3 +34,19 @@ export function toast(msg, kind = "err") {
   document.body.append(t);
   setTimeout(() => t.remove(), 2600);
 }
+
+// Briefly confirm a command was accepted, inline next to its control. Reuses a
+// single note per target so repeat clicks don't stack. ok=false shows a red ✕.
+export function flashApplied(target, ok = true) {
+  if (!target) return;
+  let note = target._appliedNote;
+  if (!note || !note.isConnected) {
+    note = el("span", { class: "applied-note" });
+    target._appliedNote = note;
+    target.after(note);
+  }
+  clearTimeout(note._t);
+  note.textContent = ok ? "✓ applied" : "✕ failed";
+  note.className = `applied-note ${ok ? "ok" : "err"} show`;
+  note._t = setTimeout(() => note.classList.remove("show"), 1800);
+}
