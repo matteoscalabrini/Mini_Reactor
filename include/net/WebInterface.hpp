@@ -90,6 +90,8 @@ class WebInterface {
     bool calPoint = false;   float calRefC = 0;
     bool calCompute = false;
     bool calReset = false;
+    bool sdErase = false;
+    bool motorTest = false;
 
     bool wifiConnect = false;
     String wifiSsid;

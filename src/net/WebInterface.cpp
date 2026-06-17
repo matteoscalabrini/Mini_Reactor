@@ -17,6 +17,8 @@
  *   POST /api/v1/calibration/point    {referenceC}; queues capture of a calibration point (live NTC resistance)
  *   POST /api/v1/calibration/compute  queues fit (offset/Beta/Steinhart by point count); result via GET
  *   POST /api/v1/calibration/reset    queues revert to factory Beta
+ *   POST /api/v1/disc/test            brief disc jog to confirm the drive turns (~8 rpm, 3 s)
+ *   POST /api/v1/sd/erase             erase ALL files on the SD card, then recreate the log
  *   WS   /ws                    telemetry push
  */
 
@@ -251,6 +253,22 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
+  // ── POST sd/erase ──
+  server_->on("/api/v1/sd/erase", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.sdErase = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
+  // ── POST disc/test (timed motor jog) ──
+  server_->on("/api/v1/disc/test", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.motorTest = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
   // ── POST wifi connect ──
   auto* wifiHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
@@ -339,6 +357,8 @@ void WebInterface::applyPending() {
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();
   if (p.logClear) sd_.clearLog();
+  if (p.sdErase) sd_.eraseAll();
+  if (p.motorTest) reactor_.startMotorTest();
 }
 
 void WebInterface::cacheCalJson(const String& calJson) {

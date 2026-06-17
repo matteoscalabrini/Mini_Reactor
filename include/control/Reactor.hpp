@@ -59,6 +59,9 @@ class Reactor {
   void update();
   bool running() const { return running_; }
 
+  /* startMotorTest() — Brief disc jog to confirm the drive turns (no-op during a run). */
+  void startMotorTest();
+
   /* Live setpoint changes (apply immediately if running; always persisted). */
   void setTargetC(float celsius);
   void setRpm(float rpm);
@@ -93,6 +96,8 @@ class Reactor {
   Preferences prefs_;
 
   bool running_ = false;
+  bool motorTesting_ = false;
+  uint32_t motorTestStartMs_ = 0;
   float targetC_ = 36.0f;
   float rpm_ = 8.0f;
   uint16_t discCurrentMa_ = 600;

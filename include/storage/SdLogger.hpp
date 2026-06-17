@@ -58,7 +58,12 @@ class SdLogger {
   /* clearLog() — Delete the log and rewrite just the header. Returns success. */
   bool clearLog();
 
+  /* eraseAll() — Delete every file/dir on the card, then recreate the empty log
+   * with its header. Destructive. Returns success. */
+  bool eraseAll();
+
  private:
   Config cfg_;
   bool mounted_ = false;
+  void removeRecursive(const char* path);
 };

@@ -65,6 +65,7 @@ class WifiManager {
   void beginConnect(const String& ssid, const String& password);
   void loadCredentials();
   void saveCredentials(const String& ssid, const String& password);
+  void serviceScan();  // run every poll, regardless of connection state
 
   Config cfg_;
   Preferences prefs_;
@@ -82,5 +83,6 @@ class WifiManager {
 
   bool scanRequested_ = false;
   bool scanning_ = false;
+  uint32_t lastScanDoneMs_ = 0;  // cooldown anchor so completed results stay readable
   String scanJson_ = "{\"scanning\":false,\"networks\":[]}";
 };

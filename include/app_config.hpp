@@ -73,6 +73,8 @@ static constexpr float    kRSenseOhms       = 0.11f;   // R35/R36
 static constexpr uint8_t  kAddress          = 0b00;    // MS1/MS2 -> GND
 static constexpr uint32_t kUartBaud         = 115200;
 static constexpr uint16_t kCurrentMilliamps = 600;     // RMS, generic NEMA-17
+static constexpr float    kMotorTestRpm = 8.0f;    // disc speed for the one-click test
+static constexpr uint32_t kMotorTestMs  = 3000;    // test jog duration
 static constexpr uint16_t kMicrosteps       = 16;
 static constexpr uint16_t kStepsPerRev = 200;  // full steps/rev, direct 1:1 drivetrain
 // Demo spin speed in microsteps/second (~1 rev/s at 200 steps * 16 microsteps).

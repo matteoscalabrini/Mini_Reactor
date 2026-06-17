@@ -105,6 +105,8 @@ void WifiManager::poll() {
   const uint32_t now = millis();
   const bool connected = (WiFi.status() == WL_CONNECTED);
 
+  serviceScan();  // scans must work regardless of connection state (was unreachable when connected)
+
   // ── Connecting → resolve success or timeout ──
   if (connecting_) {
     if (connected) {
@@ -148,8 +150,17 @@ void WifiManager::poll() {
     startAccessPoint();
   }
 
-  // ── Service an async scan request ──
-  if (scanRequested_ && !scanning_) {
+}
+
+// Service an async WiFi scan. Called every poll() regardless of connection state.
+void WifiManager::serviceScan() {
+  static constexpr uint32_t kScanCooldownMs = 4000;
+  const uint32_t now = millis();
+
+  // Start a queued scan only when idle AND past the cooldown — a burst of polling GETs
+  // (each re-arms scanRequested_) must not restart the scan back-to-back, which would hide
+  // the freshly-completed results before the client can read them.
+  if (scanRequested_ && !scanning_ && now - lastScanDoneMs_ > kScanCooldownMs) {
     scanRequested_ = false;
     scanning_ = true;
     WiFi.scanNetworks(true /*async*/, true /*show hidden*/);
@@ -171,6 +182,10 @@ void WifiManager::poll() {
       serializeJson(doc, scanJson_);
       WiFi.scanDelete();
       scanning_ = false;
+      lastScanDoneMs_ = now;
+    } else if (n == WIFI_SCAN_FAILED) {  // -2: don't get stuck "scanning" forever
+      scanning_ = false;
+      lastScanDoneMs_ = now;
     }
   }
 }
