@@ -37,6 +37,7 @@ state = {
     "kp": 0.08, "ki": 0.0015, "kd": 0.4, "pidMode": "auto",
     "atActive": False, "atProgress": 0, "atResult": None, "atStartMs": 0.0,
     "calMethod": "beta", "calibrated": False, "calPoints": [], "ntcAdc": 1820, "ntcR": 9120.0,
+    "motorTestUntil": 0.0,
 }
 clients = set()
 _alarm_since = {}
@@ -51,7 +52,8 @@ def status():
     temp = None if state["fault"] else round(state["tempC"], 2)
     err = None if temp is None else round(state["targetC"] - state["tempC"], 2)
     heaterC = None if state["heaterProbeFault"] else round(state["heaterTempC"], 1)
-    rpm = state["rpm"] if state["running"] else 0.0
+    testing = time.monotonic() < state["motorTestUntil"]
+    rpm = 8.0 if testing else (state["rpm"] if state["running"] else 0.0)
     active = []
     if state["fault"]:
         active.append(("sensor_fault", "warn"))
@@ -281,10 +283,25 @@ async def api_forget(req):
 
 async def api_log(req):
     header = "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety"
-    return web.Response(text=header + "\n", content_type="text/csv")
+    rows, sp, t = [header], 36.0, 20.0
+    for i in range(40):
+        t += (sp - t) * 0.12
+        heater = t + 8.0
+        duty = max(0.0, min(100.0, (sp - t) * 18.0))
+        rows.append(f"{i*2000},1,{t:.2f},{heater:.1f},{sp:.1f},{duty:.0f},8.0,{420+i},0,0")
+    return web.Response(text="\n".join(rows) + "\n", content_type="text/csv")
 
 
 async def api_log_clear(req):
+    return web.json_response({"ok": True})
+
+
+async def api_sd_erase(req):
+    return web.json_response({"ok": True})
+
+
+async def api_disc_test(req):
+    state["motorTestUntil"] = time.monotonic() + 3.0
     return web.json_response({"ok": True})
 
 
@@ -361,6 +378,8 @@ def main():
     app.router.add_post("/api/v1/calibration/point", api_cal_point)
     app.router.add_post("/api/v1/calibration/compute", api_cal_compute)
     app.router.add_post("/api/v1/calibration/reset", api_cal_reset)
+    app.router.add_post("/api/v1/sd/erase", api_sd_erase)
+    app.router.add_post("/api/v1/disc/test", api_disc_test)
     app.router.add_get("/", lambda r: web.FileResponse(DATA / "index.html"))
     app.router.add_static("/", DATA)
 
