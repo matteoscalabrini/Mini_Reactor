@@ -22,27 +22,32 @@ export function mount(root) {
 
   async function load() {
     refresh.disabled = true; refresh.textContent = "…"; status.textContent = "loading…";
-    const res = await fetch("/api/v1/log").catch(() => null);
-    refresh.disabled = false; refresh.textContent = "Refresh";
-    const text = res && res.ok ? await res.text() : "";
-    const { header, rows } = parseCsv(text);
-    if (!rows.length) { status.textContent = "No log data"; while (svg.firstChild) svg.removeChild(svg.firstChild); clear(tableWrap); return; }
-    const iT = idx(header, "t_ms"), iL = idx(header, "liquid_c"), iS = idx(header, "setpoint_c"),
-          iH = idx(header, "heater_c"), iD = idx(header, "heater_pct"), iR = idx(header, "rpm"),
-          iLoad = idx(header, "load"), iF = idx(header, "fault"), iSaf = idx(header, "safety");
-    const liquid = downsample(rows.map((r) => +r[iL]).filter((v) => !Number.isNaN(v)));
-    const setp = downsample(rows.map((r) => +r[iS]).filter((v) => !Number.isNaN(v)));
-    render(svg, { t: liquid, s: setp });
-    status.textContent = `${rows.length} rows`;
+    try {
+      const res = await fetch("/api/v1/log").catch(() => null);
+      const text = res && res.ok ? await res.text() : "";
+      const { header, rows } = parseCsv(text);
+      if (!rows.length) { status.textContent = "No log data"; while (svg.firstChild) svg.removeChild(svg.firstChild); clear(tableWrap); return; }
+      const iT = idx(header, "t_ms"), iL = idx(header, "liquid_c"), iS = idx(header, "setpoint_c"),
+            iH = idx(header, "heater_c"), iD = idx(header, "heater_pct"), iR = idx(header, "rpm"),
+            iLoad = idx(header, "load"), iF = idx(header, "fault"), iSaf = idx(header, "safety");
+      // Keep both chart series time-aligned: filter rows where liquid AND setpoint are valid, then downsample.
+      const valid = rows.filter((r) => !Number.isNaN(+r[iL]) && !Number.isNaN(+r[iS]));
+      const ds = downsample(valid);
+      // chart.render() only reads buf.t (measured) and buf.s (setpoint); a plain {t,s} is a valid buffer here.
+      render(svg, { t: ds.map((r) => +r[iL]), s: ds.map((r) => +r[iS]) });
+      status.textContent = `${rows.length} rows`;
 
-    clear(tableWrap);
-    const head = el("tr", {}, ["TIME", "LIQUID", "HEATER", "SETPT", "DUTY%", "RPM", "LOAD", "FLAG"].map((h) => el("th", {}, h)));
-    const body = rows.slice(-50).reverse().map((r) => el("tr", {},
-      el("td", {}, hhmmss(Math.round((+r[iT] || 0) / 1000))),
-      el("td", {}, fixed(+r[iL], 1)), el("td", {}, fixed(+r[iH], 1)), el("td", {}, fixed(+r[iS], 1)),
-      el("td", {}, fixed(+r[iD], 0)), el("td", {}, fixed(+r[iR], 1)), el("td", {}, r[iLoad] || "—"),
-      el("td", {}, (r[iF] === "1" ? "FAULT" : r[iSaf] === "1" ? "TRIP" : "ok"))));
-    tableWrap.append(el("table", { class: "htable" }, el("thead", {}, head), el("tbody", {}, body)));
+      clear(tableWrap);
+      const head = el("tr", {}, ["TIME", "LIQUID", "HEATER", "SETPT", "DUTY%", "RPM", "LOAD", "FLAG"].map((h) => el("th", {}, h)));
+      const body = rows.slice(-50).reverse().map((r) => el("tr", {},
+        el("td", {}, hhmmss(Math.round((+r[iT] || 0) / 1000))),
+        el("td", {}, fixed(+r[iL], 1)), el("td", {}, fixed(+r[iH], 1)), el("td", {}, fixed(+r[iS], 1)),
+        el("td", {}, fixed(+r[iD], 0)), el("td", {}, fixed(+r[iR], 1)), el("td", {}, r[iLoad] || "—"),
+        el("td", {}, (r[iF] === "1" ? "FAULT" : r[iSaf] === "1" ? "TRIP" : "ok"))));
+      tableWrap.append(el("table", { class: "htable" }, el("thead", {}, head), el("tbody", {}, body)));
+    } finally {
+      refresh.disabled = false; refresh.textContent = "Refresh";
+    }
   }
 
   load();
