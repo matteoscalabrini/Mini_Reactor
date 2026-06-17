@@ -251,6 +251,14 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
+  // ── POST sd/erase ──
+  server_->on("/api/v1/sd/erase", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.sdErase = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
   // ── POST wifi connect ──
   auto* wifiHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/wifi/connect", [this](AsyncWebServerRequest* req, JsonVariant& json) {
@@ -339,6 +347,7 @@ void WebInterface::applyPending() {
   if (p.wifiForget) wifi_.forget();
   if (p.wifiScan) wifi_.requestScan();
   if (p.logClear) sd_.clearLog();
+  if (p.sdErase) sd_.eraseAll();
 }
 
 void WebInterface::cacheCalJson(const String& calJson) {

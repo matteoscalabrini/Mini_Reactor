@@ -119,3 +119,26 @@ bool SdLogger::clearLog() {
   h.close();
   return true;
 }
+
+void SdLogger::removeRecursive(const char* path) {
+  // Re-open the directory each iteration and delete its first child, so we never
+  // delete entries mid-iteration (unreliable on FAT). Recurse into subdirectories.
+  while (true) {
+    File dir = SD.open(path);
+    if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return; }
+    File entry = dir.openNextFile();
+    if (!entry) { dir.close(); return; }  // empty
+    String p = entry.path();
+    const bool isDir = entry.isDirectory();
+    entry.close();
+    dir.close();
+    if (isDir) { removeRecursive(p.c_str()); SD.rmdir(p.c_str()); }
+    else { SD.remove(p.c_str()); }
+  }
+}
+
+bool SdLogger::eraseAll() {
+  if (!mounted_) return false;
+  removeRecursive("/");
+  return clearLog();  // recreate the empty log with its header
+}
