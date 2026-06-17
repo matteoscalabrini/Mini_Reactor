@@ -132,8 +132,12 @@ void SdLogger::removeRecursive(const char* path) {
     const bool isDir = entry.isDirectory();
     entry.close();
     dir.close();
-    if (isDir) { removeRecursive(p.c_str()); SD.rmdir(p.c_str()); }
-    else { SD.remove(p.c_str()); }
+    if (isDir) {
+      removeRecursive(p.c_str());
+      if (!SD.rmdir(p.c_str())) return;  // couldn't remove dir (still non-empty / error) -> bail
+    } else {
+      if (!SD.remove(p.c_str())) return;  // couldn't remove file -> bail
+    }
   }
 }
 
