@@ -7,6 +7,8 @@
 
 #include <math.h>
 
+#include "app_config.hpp"
+
 #include "motor/RpmKinematics.hpp"
 
 Reactor::Reactor(ThermalController& thermal, Tmc2209Motor& motor,
@@ -71,7 +73,19 @@ void Reactor::stop() {
   motor_.stop();
 }
 
+void Reactor::startMotorTest() {
+  if (running_) return;  // don't interfere with an active run
+  motor_.enable(true);
+  motor_.setRpm(AppConfig::Motor::kMotorTestRpm);
+  motorTestUntilMs_ = millis() + AppConfig::Motor::kMotorTestMs;
+}
+
 void Reactor::update() {
+  if (motorTestUntilMs_ != 0 && millis() >= motorTestUntilMs_) {
+    motor_.setRpm(0);
+    motor_.enable(false);
+    motorTestUntilMs_ = 0;
+  }
   if (!running_) return;
   if (durationMin_ > 0) {
     const uint32_t elapsedMs = millis() - startMs_;
