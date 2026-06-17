@@ -1,6 +1,7 @@
 import * as store from "../core/store.js";
 import { el, toast } from "../core/ui.js";
 import * as api from "../core/api.js";
+import { pollScan } from "../core/wifiscan.js";
 
 const sec = (title, ...body) => el("div", { class: "card set-sec" }, el("h3", {}, title), ...body);
 const field = (label, input) => el("div", { class: "field" }, el("label", {}, label), input);
@@ -9,20 +10,22 @@ export function mount(root) {
   // WiFi
   const ssidSel = el("select", {}, el("option", { value: "" }, "— scan for networks —"));
   const pass = el("input", { type: "password", placeholder: "network password" });
-  const scanBtn = el("button", { class: "ghost", onclick: async () => {
-    scanBtn.textContent = "···";
-    for (let i = 0; i < 8; i++) {
-      const r = await api.wifiScan();
-      if (r.body && r.body.networks && !r.body.scanning) {
-        ssidSel.innerHTML = ""; ssidSel.append(el("option", { value: "" }, "— select —"));
-        r.body.networks.sort((a, b) => b.rssi - a.rssi).forEach((n) =>
-          ssidSel.append(el("option", { value: n.ssid }, `${n.ssid} ${n.secure ? "🔒" : ""} ${n.rssi}dBm`)));
-        break;
-      }
-      await new Promise((res) => setTimeout(res, 700));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const scanBtn = el("button", { class: "ghost" }, "Scan");
+  let scanning = false;
+  scanBtn.addEventListener("click", async () => {
+    if (scanning) return;  // ignore re-clicks while a scan is running
+    scanning = true; scanBtn.disabled = true; scanBtn.textContent = "Scanning…";
+    try {
+      const nets = await pollScan(api.wifiScan, sleep);
+      ssidSel.innerHTML = "";
+      ssidSel.append(el("option", { value: "" }, nets.length ? "— select —" : "— no networks found —"));
+      nets.sort((a, b) => b.rssi - a.rssi).forEach((n) =>
+        ssidSel.append(el("option", { value: n.ssid }, `${n.ssid} ${n.secure ? "🔒" : ""} ${n.rssi}dBm`)));
+    } finally {
+      scanning = false; scanBtn.disabled = false; scanBtn.textContent = "Scan";
     }
-    scanBtn.textContent = "Scan";
-  } }, "Scan");
+  });
   const wifiInfo = el("p", { class: "muted" }, "—");
   const wifi = sec("WIFI", wifiInfo,
     field("NETWORK", el("div", { class: "row" }, ssidSel, scanBtn)), field("PASSWORD", pass),

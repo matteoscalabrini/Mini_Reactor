@@ -245,10 +245,22 @@ async def api_disc(req):
     return web.json_response({"ok": True})
 
 
+_scan_t0 = [0.0]  # async-scan start time (0 = idle); mirrors the firmware's async scan
+
+
 async def api_scan(req):
+    # Mirror the firmware: the first GET queues a scan and reports scanning:true; results
+    # arrive ~1.5s later. (Previously this returned results instantly, hiding a client race.)
     nets = [{"ssid": n, "rssi": r, "secure": sec} for n, r, sec in [
         ("LAB-NET-5G", -42, True), ("fermentation_floor", -58, True),
         ("ESP-GUEST", -67, False), ("BUILDING-IOT", -74, True)]]
+    now = time.monotonic()
+    if _scan_t0[0] == 0.0:
+        _scan_t0[0] = now
+        return web.json_response({"scanning": True, "networks": []})
+    if now - _scan_t0[0] < 1.5:
+        return web.json_response({"scanning": True, "networks": []})
+    _scan_t0[0] = 0.0
     return web.json_response({"scanning": False, "networks": nets})
 
 
