@@ -37,7 +37,7 @@ export function mount(root) {
   const sdInfo = el("p", { class: "muted" }, "—");
   function eraseModal() {
     const input = el("input", { type: "text", placeholder: "type: erase" });
-    const ok = el("button", { class: "stop", disabled: "", onclick: async () => { await api.post("/api/v1/sd/erase"); toast("Erasing…", "ok"); bg.remove(); } }, "Erase card");
+    const ok = el("button", { class: "stop", disabled: "", onclick: async () => { ok.disabled = true; await api.post("/api/v1/sd/erase"); toast("Erasing…", "ok"); bg.remove(); } }, "Erase card");
     input.addEventListener("input", () => { if (input.value.trim() === "erase") ok.removeAttribute("disabled"); else ok.setAttribute("disabled", ""); });
     const bg = el("div", { class: "modal-bg" },
       el("div", { class: "modal" },
