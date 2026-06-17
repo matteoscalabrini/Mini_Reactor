@@ -155,6 +155,9 @@ void WifiManager::poll() {
 // Service an async WiFi scan. Called every poll() regardless of connection state.
 void WifiManager::serviceScan() {
   static constexpr uint32_t kScanCooldownMs = 4000;
+  // A connected, all-channel scan takes several seconds (~6 s observed on
+  // hardware). Watchdog must comfortably exceed that.
+  static constexpr uint32_t kScanTimeoutMs = 15000;
   const uint32_t now = millis();
 
   // Start a queued scan only when idle AND past the cooldown — a burst of polling GETs
@@ -162,9 +165,14 @@ void WifiManager::serviceScan() {
   // the freshly-completed results before the client can read them.
   if (scanRequested_ && !scanning_ && now - lastScanDoneMs_ > kScanCooldownMs) {
     scanRequested_ = false;
-    scanning_ = true;
     Serial.println("[WIFI] scan started");
-    WiFi.scanNetworks(true /*async*/, true /*show hidden*/);
+    if (WiFi.scanNetworks(true /*async*/, true /*show hidden*/) == WIFI_SCAN_FAILED) {
+      lastScanDoneMs_ = now;  // couldn't even start (radio busy) — let the cooldown gate retries
+      Serial.println("[WIFI] scan failed to start");
+    } else {
+      scanning_ = true;
+      scanStartedMs_ = now;
+    }
   }
   if (scanning_) {
     const int n = WiFi.scanComplete();
@@ -185,10 +193,15 @@ void WifiManager::serviceScan() {
       scanning_ = false;
       lastScanDoneMs_ = now;
       Serial.printf("[WIFI] scan done: %d networks\n", n);
-    } else if (n == WIFI_SCAN_FAILED) {  // -2: don't get stuck "scanning" forever
+    } else if (now - scanStartedMs_ > kScanTimeoutMs) {
+      // Watchdog only. Do NOT treat a bare WIFI_SCAN_FAILED (-2) as terminal:
+      // scanComplete() returns -2 for a brief window right as the radio finishes,
+      // before the async SCAN_DONE event publishes results. Bailing on that
+      // transient discards a perfectly good scan — wait for results or this timeout.
+      WiFi.scanDelete();
       scanning_ = false;
       lastScanDoneMs_ = now;
-      Serial.println("[WIFI] scan failed");
+      Serial.println("[WIFI] scan failed (timeout)");
     }
   }
 }

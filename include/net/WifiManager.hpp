@@ -83,6 +83,7 @@ class WifiManager {
 
   bool scanRequested_ = false;
   bool scanning_ = false;
+  uint32_t scanStartedMs_ = 0;   // for the scan watchdog timeout
   uint32_t lastScanDoneMs_ = 0;  // cooldown anchor so completed results stay readable
   String scanJson_ = "{\"scanning\":false,\"networks\":[]}";
 };
