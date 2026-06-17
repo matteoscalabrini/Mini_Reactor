@@ -65,5 +65,7 @@ class SdLogger {
  private:
   Config cfg_;
   bool mounted_ = false;
-  void removeRecursive(const char* path);
+  // Delete everything under `path` (not `path` itself). Skips entries it can't
+  // remove and keeps going; returns true only if the directory was fully cleared.
+  bool removeRecursive(const char* path);
 };

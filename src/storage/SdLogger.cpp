@@ -9,6 +9,8 @@
 #include <SD.h>
 #include <SPI.h>
 
+#include <vector>
+
 namespace {
 const char* cardTypeStr(uint8_t type) {
   switch (type) {
@@ -120,29 +122,37 @@ bool SdLogger::clearLog() {
   return true;
 }
 
-void SdLogger::removeRecursive(const char* path) {
-  // Re-open the directory each iteration and delete its first child, so we never
-  // delete entries mid-iteration (unreliable on FAT). Recurse into subdirectories.
-  while (true) {
-    File dir = SD.open(path);
-    if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return; }
-    File entry = dir.openNextFile();
-    if (!entry) { dir.close(); return; }  // empty
-    String p = entry.path();
-    const bool isDir = entry.isDirectory();
+bool SdLogger::removeRecursive(const char* path) {
+  File dir = SD.open(path);
+  if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return false; }
+
+  // Snapshot all child paths first — deleting entries mid-iteration is
+  // unreliable on FAT, and we must not re-scan after each delete (an entry we
+  // fail to remove would be handed back forever).
+  std::vector<String> files;
+  std::vector<String> subdirs;
+  for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    (entry.isDirectory() ? subdirs : files).push_back(entry.path());
     entry.close();
-    dir.close();
-    if (isDir) {
-      removeRecursive(p.c_str());
-      if (!SD.rmdir(p.c_str())) return;  // couldn't remove dir (still non-empty / error) -> bail
-    } else {
-      if (!SD.remove(p.c_str())) return;  // couldn't remove file -> bail
-    }
   }
+  dir.close();
+
+  // Delete every child, skipping (not bailing on) any that won't go — e.g. an
+  // OS-created hidden/system entry shouldn't strand the files after it.
+  bool cleared = true;
+  for (const String& f : files) {
+    if (!SD.remove(f.c_str())) cleared = false;
+  }
+  for (const String& d : subdirs) {
+    if (!removeRecursive(d.c_str())) cleared = false;  // empty it first
+    if (!SD.rmdir(d.c_str())) cleared = false;          // then drop the dir
+  }
+  return cleared;
 }
 
 bool SdLogger::eraseAll() {
   if (!mounted_) return false;
-  removeRecursive("/");
-  return clearLog();  // recreate the empty log with its header
+  const bool cleared = removeRecursive("/");  // best-effort full wipe
+  const bool logOk = clearLog();              // recreate the empty log with its header
+  return cleared && logOk;                    // false if any entry resisted deletion
 }
