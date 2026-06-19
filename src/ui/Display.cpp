@@ -106,7 +106,7 @@ void Display::drawInfo(const ReactorSnapshot& s) {
   char buf[28];
   u8g2_.setFont(u8g2_font_6x12_tr);
   u8g2_.drawStr(2, 11, "INFO");
-  snprintf(buf, sizeof(buf), "WiFi %s", s.wifiConnected ? s.wifiSsid : "down"); u8g2_.drawStr(2, 30, buf);
+  snprintf(buf, sizeof(buf), "WiFi %.20s", s.wifiConnected ? s.wifiSsid : "down"); u8g2_.drawStr(2, 30, buf);
   snprintf(buf, sizeof(buf), "IP   %s", s.ip);                                  u8g2_.drawStr(2, 46, buf);
   snprintf(buf, sizeof(buf), "RSSI %d dBm", s.rssi);                            u8g2_.drawStr(2, 62, buf);
   snprintf(buf, sizeof(buf), "SD   %s", s.sdMounted ? "mounted" : "no card");   u8g2_.drawStr(2, 78, buf);
