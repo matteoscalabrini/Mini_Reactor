@@ -27,6 +27,9 @@
 #include "sensor/Ds18b20.hpp"
 #include "sensor/Thermistor.hpp"
 #include "storage/SdLogger.hpp"
+#include "ui/Display.hpp"
+#include "ui/InputManager.hpp"
+#include "ui/UiController.hpp"
 
 namespace AppRuntime {
 namespace {
@@ -158,7 +161,62 @@ SdLogger g_sd(makeSdLoggerConfig());
 WifiManager g_wifi(makeWifiConfig());
 WebInterface g_web(g_reactor, g_wifi, g_sd, makeWebConfig());
 
+struct ReactorControlAdapter : ui::ReactorControl {
+  Reactor& r;
+  explicit ReactorControlAdapter(Reactor& reactor) : r(reactor) {}
+  void startRun(float t, float rpm) override { r.start(t, rpm, 0); }
+  void stopRun() override { r.stop(); }
+  void setTargetC(float c) override { r.setTargetC(c); }
+  void setRpm(float rpm) override { r.setRpm(rpm); }
+  void setMotorPaused(bool on) override { r.setMotorPaused(on); }
+  void setFullHold(bool on) override { r.setFullHold(on); }
+};
+
+ui::UiController::Config makeUiConfig() {
+  ui::UiController::Config c;
+  c.minRpm = AppConfig::Process::kMinRpm;
+  c.maxRpm = AppConfig::Process::kMaxRpm;
+  c.minTargetC = AppConfig::Ui::kTargetMinC;
+  c.maxTargetC = AppConfig::Ui::kTargetMaxC;
+  c.targetStepC = AppConfig::Ui::kTargetStepC;
+  c.rpmStep = AppConfig::Ui::kRpmStep;
+  return c;
+}
+
+ReactorControlAdapter g_uiControl(g_reactor);
+ui::UiController g_ui(g_uiControl, makeUiConfig());
+ui::Display g_display(AppConfig::Ui::kDisplayI2cAddr, AppConfig::I2c::kSclPin, AppConfig::I2c::kSdaPin);
+ui::InputManager g_input(
+    {AppConfig::Ui::kEncAPin, AppConfig::Ui::kEncBPin, AppConfig::Ui::kEncSwPin,
+     AppConfig::Ui::kBtn1Pin, AppConfig::Ui::kBtn2Pin, AppConfig::Ui::kBtn3Pin},
+    {});
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+ui::ReactorSnapshot buildUiSnapshot() {
+  const ReactorTelemetry t = g_reactor.telemetry();
+  ui::ReactorSnapshot s;
+  s.running = t.running;
+  s.motorPaused = t.motorPaused;
+  s.fullHold = t.fullHold;
+  s.sensorFault = t.sensorFault;
+  s.safetyTripped = t.safetyTripped;
+  s.liquidTempC = t.liquidTempC;
+  s.setpointC = t.setpointC;
+  s.rpm = t.rpm;
+  s.rpmSetpoint = g_reactor.rpmSetpoint();
+  s.heaterDutyPct = t.heaterDutyPct;
+  s.elapsedSec = t.elapsedSec;
+  s.wifiConnected = g_wifi.staConnected();
+  static String ssid, ip;       // keep backing storage alive for the const char*
+  ssid = WiFi.SSID(); ip = g_wifi.ipAddress();
+  s.wifiSsid = ssid.c_str();
+  s.ip = ip.c_str();
+  s.rssi = g_wifi.staConnected() ? WiFi.RSSI() : 0;
+  s.sdMounted = g_sd.mounted();
+  s.firmware = AppConfig::kFirmwareVersion;
+  return s;
+}
 
 const char* voltageCodeStr(Husb238::VoltageCode v) {
   switch (v) {
@@ -346,6 +404,9 @@ void begin() {
   // Power: I2C up, negotiate 12V for the motor/heater rail.
   Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin,
              AppConfig::I2c::kClockHz);
+  g_input.begin();
+  g_display.begin();
+  Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
   requestPd();
 
   // Storage.
@@ -376,6 +437,17 @@ void tick() {
   g_wifi.poll();
   g_thermal.update();   // PID, internally gated to its sample period
   g_reactor.update();   // run timer
+
+  {
+    ui::ReactorSnapshot snap = buildUiSnapshot();
+    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll())
+      g_ui.handle(e, snap);
+    static uint32_t lastDrawMs = 0;
+    if (millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
+      lastDrawMs = millis();
+      g_display.render(g_ui, snap);
+    }
+  }
 
   // Rebuild status/scan JSON at ~10 Hz; apply commands + push WS every loop.
   static uint32_t lastStatusMs = 0;

@@ -100,6 +100,22 @@ static constexpr int kHeaterNtcAdcPin  = 6;   // GPIO6 -> heater NTC divider
 static constexpr int kHeatIsnsPin      = 5;   // GPIO5 -> heater current sense (0.05R)
 }  // namespace Sense
 
+// ── Front-panel UI (OLED + encoder + 3 buttons) ──────────────────────────────
+namespace Ui {
+static constexpr uint8_t kDisplayI2cAddr = 0x3C;   // SH1107 on the shared I2C bus
+static constexpr int kEncAPin  = 8;    // GPIO8
+static constexpr int kEncBPin  = 9;    // GPIO9
+static constexpr int kEncSwPin = 41;   // GPIO41 (push)
+static constexpr int kBtn1Pin  = 47;   // GPIO47 — motor pause
+static constexpr int kBtn2Pin  = 48;   // GPIO48 — motor + heater hold
+static constexpr int kBtn3Pin  = 4;    // GPIO4  — info
+static constexpr float kTargetStepC = 0.5f;
+static constexpr float kRpmStep     = 0.5f;
+static constexpr float kTargetMinC  = 0.0f;
+static constexpr float kTargetMaxC  = 55.0f;   // matches Thermal::kProcessMaxC
+static constexpr uint32_t kRedrawIntervalMs = 66;  // ~15 Hz
+}  // namespace Ui
+
 // ── Thermal: liquid-temp PID + heater NTC safety high-limit ──────────────────
 // The PID controls the heater duty to the DS18B20 LIQUID temperature. The heater
 // NTC is read independently as a safety cutoff. NTC is a high-side divider:
