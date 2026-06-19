@@ -5,7 +5,7 @@ namespace ui {
 
 namespace {
 volatile int32_t g_encCount = 0;
-int g_encAPin = -1, g_encBPin = -1;
+volatile int g_encAPin = -1, g_encBPin = -1;
 
 void IRAM_ATTR onEncEdge() {
   // Quadrature: on A edge, B level gives direction.

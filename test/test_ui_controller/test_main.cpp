@@ -131,6 +131,13 @@ void test_btn2_toggles_full_hold_off_when_already_held() {
   TEST_ASSERT_FALSE(fc.lastFullHold);                      // pressed while held -> resume
 }
 
+void test_btn2_full_hold_noop_when_stopped() {
+  FakeControl fc; UiController ui(fc, cfg());
+  ReactorSnapshot stopped; stopped.running = false;
+  ui.handle(UiEvent::Btn2, stopped);
+  TEST_ASSERT_EQUAL_INT(0, fc.fullHoldCalls);   // no-op when not running
+}
+
 void test_menu_rotate_cw_wraps_forward() {
   FakeControl fc; UiController ui(fc, cfg()); ReactorSnapshot s;
   ui.handle(UiEvent::EncShortPush, s);          // -> Menu, index = kMenuStartStop (0)
@@ -153,6 +160,7 @@ int main(int, char**) {
   RUN_TEST(test_edit_target_clamped_high);
   RUN_TEST(test_edit_speed_clamped_low);
   RUN_TEST(test_btn1_toggles_motor_pause_only_when_running);
+  RUN_TEST(test_btn2_full_hold_noop_when_stopped);
   RUN_TEST(test_btn2_toggles_full_hold_off_when_already_held);
   RUN_TEST(test_menu_rotate_cw_wraps_forward);
   return UNITY_END();

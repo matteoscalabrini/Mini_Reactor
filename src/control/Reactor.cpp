@@ -110,7 +110,7 @@ void Reactor::setTargetC(float celsius) {
 
 void Reactor::setRpm(float rpm) {
   rpm_ = RpmKinematics::clampRpm(rpm, cfg_.minRpm, cfg_.maxRpm);
-  if (running_) motor_.setRpm(rpm_);
+  if (running_) applyMotorState();
   persist();
 }
 
@@ -139,6 +139,9 @@ void Reactor::setDiscEnabled(bool on) {
     motor_.stop();
     motor_.enable(false);
   } else {
+    motorPaused_ = false;          // web disc-enable overrides any panel hold
+    fullHold_ = false;
+    thermal_.setInhibited(false);
     motor_.enable(true);
     if (running_) motor_.setRpm(rpm_);
   }
