@@ -10,12 +10,15 @@ Display::Display(uint8_t i2cAddr, int sclPin, int sdaPin)
     : u8g2_(U8G2_R0, U8X8_PIN_NONE, sclPin, sdaPin), addr_(i2cAddr) {}
 
 void Display::begin() {
-  Wire.beginTransmission(addr_);
-  present_ = (Wire.endTransmission() == 0);
-  if (!present_) return;             // run headless if no panel on the bus
+  // U8g2 owns the single Wire.begin() on the shared bus (a second begin deadlocks
+  // the ESP32 I2C driver). It is harmless if no panel is attached — the init writes
+  // simply NACK — and it leaves the bus ready for the other I2C devices (HUSB238).
   u8g2_.setI2CAddress(addr_ << 1);
   u8g2_.begin();
-  u8g2_.setContrast(255);
+  Wire.setTimeOut(50);               // bound bus ops so a stuck slave can't hang us
+  Wire.beginTransmission(addr_);
+  present_ = (Wire.endTransmission() == 0);  // headless render if no panel answers
+  if (present_) u8g2_.setContrast(255);
 }
 
 static void fmtElapsed(uint32_t sec, char* out, size_t n) {

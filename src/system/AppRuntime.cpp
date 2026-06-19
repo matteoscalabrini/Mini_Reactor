@@ -401,11 +401,12 @@ void begin() {
   }
   Serial.println(F("\n=== Bioreactor Module — fermentation firmware ==="));
 
-  // Power: I2C up, negotiate 12V for the motor/heater rail.
-  Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin,
-             AppConfig::I2c::kClockHz);
+  // The OLED's U8g2 driver performs the single Wire.begin() on the shared I2C bus;
+  // a second explicit Wire.begin() deadlocks the ESP32 I2C driver. Restore the
+  // intended bus clock afterwards for the other devices on the bus (HUSB238).
   g_input.begin();
   g_display.begin();
+  Wire.setClock(AppConfig::I2c::kClockHz);
   Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
   requestPd();
 
