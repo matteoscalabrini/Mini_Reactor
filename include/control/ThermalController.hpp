@@ -92,6 +92,7 @@ class ThermalController {
   const ThermistorCalibration& ntcCalibration() const { return ntc_.calibration(); }
 
   void update();
+  void setInhibited(bool on);   // full-hold: force heater off, keep enabled_/mode
 
   float temperatureC() const { return liquidC_; }   // process value (liquid)
   float heaterTempC() const { return heaterC_; }     // safety probe
@@ -121,6 +122,7 @@ class ThermalController {
   float heaterC_ = NAN;
   float duty_ = 0.0f;
   bool safetyTrip_ = false;
+  bool inhibited_ = false;
 
   uint32_t lastSafetyMs_ = 0;
   uint32_t lastPidMs_ = 0;

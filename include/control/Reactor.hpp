@@ -27,6 +27,8 @@ struct ReactorTelemetry {
   float rpm = 0.0f;          // disc rpm (0 when stopped)
   bool sensorFault = false;  // liquid probe fault
   bool safetyTripped = false;
+  bool motorPaused = false;   // B1 hold: disc off, heater on
+  bool fullHold = false;      // B2 hold: disc off, heater off
   uint32_t elapsedSec = 0;
   uint32_t remainingSec = 0;  // 0 when no duration timer is set
   uint16_t durationMin = 0;
@@ -73,6 +75,12 @@ class Reactor {
   void setDiscReverse(bool reverse);
   void setDiscEnabled(bool on);
 
+  /* Pause holds toggled from the front panel (run stays active). */
+  void setMotorPaused(bool on);   // B1: disc off
+  void setFullHold(bool on);      // B2: disc off + heater off
+  bool motorPaused() const { return motorPaused_; }
+  bool fullHold() const { return fullHold_; }
+
   /* PID control surface (delegates to the ThermalController). */
   void setPidGains(float kp, float ki, float kd) { thermal_.setGains(kp, ki, kd); }
   void setPidMode(const char* m) { thermal_.setModeStr(m); }
@@ -89,6 +97,7 @@ class Reactor {
 
  private:
   void persist();
+  void applyMotorState();   // disc runs only if running && !motorPaused_ && !fullHold_
 
   ThermalController& thermal_;
   Tmc2209Motor& motor_;
@@ -96,6 +105,8 @@ class Reactor {
   Preferences prefs_;
 
   bool running_ = false;
+  bool motorPaused_ = false;
+  bool fullHold_ = false;
   bool motorTesting_ = false;
   uint32_t motorTestStartMs_ = 0;
   float targetC_ = 36.0f;

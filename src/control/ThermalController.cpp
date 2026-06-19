@@ -107,6 +107,12 @@ void ThermalController::applyOff() {
   pid_.reset();
 }
 
+void ThermalController::setInhibited(bool on) {
+  if (inhibited_ && !on) pid_.reset();  // resume: clear integrator -> no wind-up bump
+  inhibited_ = on;
+  if (on) applyOff();
+}
+
 void ThermalController::update() {
   const uint32_t now = millis();
 
@@ -126,6 +132,7 @@ void ThermalController::update() {
 
   if (!enabled_) { applyOff(); return; }
   if (safetyTrip_) return;
+  if (inhibited_) { applyOff(); return; }  // full-hold: heater off, run still active
   if (!fresh) return;
   if (isnan(liquidC_) || liquidC_ >= cfg_.processMaxC) { applyOff(); return; }
 

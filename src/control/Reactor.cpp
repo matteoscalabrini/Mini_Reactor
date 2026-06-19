@@ -47,6 +47,7 @@ void Reactor::persist() {
 }
 
 void Reactor::start(float targetC, float rpm, uint16_t durationMin) {
+  motorPaused_ = false; fullHold_ = false;
   motorTesting_ = false;
   targetC_ = targetC;
   rpm_ = RpmKinematics::clampRpm(rpm, cfg_.minRpm, cfg_.maxRpm);
@@ -70,6 +71,7 @@ void Reactor::start(float targetC, float rpm, uint16_t durationMin) {
 
 void Reactor::stop() {
   running_ = false;
+  motorPaused_ = false; fullHold_ = false; thermal_.setInhibited(false);
   thermal_.enable(false);
   motor_.stop();
 }
@@ -142,6 +144,28 @@ void Reactor::setDiscEnabled(bool on) {
   }
 }
 
+void Reactor::applyMotorState() {
+  const bool motorOn = running_ && !motorPaused_ && !fullHold_;
+  if (motorOn) {
+    motor_.enable(true);
+    motor_.setRpm(rpm_);
+  } else {
+    motor_.stop();
+    motor_.enable(false);
+  }
+}
+
+void Reactor::setMotorPaused(bool on) {
+  motorPaused_ = on;
+  applyMotorState();
+}
+
+void Reactor::setFullHold(bool on) {
+  fullHold_ = on;
+  thermal_.setInhibited(on);
+  applyMotorState();
+}
+
 ReactorTelemetry Reactor::telemetry() const {
   ReactorTelemetry t;
   t.running = running_;
@@ -149,9 +173,10 @@ ReactorTelemetry Reactor::telemetry() const {
   t.heaterTempC = thermal_.heaterTempC();
   t.setpointC = thermal_.setpoint();
   t.heaterDutyPct = thermal_.dutyPercent();
-  t.rpm = running_ ? rpm_ : 0.0f;
+  t.rpm = (running_ && !motorPaused_ && !fullHold_) ? rpm_ : 0.0f;
   t.sensorFault = thermal_.sensorFault();
   t.safetyTripped = thermal_.safetyTripped();
+  t.motorPaused = motorPaused_; t.fullHold = fullHold_;
   t.durationMin = durationMin_;
   if (running_) {
     t.elapsedSec = (millis() - startMs_) / 1000UL;
