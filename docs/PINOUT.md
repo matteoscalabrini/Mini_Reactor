@@ -44,14 +44,19 @@ MCU: **ESP32-S3-WROOM-1** (U2).
 | Heater current sense `HEAT_ISNS` | GPIO5 (ADC1) |
 | Rotary encoder A / B / SW | GPIO8 / GPIO9 / GPIO41 |
 | Button 1 / 2 / 3 | GPIO47 / GPIO48 / GPIO4 |
+| **OLED — SH1107 128×128** (front panel) | SDA=GPIO43 / SCL=GPIO44 — **dedicated I2C (Wire1)** on J6 |
 
 > Temperature control loop: the **DS18B20 in the liquid** is the PID process value; the
 > **heater-mounted NTC** is read independently as an over-temp cutoff (heater forced
 > off above `Thermal::kHeaterSafetyMaxC`), not for control.
+>
+> Front-panel OLED runs on its **own** I2C peripheral (`Wire1`, GPIO43/44), separate from
+> the primary bus (GPIO1/2, HUSB238) — sharing the primary bus electrically disturbs the
+> HUSB238. GPIO43/44 are the UART0 pins, free because the console is on USB-CDC.
 
 ### Programming / USB
 - Native USB (USB-C J1): `D+ = GPIO20`, `D- = GPIO19`.
-- UART0 / debug header **J6**: `U0TXD=GPIO43`, `U0RXD=GPIO44`, `EN`, `BOOT (GPIO0)`, `IO42`.
+- UART0 / debug header **J6**: `U0TXD=GPIO43`, `U0RXD=GPIO44` (**repurposed as the OLED I2C bus** — console is on USB-CDC), `EN`, `BOOT (GPIO0)`, `IO42`.
 
 ### Not connected
 - GPIO3, GPIO45, GPIO46 (NC). GPIO35/36/37 = WROOM-1 internal octal PSRAM/flash — do not use.

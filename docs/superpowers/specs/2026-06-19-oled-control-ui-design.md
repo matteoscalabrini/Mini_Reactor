@@ -42,20 +42,27 @@ autotune, NTC calibration, disc parameters, WiFi onboarding) stays **web-only**.
 
 ## Hardware & integration
 
+> **Amended during on-device bring-up:** the OLED was originally specced on the *shared*
+> primary I2C bus (GPIO1/2). On hardware, the SH1107 on that bus electrically disrupted the
+> HUSB238 (it dropped to `device_not_found` whenever the OLED's SDA/SCL were connected,
+> independent of bus clock). The OLED was moved to its **own** hardware I2C bus (`Wire1`) on
+> the free UART0 pins **GPIO43/44**; the HUSB238 keeps the primary bus to itself. Table below
+> reflects the shipped wiring.
+
 | Element | Wiring | Notes |
 |---|---|---|
-| OLED | SH1107 128×128, I2C @ **0x3C**, on **SDA GPIO1 / SCL GPIO2** (J3 header) | Shares the bus with HUSB238 (0x08) — no address conflict |
+| OLED | SH1107 128×128, I2C @ **0x3C**, on **SDA GPIO43 / SCL GPIO44** — dedicated `Wire1` (J6) | Isolated from HUSB238 on the primary bus |
 | Encoder A / B | GPIO8 / GPIO9 | Quadrature, interrupt-driven |
 | Encoder push (SW) | GPIO41 | Short press = select; long press (~600 ms) = Home |
 | Button B1 / B2 / B3 | GPIO47 / GPIO48 / GPIO4 | Debounced (~25 ms) |
 
-Pins per `docs/PINOUT.md` and `AppConfig::Sense`/board schematic. The display constructor is
-`U8G2_SH1107_PIMORONI_128X128_F_HW_I2C` (full buffer ≈ 2 KB; trivial on the S3).
+Pins per `docs/PINOUT.md` and `AppConfig::Ui`/board schematic. The display constructor is
+`U8G2_SH1107_PIMORONI_128X128_F_2ND_HW_I2C` (second I2C peripheral / `Wire1`; full buffer ≈ 2 KB).
 
-**I2C bus sharing:** the bus is already brought up for the HUSB238. Wire must be initialized
-**once** (in `AppRuntime`, pins GPIO1/GPIO2) and both the HUSB238 driver and U8g2 must use
-that same `Wire` instance/pins — U8g2 must not re-`begin()` Wire with default pins. Verify
-the OLED address with an I2C scan on hardware before wiring it in.
+**I2C buses (two, independent):** the primary `Wire` (GPIO1/2, 100 kHz) is brought up once in
+`AppRuntime` for the HUSB238. The OLED's `Wire1` (GPIO43/44) is brought up inside
+`Display::begin()`; U8g2's 2ND driver re-`begin()`s `Wire1` with no pins, which the core
+treats as a no-op once the bus is up, so it rides on the pins set in `Display::begin()`.
 
 ## Architecture / components
 
