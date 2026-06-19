@@ -185,7 +185,8 @@ ui::UiController::Config makeUiConfig() {
 
 ReactorControlAdapter g_uiControl(g_reactor);
 ui::UiController g_ui(g_uiControl, makeUiConfig());
-ui::Display g_display(AppConfig::Ui::kDisplayI2cAddr, AppConfig::I2c::kSclPin, AppConfig::I2c::kSdaPin);
+ui::Display g_display(AppConfig::Ui::kDisplayI2cAddr, AppConfig::Ui::kDisplaySclPin,
+                      AppConfig::Ui::kDisplaySdaPin, AppConfig::Ui::kDisplayBusClockHz);
 ui::InputManager g_input(
     {AppConfig::Ui::kEncAPin, AppConfig::Ui::kEncBPin, AppConfig::Ui::kEncSwPin,
      AppConfig::Ui::kBtn1Pin, AppConfig::Ui::kBtn2Pin, AppConfig::Ui::kBtn3Pin},
@@ -401,12 +402,12 @@ void begin() {
   }
   Serial.println(F("\n=== Bioreactor Module — fermentation firmware ==="));
 
-  // The OLED's U8g2 driver performs the single Wire.begin() on the shared I2C bus;
-  // a second explicit Wire.begin() deadlocks the ESP32 I2C driver. Restore the
-  // intended bus clock afterwards for the other devices on the bus (HUSB238).
+  // Primary I2C bus (Wire, GPIO1/2): HUSB238 and anything else on the board header.
+  Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin, AppConfig::I2c::kClockHz);
+  // The OLED lives on its OWN bus (Wire1, GPIO43/44), brought up inside g_display.begin()
+  // — fully isolated from the HUSB238, so neither can disturb the other.
   g_input.begin();
   g_display.begin();
-  Wire.setClock(AppConfig::I2c::kClockHz);
   Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
   requestPd();
 

@@ -30,7 +30,7 @@ static constexpr uint16_t kSerialStartupDelayMs = 3000;  // USB-CDC enumerate
 namespace I2c {
 static constexpr int      kSdaPin  = 1;       // GPIO1
 static constexpr int      kSclPin  = 2;       // GPIO2
-static constexpr uint32_t kClockHz = 100000;  // 100 kHz standard mode
+static constexpr uint32_t kClockHz = 100000;  // 100 kHz standard mode (HUSB238 etc.)
 }  // namespace I2c
 
 // ── USB-PD sink (HUSB238) ────────────────────────────────────────────────────
@@ -102,7 +102,13 @@ static constexpr int kHeatIsnsPin      = 5;   // GPIO5 -> heater current sense (
 
 // ── Front-panel UI (OLED + encoder + 3 buttons) ──────────────────────────────
 namespace Ui {
-static constexpr uint8_t kDisplayI2cAddr = 0x3C;   // SH1107 on the shared I2C bus
+static constexpr uint8_t kDisplayI2cAddr = 0x3C;   // SH1107 address
+// The OLED gets its OWN hardware I2C bus (Wire1) on GPIO43/44 (UART0 pins, free
+// because the console runs over USB-CDC). This isolates it from the HUSB238 on
+// the primary bus (GPIO1/2) — no shared-bus contention or pull-up fighting.
+static constexpr int kDisplaySdaPin = 43;   // GPIO43 (U0TXD) -> OLED SDA, Wire1
+static constexpr int kDisplaySclPin = 44;   // GPIO44 (U0RXD) -> OLED SCL, Wire1
+static constexpr uint32_t kDisplayBusClockHz = 400000;  // dedicated bus, fast refresh
 static constexpr int kEncAPin  = 8;    // GPIO8
 static constexpr int kEncBPin  = 9;    // GPIO9
 static constexpr int kEncSwPin = 41;   // GPIO41 (push)
@@ -113,7 +119,7 @@ static constexpr float kTargetStepC = 0.5f;
 static constexpr float kRpmStep     = 0.5f;
 static constexpr float kTargetMinC  = 0.0f;
 static constexpr float kTargetMaxC  = 55.0f;   // matches Thermal::kProcessMaxC
-static constexpr uint32_t kRedrawIntervalMs = 66;  // ~15 Hz
+static constexpr uint32_t kRedrawIntervalMs = 150;  // ~6.6 Hz (full-frame I2C blit is ~46 ms)
 }  // namespace Ui
 
 // ── Thermal: liquid-temp PID + heater NTC safety high-limit ──────────────────

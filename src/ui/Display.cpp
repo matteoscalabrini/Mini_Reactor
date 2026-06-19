@@ -6,18 +6,24 @@
 
 namespace ui {
 
-Display::Display(uint8_t i2cAddr, int sclPin, int sdaPin)
-    : u8g2_(U8G2_R0, U8X8_PIN_NONE, sclPin, sdaPin), addr_(i2cAddr) {}
+Display::Display(uint8_t i2cAddr, int sclPin, int sdaPin, uint32_t busHz)
+    : u8g2_(U8G2_R0, U8X8_PIN_NONE),
+      addr_(i2cAddr),
+      sclPin_(sclPin),
+      sdaPin_(sdaPin),
+      busHz_(busHz) {}
 
 void Display::begin() {
-  // U8g2 owns the single Wire.begin() on the shared bus (a second begin deadlocks
-  // the ESP32 I2C driver). It is harmless if no panel is attached — the init writes
-  // simply NACK — and it leaves the bus ready for the other I2C devices (HUSB238).
+  // Bring up the OLED's dedicated bus (Wire1) on its own pins first. U8g2's 2ND
+  // driver later calls Wire1.begin() with no pins, which the core treats as a
+  // no-op once the bus is up — so it rides on the pins we set here without a
+  // second (deadlock-prone) re-init.
+  Wire1.begin(sdaPin_, sclPin_, busHz_);
+  Wire1.setTimeOut(50);              // bound bus ops so a stuck slave can't hang us
   u8g2_.setI2CAddress(addr_ << 1);
   u8g2_.begin();
-  Wire.setTimeOut(50);               // bound bus ops so a stuck slave can't hang us
-  Wire.beginTransmission(addr_);
-  present_ = (Wire.endTransmission() == 0);  // headless render if no panel answers
+  Wire1.beginTransmission(addr_);
+  present_ = (Wire1.endTransmission() == 0);  // headless render if no panel answers
   if (present_) u8g2_.setContrast(255);
 }
 
