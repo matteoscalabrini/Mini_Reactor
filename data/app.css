@@ -78,3 +78,22 @@ button.ghost{background:var(--surface-2)} button:disabled{opacity:.5;cursor:not-
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px;max-width:420px;width:90%}
 .modal h4{margin:0 0 8px;font-size:15px}
 .modal p{color:var(--muted);font-size:13px;margin:0 0 12px}
+.navrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.tabs{margin:0}
+.runbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rb-btn{padding:9px 16px}
+.rb-wrap{position:relative;display:inline-block}
+.rb-held{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--warn);text-transform:uppercase}
+.rb-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:6px;
+  min-width:190px;display:flex;flex-direction:column;gap:2px}
+.rb-menu[hidden]{display:none}
+.rb-item{width:100%;text-align:left;border:none;background:transparent;padding:9px 12px;
+  border-radius:7px;font-weight:600}
+.rb-item:hover{background:var(--surface-2)}
+.rb-item.danger{color:var(--bad)}
+.rb-tools{display:flex;gap:8px;align-items:center}
+.rb-picker{font:inherit;padding:5px 8px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface-2);max-width:160px}
+.rb-more{margin-top:8px}
+.history-wrap{margin-top:14px}

@@ -3,11 +3,10 @@ import { start as startWs } from "./core/ws.js";
 import { get } from "./core/api.js";
 import { el, clear, hhmmss } from "./core/ui.js";
 import * as monitor from "./screens/monitor.js";
-import * as run from "./screens/run.js";
-import * as history from "./screens/history.js";
 import * as settings from "./screens/settings.js";
+import { mount as mountRunbar } from "./core/runbar.js";
 
-const screens = { monitor, run, history, settings };
+const screens = { monitor, settings };
 
 let teardown = null;
 function route() {
@@ -54,6 +53,7 @@ function renderShell(d) {
 window.addEventListener("hashchange", route);
 store.subscribe(renderShell);
 store.subscribeConn(() => { const d = store.getStatus(); if (d) renderShell(d); });
+mountRunbar(document.getElementById("runbar"));
 route();
 get("/api/v1/status").then((r) => { if (r.body && r.body.apiVersion) store.setStatus(r.body); });
 startWs();
