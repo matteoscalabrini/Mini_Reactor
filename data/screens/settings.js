@@ -1,5 +1,6 @@
 import * as store from "../core/store.js";
-import { el, toast, flashApplied } from "../core/ui.js";
+import { el, toast, flashApplied, hhmmss } from "../core/ui.js";
+import { runParams } from "../core/runparams.js";
 import * as api from "../core/api.js";
 import { pollScan } from "../core/wifiscan.js";
 
@@ -95,7 +96,39 @@ export function mount(root) {
   const sysInfo = el("p", { class: "muted" }, "—");
   const sys = sec("SYSTEM", sysInfo);
 
-  root.append(wifi, sd, pid, cal, motor, sys);
+  // RUN (relocated from the old Run page; Start/Stop live in the global run bar)
+  const p0 = runParams.get();
+  const inTarget = el("input", { type: "number", step: "0.5", min: "0", max: "55", value: p0.targetC });
+  const inRpm = el("input", { type: "number", step: "1", min: "0", max: "30", value: p0.rpm });
+  const inDur = el("input", { type: "number", min: "0", value: p0.durationMin,
+    placeholder: "minutes (0 = until stopped)" });
+  const stateV = el("div", { class: "v" }, "IDLE");
+  const elapsedV = el("div", { class: "v" }, "—"), remainV = el("div", { class: "v" }, "—");
+
+  inTarget.addEventListener("change", async () => {
+    runParams.set({ targetC: +inTarget.value });
+    if ((store.getStatus()?.run || {}).active) {
+      const r = await api.setpoint({ targetC: +inTarget.value }); flashApplied(inTarget, r.ok);
+    }
+  });
+  inRpm.addEventListener("change", async () => {
+    runParams.set({ rpm: +inRpm.value });
+    if ((store.getStatus()?.run || {}).active) {
+      const r = await api.setpoint({ rpm: +inRpm.value }); flashApplied(inRpm, r.ok);
+    }
+  });
+  inDur.addEventListener("change", () => runParams.set({ durationMin: +inDur.value }));
+
+  const runSec = sec("RUN",
+    field("TARGET TEMPERATURE °C", inTarget),
+    field("AGITATOR SPEED rpm", inRpm),
+    field("DURATION min", inDur),
+    el("div", { class: "stat3" },
+      el("div", {}, el("div", { class: "lbl" }, "STATE"), stateV),
+      el("div", {}, el("div", { class: "lbl" }, "ELAPSED"), elapsedV),
+      el("div", {}, el("div", { class: "lbl" }, "REMAINING"), remainV)));
+
+  root.append(runSec, wifi, sd, pid, cal, motor, sys);
   api.getCalibration().then((r) => { if (r.body) calInfo.textContent = `Method ${r.body.method} · ${r.body.calibrated ? "calibrated" : "factory"} · ${(r.body.points || []).length} point(s)`; });
 
   let primed = false;
@@ -111,6 +144,12 @@ export function mount(root) {
       kp.value = p.kp ?? ""; ki.value = p.ki ?? ""; kd.value = p.kd ?? ""; if (p.mode) modeSel.value = p.mode;
       curMa.value = disc.currentMa ?? ""; micro.value = disc.microsteps ?? ""; if (disc.direction) dirSel.value = disc.direction;
     }
+    const run = d.run || {};
+    const paused = run.pause && (run.pause.motor || run.pause.heater);
+    stateV.textContent = run.active ? (paused ? "PAUSED" : "RUNNING") : "IDLE";
+    elapsedV.textContent = hhmmss(run.elapsedSec || 0);
+    remainV.textContent = run.remainingSec == null
+      ? (run.active ? "∞" : "—") : hhmmss(run.remainingSec);
   });
   return unsub;
 }
