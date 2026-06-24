@@ -30,9 +30,11 @@
 #include <SD.h>
 #include <SPIFFS.h>
 
+#include <string.h>
 #include "control/Reactor.hpp"
 #include "net/WifiManager.hpp"
 #include "storage/SdLogger.hpp"
+#include "storage/RunFiles.hpp"
 
 WebInterface::WebInterface(Reactor& reactor, WifiManager& wifi, SdLogger& sd,
                            const Config& config)
@@ -70,6 +72,13 @@ static void sendError(AsyncWebServerRequest* req, int status, const char* code,
   AsyncWebServerResponse* resp = req->beginResponse(status, "application/json", body);
   resp->addHeader("Access-Control-Allow-Origin", "*");
   req->send(resp);
+}
+
+// Copy a sanitized session name into a fixed buffer (firmware is authoritative).
+static void copySanitizedName(char* dst, size_t dstSize, const String& raw) {
+  const std::string s = RunFiles::sanitizeName(std::string(raw.c_str()), dstSize - 1);
+  strncpy(dst, s.c_str(), dstSize - 1);
+  dst[dstSize - 1] = '\0';
 }
 
 void WebInterface::registerRoutes() {
@@ -118,16 +127,24 @@ void WebInterface::registerRoutes() {
             sendError(req, 400, "out_of_range", "targetC must be 0..55");
             return;
           }
+          const String name = o["name"] | "";
           xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStart = true;
           pending_.runTargetC = targetC;
           pending_.runRpm = rpm;
           pending_.runDurMin = o["durationMin"] | 0;
+          copySanitizedName(pending_.runName, sizeof(pending_.runName), name);
           xSemaphoreGive(mutex_);
           sendOk(req);
         } else if (action == "stop") {
+          const String data = o["data"] | "save";
+          if (data != "save" && data != "discard") {
+            sendError(req, 400, "invalid_request", "data must be save|discard");
+            return;
+          }
           xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStop = true;
+          pending_.runStopSave = (data == "save");
           xSemaphoreGive(mutex_);
           sendOk(req);
         } else {
@@ -296,18 +313,53 @@ void WebInterface::registerRoutes() {
 
   // ── SD log download / clear ──
   server_->on("/api/v1/log", HTTP_GET, [this](AsyncWebServerRequest* req) {
-    if (!sd_.mounted() || !SD.exists(sd_.logPath())) {
+    if (!sd_.mounted()) {
       sendError(req, 503, "no_log", "no log file on the SD card");
       return;
     }
-    AsyncWebServerResponse* resp =
-        req->beginResponse(SD, sd_.logPath(), "text/csv", true);
-    req->send(resp);
+    const int latest = sd_.latestRunId();
+    const String path = latest > 0 ? sd_.runCsvPath(latest) : String(sd_.logPath());
+    if (!SD.exists(path)) {
+      sendError(req, 503, "no_log", "no log file on the SD card");
+      return;
+    }
+    req->send(SD, path, "text/csv", true);
   });
 
   server_->on("/api/v1/log/clear", HTTP_POST, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.logClear = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
+  // ── GET runs list (served from the loop-built cache) ──
+  server_->on("/api/v1/runs", HTTP_GET, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    const String body = runsJson_;
+    xSemaphoreGive(mutex_);
+    sendJson(req, body);
+  });
+
+  // ── GET one run's CSV (download) ──
+  server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)$", HTTP_GET,
+              [this](AsyncWebServerRequest* req) {
+    const int id = req->pathArg(0).toInt();
+    const String path = sd_.runCsvPath(id);
+    if (!sd_.mounted() || !SD.exists(path)) {
+      sendError(req, 404, "not_found", "no such run");
+      return;
+    }
+    req->send(SD, path, "text/csv", true);
+  });
+
+  // ── POST delete a run ──
+  server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)\\/delete$", HTTP_POST,
+              [this](AsyncWebServerRequest* req) {
+    const int id = req->pathArg(0).toInt();
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.runDelete = true;
+    pending_.runDeleteId = id;
     xSemaphoreGive(mutex_);
     sendOk(req);
   });
@@ -339,11 +391,20 @@ void WebInterface::applyPending() {
 
   // Log each triggered command to serial ([CMD]) for on-device debugging.
   if (p.runStart) {
-    Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin\n",
-                  p.runTargetC, p.runRpm, (unsigned)p.runDurMin);
+    Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin name='%s'\n",
+                  p.runTargetC, p.runRpm, (unsigned)p.runDurMin, p.runName);
     reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
+    if (reactor_.running()) sd_.startRun(p.runName);  // open the per-run file
   }
-  if (p.runStop) { Serial.println("[CMD] run stop"); reactor_.stop(); }
+  if (p.runStop) {
+    Serial.printf("[CMD] run stop (%s)\n", p.runStopSave ? "save" : "discard");
+    reactor_.stop();
+    sd_.endRun(p.runStopSave);
+  }
+  if (p.runDelete) {
+    Serial.printf("[CMD] run delete id=%d\n", p.runDeleteId);
+    sd_.deleteRun(p.runDeleteId);
+  }
   if (p.setTarget) { Serial.printf("[CMD] setpoint target=%.1fC\n", p.setTargetC); reactor_.setTargetC(p.setTargetC); }
   if (p.setRpm) { Serial.printf("[CMD] setpoint rpm=%.1f\n", p.setRpmVal); reactor_.setRpm(p.setRpmVal); }
   if (p.discRpm) { Serial.printf("[CMD] disc rpm=%.1f\n", p.discRpmVal); reactor_.setRpm(p.discRpmVal); }
@@ -369,6 +430,12 @@ void WebInterface::applyPending() {
 void WebInterface::cacheCalJson(const String& calJson) {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   calJson_ = calJson;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cacheRunsJson(const String& runsJson) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  runsJson_ = runsJson;
   xSemaphoreGive(mutex_);
 }
 

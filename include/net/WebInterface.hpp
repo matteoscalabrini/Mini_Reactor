@@ -45,6 +45,9 @@ class WebInterface {
   /* Cache the calibration JSON (built in the loop) for GET /calibration. */
   void cacheCalJson(const String& calJson);
 
+  /* Cache the runs-list JSON (built in the loop) for GET /runs. */
+  void cacheRunsJson(const String& runsJson);
+
  private:
   void registerRoutes();
   void applyPending();
@@ -61,6 +64,7 @@ class WebInterface {
   String statusJson_ = "{}";
   String scanJson_ = "{\"scanning\":false,\"networks\":[]}";
   String calJson_ = "{}";
+  String runsJson_ = "{\"runs\":[]}";
   uint32_t lastPushMs_ = 0;
 
   // Pending commands set by async handlers, drained in update() (loop context).
@@ -69,7 +73,11 @@ class WebInterface {
     float runTargetC = 0;
     float runRpm = 0;
     uint16_t runDurMin = 0;
+    char runName[33] = {0};      // sanitized session name ("" = unnamed)
     bool runStop = false;
+    bool runStopSave = true;     // stop&save vs stop&discard
+    bool runDelete = false;
+    int  runDeleteId = 0;
 
     bool setTarget = false;
     float setTargetC = 0;
