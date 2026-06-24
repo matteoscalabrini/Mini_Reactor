@@ -81,6 +81,7 @@ button.ghost{background:var(--surface-2)} button:disabled{opacity:.5;cursor:not-
 .navrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
 .tabs{margin:0}
 .runbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.runbar [hidden]{display:none}
 .rb-btn{padding:9px 16px}
 .rb-wrap{position:relative;display:inline-block}
 .rb-held{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--warn);text-transform:uppercase}
