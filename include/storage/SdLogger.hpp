@@ -14,6 +14,9 @@
 #pragma once
 
 #include <Arduino.h>
+#include <FS.h>
+
+#include <vector>
 
 class SdLogger {
  public:
@@ -62,10 +65,46 @@ class SdLogger {
    * with its header. Destructive. Returns success. */
   bool eraseAll();
 
+  // ── Per-run files (/runs/NNNNN.csv + optional NNNNN.name sidecar) ──
+  struct RunInfo {
+    int id = 0;
+    String label;       // sidecar name, or "Run <id>"
+    uint32_t bytes = 0; // CSV size
+  };
+
+  /* startRun() — Create /runs/<next-id>.csv (with header) and open it as the
+   * current run. Writes /runs/<id>.name when `name` is non-empty (caller has
+   * already sanitized it). Returns the new id, or 0 on failure. */
+  int startRun(const char* name);
+
+  /* endRun() — Close the current run file. If !save, delete the CSV + sidecar.
+   * No-op when no run is open. */
+  void endRun(bool save);
+
+  int currentRunId() const { return currentId_; }
+  const char* currentRunName() const { return currentName_; }
+
+  /* listRuns() — Enumerate saved runs (id, label, bytes). */
+  std::vector<RunInfo> listRuns();
+
+  /* latestRunId() — Highest existing run id, or 0 when none. */
+  int latestRunId();
+
+  /* runCsvPath() — SD path of a run's CSV (for download streaming). */
+  String runCsvPath(int id);
+
+  /* deleteRun() — Remove a run's CSV + sidecar. Returns success. */
+  bool deleteRun(int id);
+
  private:
   Config cfg_;
   bool mounted_ = false;
   // Delete everything under `path` (not `path` itself). Skips entries it can't
   // remove and keeps going; returns true only if the directory was fully cleared.
   bool removeRecursive(const char* path);
+
+  // Current open run, if any. currentId_ == 0 means "no run open".
+  File current_;
+  int currentId_ = 0;
+  char currentName_[33] = {0};
 };
