@@ -13,7 +13,7 @@ export function mount(root) {
   const runPill = el("span", { class: "pill off" }, "IDLE");
   const elapsed = el("div", { class: "v" }, "—"), remain = el("div", { class: "v" }, "—"), dur = el("div", { class: "v" }, "—");
   const progBar = bar(0), progPct = el("span", { class: "n" }, "—");
-  const rpmN = el("span", { class: "n" }, "—"), loadN = el("span", { class: "n" }, "—");
+  const rpmN = el("span", { class: "n" }, "—");
   const rpmBar = bar(0), heatN = el("span", { class: "n" }, "—"), heatBar = bar(0);
   const probeState = el("span", { class: "pill off" }, "—"), probeMethod = el("div", { class: "v" }, "—"),
         probeRes = el("div", { class: "v" }, "—"), probeTemp = el("div", { class: "v" }, "—");
@@ -41,8 +41,7 @@ export function mount(root) {
           progBar),
         el("div", { class: "card" }, el("h3", {}, "AGITATOR"),
           el("div", { class: "kv" }, el("span", { class: "lbl" }, "SPEED"), el("span", {}, rpmN, el("span", { class: "u", style: "color:var(--accent)" }, " rpm"))),
-          rpmBar,
-          el("div", { class: "kv" }, el("span", { class: "lbl" }, "LOAD"), loadN)),
+          rpmBar),
         el("div", { class: "card" }, el("h3", {}, "HEATER DUTY"),
           el("div", { class: "kv" }, heatN, el("span", { class: "lbl", style: "align-self:center" }, "PWM")), heatBar),
         el("div", { class: "card" }, el("h3", {}, "HEATER SAFETY PROBE", probeState),
@@ -66,7 +65,7 @@ export function mount(root) {
     const pct = durSec > 0 ? Math.max(0, Math.min(100, (run.elapsedSec || 0) / durSec * 100)) : 0;
     progBar.firstChild.style.width = pct + "%";
     progPct.textContent = durSec > 0 ? Math.round(pct) + "%" : (run.active ? "∞" : "—");
-    rpmN.textContent = fixed(disc.rpm, 1); loadN.textContent = disc.load == null ? "—" : disc.load;
+    rpmN.textContent = fixed(disc.rpm, 1);
     rpmBar.firstChild.style.width = Math.min(100, ((disc.rpm || 0) / 30) * 100) + "%";
     heatN.innerHTML = ""; heatN.append(fixed(th.heaterPct, 0), el("span", { class: "u" }, "%"));
     heatBar.firstChild.style.width = Math.max(0, Math.min(100, th.heaterPct || 0)) + "%";
