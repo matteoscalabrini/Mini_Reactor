@@ -159,6 +159,7 @@ bool SdLogger::removeRecursive(const char* path) {
 
 bool SdLogger::eraseAll() {
   if (!mounted_) return false;
+  if (currentId_ != 0) endRun(false);   // close+discard the open run before wiping
   const bool cleared = removeRecursive("/");  // best-effort full wipe
   const bool logOk = clearLog();              // recreate the empty log with its header
   return cleared && logOk;                    // false if any entry resisted deletion
@@ -207,6 +208,7 @@ void SdLogger::endRun(bool save) {
   }
   currentId_ = 0;
   currentName_[0] = '\0';
+  current_ = File();   // drop the closed handle object
 }
 
 std::vector<SdLogger::RunInfo> SdLogger::listRuns() {
