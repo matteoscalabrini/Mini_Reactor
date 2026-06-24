@@ -14,7 +14,12 @@ export const get = (p) => req("GET", p);
 export const post = (p, b) => req("POST", p, b || {});
 
 export const runStart = (targetC, rpm, durationMin) => post("/api/v1/run", { action: "start", targetC, rpm, durationMin });
-export const runStop = () => post("/api/v1/run", { action: "stop" });
+export const runPause = (target) => post("/api/v1/run", { action: "pause", target });
+export const runResume = () => post("/api/v1/run", { action: "resume" });
+export const runStop = (data) => post("/api/v1/run", { action: "stop", data });
+export const listRuns = () => get("/api/v1/runs");
+export const runCsvUrl = (id) => `/api/v1/runs/${id}`;
+export const deleteRun = (id) => post(`/api/v1/runs/${id}/delete`);
 export const setpoint = (o) => post("/api/v1/setpoint", o);
 export const disc = (o) => post("/api/v1/disc", o);
 export const pidGains = (kp, ki, kd) => post("/api/v1/pid", { kp, ki, kd });
