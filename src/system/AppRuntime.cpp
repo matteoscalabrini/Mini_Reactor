@@ -338,6 +338,12 @@ String buildStatusJson() {
   if (t.running && t.durationMin > 0) run["remainingSec"] = t.remainingSec;
   else run["remainingSec"] = nullptr;
   run["durationMin"] = t.durationMin;
+  const int runId = g_sd.currentRunId();
+  if (runId) run["id"] = runId;
+  else run["id"] = nullptr;
+  const char* runName = g_sd.currentRunName();
+  if (runId && runName[0]) run["name"] = runName;
+  else run["name"] = nullptr;
 
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["mode"] = g_wifi.apActive() ? "ap" : "sta";
@@ -372,6 +378,25 @@ String buildStatusJson() {
     a["since"] = s_alarms[i].sinceSec;
   }
 
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+// Build the runs-list JSON for GET /api/v1/runs (spec §Runs). current=true marks
+// the in-progress run. startedSec/durationSec are omitted (no per-run RTC); the
+// UI tolerates their absence.
+String buildRunsJson() {
+  JsonDocument doc;
+  JsonArray arr = doc["runs"].to<JsonArray>();
+  const int curId = g_sd.currentRunId();
+  for (const SdLogger::RunInfo& r : g_sd.listRuns()) {
+    JsonObject o = arr.add<JsonObject>();
+    o["id"] = r.id;
+    o["label"] = r.label;
+    o["bytes"] = r.bytes;
+    o["current"] = (r.id == curId);
+  }
   String out;
   serializeJson(doc, out);
   return out;
@@ -440,13 +465,31 @@ void tick() {
   g_thermal.update();   // PID, internally gated to its sample period
   g_reactor.update();   // run timer
 
+  // Finalize a run that ended on its own (duration timeout): the reactor stops
+  // itself, so close+save the open file here. Web-initiated stops already call
+  // endRun() in applyPending.
+  static bool prevRunning = false;
+  const bool nowRunning = g_reactor.running();
+  if (prevRunning && !nowRunning && g_sd.currentRunId() != 0) {
+    g_sd.endRun(true);  // auto-stop saves
+  }
+  prevRunning = nowRunning;
+
   {
     ui::ReactorSnapshot snap = buildUiSnapshot();
-    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll())
+    static bool dirty = true;
+    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll()) {
       g_ui.handle(e, snap);
+      dirty = true;  // input changed the UI -> redraw promptly
+    }
+    // Redraw right after input (snappy nav), otherwise only on the slow idle tick.
+    // The kMinRedrawMs floor keeps the blocking full-frame blit from starving polling.
     static uint32_t lastDrawMs = 0;
-    if (millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
-      lastDrawMs = millis();
+    const uint32_t now = millis();
+    if ((dirty && now - lastDrawMs >= AppConfig::Ui::kMinRedrawMs) ||
+        now - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
+      lastDrawMs = now;
+      dirty = false;
       g_display.render(g_ui, snap);
     }
   }
@@ -461,6 +504,11 @@ void tick() {
     statusJson = buildStatusJson();
     scanJson = g_wifi.scanJson();
     g_web.cacheCalJson(buildCalJson());
+    static uint32_t lastRunsMs = 0;
+    if (now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
+      lastRunsMs = now;
+      g_web.cacheRunsJson(buildRunsJson());
+    }
   }
   g_web.update(statusJson, scanJson);
 
