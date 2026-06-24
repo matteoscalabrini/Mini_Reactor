@@ -39,6 +39,7 @@ state = {
     "calMethod": "beta", "calibrated": False, "calPoints": [], "ntcAdc": 1820, "ntcR": 9120.0,
     "motorTestUntil": 0.0,
     "pause": {"motor": False, "heater": False}, "runId": None,
+    "logIntervalSec": 2.0,
 }
 clients = set()
 _alarm_since = {}
@@ -163,7 +164,8 @@ def status():
         "wifi": {"mode": "ap" if state["ap"] else "sta",
                  "connected": state["connected"], "ssid": state["ssid"],
                  "ip": state["ip"], "rssi": -54 if state["connected"] else None},
-        "storage": {"sdMounted": True, "logBytes": None, "logging": True},
+        "storage": {"sdMounted": True, "logBytes": None, "logging": True,
+                    "logIntervalSec": state["logIntervalSec"]},
         "alarms": alarms,
     }
 
@@ -192,7 +194,8 @@ async def simulate():
                 s["loadBias"] = min(120.0, s["loadBias"] + 0.05)   # biofilm slowly loads the disc
                 s["load"] = int(max(0, 380 - s["loadBias"] + random.uniform(-8, 8)))
             rec = _current_run()
-            if rec is not None and _tick[0] % 8 == 0:  # ~every 2 s
+            ticks_per_log = max(1, round(s["logIntervalSec"] / dt))
+            if rec is not None and _tick[0] % ticks_per_log == 0:
                 rpm_now = 0.0 if s["pause"]["motor"] else s["rpm"]
                 t_ms = int((time.monotonic() - rec["started"]) * 1000)
                 rec["rows"].append(
@@ -410,6 +413,17 @@ async def api_log_clear(req):
     return web.json_response({"ok": True})
 
 
+async def api_log_interval(req):
+    b = await req.json()
+    secs = float(b.get("seconds", 0))
+    if secs < 1 or secs > 3600:
+        return web.json_response(
+            {"ok": False, "error": {"code": "out_of_range",
+                                    "message": "seconds must be 1..3600"}}, status=400)
+    state["logIntervalSec"] = secs
+    return web.json_response({"ok": True})
+
+
 async def api_sd_erase(req):
     return web.json_response({"ok": True})
 
@@ -489,6 +503,7 @@ def main():
     app.router.add_get("/api/v1/runs/{id}", api_run_csv)
     app.router.add_post("/api/v1/runs/{id}/delete", api_run_delete)
     app.router.add_post("/api/v1/log/clear", api_log_clear)
+    app.router.add_post("/api/v1/log/interval", api_log_interval)
     app.router.add_post("/api/v1/pid", api_pid)
     app.router.add_post("/api/v1/pid/autotune", api_autotune)
     app.router.add_get("/api/v1/calibration", api_calibration)

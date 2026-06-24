@@ -48,8 +48,15 @@ export function mount(root) {
         el("div", { class: "btns" }, ok, el("button", { class: "ghost", onclick: () => bg.remove() }, "Cancel"))));
     document.body.append(bg);
   }
+  const logInt = el("input", { type: "number", min: "1", max: "3600", step: "1", placeholder: "seconds" });
   const sd = sec("DATA LOG", sdInfo,
+    field("LOG INTERVAL s", logInt),
     el("div", { class: "btns" },
+      el("button", { class: "go", onclick: async (e) => {
+        const b = e.currentTarget, s = +logInt.value;
+        if (s < 1 || s > 3600) return toast("interval must be 1–3600 s");
+        const r = await api.setLogInterval(s); flashApplied(b, r.ok);
+      } }, "Apply interval"),
       el("a", { class: "btn", href: "/api/v1/log", download: "reactor_log.csv" }, "⬇ Download CSV"),
       el("button", { class: "ghost", onclick: () => { if (confirm("Clear the SD log?")) api.logClear(); } }, "Clear log"),
       el("button", { class: "stop", onclick: eraseModal }, "Erase all files")));
@@ -148,13 +155,15 @@ export function mount(root) {
   const unsub = store.subscribe((d) => {
     const w = d.wifi || {}, st = d.storage || {}, p = (d.thermal || {}).pid || {}, at = p.autotune || {}, disc = d.disc || {}, s = d.system || {}, drv = disc.driver || {};
     wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
-    sdInfo.textContent = st.sdMounted ? "Card mounted · logging" : "No card";
+    sdInfo.textContent = st.sdMounted
+      ? `Card mounted · logging every ${st.logIntervalSec ?? "—"}s` : "No card";
     atInfo.textContent = at.active ? `running ${at.progress || 0}%` : (at.result || "idle");
     sysInfo.textContent = `Firmware ${s.firmware || "—"} · heap ${s.freeHeap || "—"} · VBUS ${s.vbus || "—"} · driver ${drv.version || "—"} (${drv.connected ? "ok" : "—"})`;
     if (!testBtn.disabled || testBtn.textContent === "Test") testBtn.disabled = (d.run || {}).active === true;
     if (!primed) {
       primed = true;
       kp.value = p.kp ?? ""; ki.value = p.ki ?? ""; kd.value = p.kd ?? ""; if (p.mode) modeSel.value = p.mode;
+      if (st.logIntervalSec != null) logInt.value = st.logIntervalSec;
       curMa.value = disc.currentMa ?? ""; micro.value = disc.microsteps ?? ""; if (disc.direction) dirSel.value = disc.direction;
     }
     const run = d.run || {};

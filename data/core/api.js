@@ -33,3 +33,4 @@ export const wifiScan = () => get("/api/v1/wifi/scan");
 export const wifiConnect = (ssid, password) => post("/api/v1/wifi/connect", { ssid, password });
 export const wifiForget = () => post("/api/v1/wifi/forget");
 export const logClear = () => post("/api/v1/log/clear");
+export const setLogInterval = (seconds) => post("/api/v1/log/interval", { seconds });
