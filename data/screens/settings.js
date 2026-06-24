@@ -100,8 +100,12 @@ export function mount(root) {
   const p0 = runParams.get();
   const inTarget = el("input", { type: "number", step: "0.5", min: "0", max: "55", value: p0.targetC });
   const inRpm = el("input", { type: "number", step: "1", min: "0", max: "30", value: p0.rpm });
-  const inDur = el("input", { type: "number", min: "0", value: p0.durationMin,
-    placeholder: "minutes (0 = until stopped)" });
+  // Duration is split into days · hours · minutes but stored as total minutes.
+  const dhm = (m) => ({ d: Math.floor((m || 0) / 1440), h: Math.floor(((m || 0) % 1440) / 60), m: (m || 0) % 60 });
+  const d0 = dhm(p0.durationMin);
+  const inDays = el("input", { type: "number", min: "0", value: d0.d, placeholder: "days" });
+  const inHours = el("input", { type: "number", min: "0", max: "23", value: d0.h, placeholder: "hrs" });
+  const inMins = el("input", { type: "number", min: "0", max: "59", value: d0.m, placeholder: "min" });
   const stateV = el("div", { class: "v" }, "IDLE");
   const elapsedV = el("div", { class: "v" }, "—"), remainV = el("div", { class: "v" }, "—");
 
@@ -117,12 +121,21 @@ export function mount(root) {
       const r = await api.setpoint({ rpm: +inRpm.value }); flashApplied(inRpm, r.ok);
     }
   });
-  inDur.addEventListener("change", () => runParams.set({ durationMin: +inDur.value }));
+  const setDur = () => runParams.set({
+    durationMin: (+inDays.value || 0) * 1440 + (+inHours.value || 0) * 60 + (+inMins.value || 0) });
+  inDays.addEventListener("change", setDur);
+  inHours.addEventListener("change", setDur);
+  inMins.addEventListener("change", setDur);
 
   const runSec = sec("RUN",
     field("TARGET TEMPERATURE °C", inTarget),
     field("AGITATOR SPEED rpm", inRpm),
-    field("DURATION min", inDur),
+    el("div", { class: "field" },
+      el("label", {}, "DURATION", el("span", {}, "0 = until stopped")),
+      el("div", { class: "row" },
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "DAYS"), inDays),
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "HRS"), inHours),
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "MIN"), inMins))),
     el("div", { class: "stat3" },
       el("div", {}, el("div", { class: "lbl" }, "STATE"), stateV),
       el("div", {}, el("div", { class: "lbl" }, "ELAPSED"), elapsedV),
