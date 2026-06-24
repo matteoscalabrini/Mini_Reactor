@@ -1,6 +1,7 @@
 import * as store from "../core/store.js";
 import { el, fixed, hhmmss, bar } from "../core/ui.js";
 import { makeBuffer, sample, render } from "../core/chart.js";
+import * as historySection from "./history-section.js";
 
 export function mount(root) {
   const buf = makeBuffer(150, 2000);
@@ -69,5 +70,10 @@ export function mount(root) {
     probeTemp.textContent = fixed(sf.heaterTempC, 0);
     if (sample(buf, Date.now(), th.tempC, th.setpointC)) render(svg, buf);
   });
-  return unsub;
+
+  const histRoot = el("div", { class: "history-wrap" });
+  root.append(histRoot);
+  const histTeardown = historySection.mount(histRoot);
+
+  return () => { unsub(); if (histTeardown) histTeardown(); };
 }
