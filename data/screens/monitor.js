@@ -12,6 +12,7 @@ export function mount(root) {
 
   const runPill = el("span", { class: "pill off" }, "IDLE");
   const elapsed = el("div", { class: "v" }, "—"), remain = el("div", { class: "v" }, "—"), dur = el("div", { class: "v" }, "—");
+  const progBar = bar(0), progPct = el("span", { class: "n" }, "—");
   const rpmN = el("span", { class: "n" }, "—"), loadN = el("span", { class: "n" }, "—");
   const rpmBar = bar(0), heatN = el("span", { class: "n" }, "—"), heatBar = bar(0);
   const probeState = el("span", { class: "pill off" }, "—"), probeMethod = el("div", { class: "v" }, "—"),
@@ -19,7 +20,7 @@ export function mount(root) {
 
   root.append(
     el("div", { class: "grid" },
-      el("div", { class: "card" },
+      el("div", { class: "card monitor-main" },
         el("h3", {}, "BATH TEMPERATURE", heroPill),
         el("div", { class: "hero" },
           el("div", { class: "reading" }, heroVal, el("span", { class: "u" }, "°C")),
@@ -35,7 +36,9 @@ export function mount(root) {
           el("div", { class: "stat3" },
             el("div", {}, el("div", { class: "lbl" }, "ELAPSED"), elapsed),
             el("div", {}, el("div", { class: "lbl" }, "REMAINING"), remain),
-            el("div", {}, el("div", { class: "lbl" }, "DURATION"), dur))),
+            el("div", {}, el("div", { class: "lbl" }, "DURATION"), dur)),
+          el("div", { class: "kv" }, el("span", { class: "lbl" }, "PROGRESS"), progPct),
+          progBar),
         el("div", { class: "card" }, el("h3", {}, "AGITATOR"),
           el("div", { class: "kv" }, el("span", { class: "lbl" }, "SPEED"), el("span", {}, rpmN, el("span", { class: "u", style: "color:var(--accent)" }, " rpm"))),
           rpmBar,
@@ -59,6 +62,10 @@ export function mount(root) {
     elapsed.textContent = hhmmss(run.elapsedSec || 0);
     remain.textContent = run.remainingSec == null ? (run.active ? "∞" : "—") : hhmmss(run.remainingSec);
     dur.textContent = run.durationMin ? run.durationMin + "m" : "∞";
+    const durSec = (run.durationMin || 0) * 60;
+    const pct = durSec > 0 ? Math.max(0, Math.min(100, (run.elapsedSec || 0) / durSec * 100)) : 0;
+    progBar.firstChild.style.width = pct + "%";
+    progPct.textContent = durSec > 0 ? Math.round(pct) + "%" : (run.active ? "∞" : "—");
     rpmN.textContent = fixed(disc.rpm, 1); loadN.textContent = disc.load == null ? "—" : disc.load;
     rpmBar.firstChild.style.width = Math.min(100, ((disc.rpm || 0) / 30) * 100) + "%";
     heatN.innerHTML = ""; heatN.append(fixed(th.heaterPct, 0), el("span", { class: "u" }, "%"));
