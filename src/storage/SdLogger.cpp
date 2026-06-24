@@ -215,6 +215,7 @@ void SdLogger::endRun(bool save) {
 std::vector<SdLogger::RunInfo> SdLogger::listRuns() {
   std::vector<RunInfo> out;
   if (!mounted_) return out;
+  if (!SD.exists("/runs")) return out;  // no runs yet — skip the open (avoids a VFS error log)
   File dir = SD.open("/runs");
   if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return out; }
   for (File e = dir.openNextFile(); e; e = dir.openNextFile()) {
