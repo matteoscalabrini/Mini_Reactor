@@ -477,19 +477,11 @@ void tick() {
 
   {
     ui::ReactorSnapshot snap = buildUiSnapshot();
-    static bool dirty = true;
-    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll()) {
+    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll())
       g_ui.handle(e, snap);
-      dirty = true;  // input changed the UI -> redraw promptly
-    }
-    // Redraw right after input (snappy nav), otherwise only on the slow idle tick.
-    // The kMinRedrawMs floor keeps the blocking full-frame blit from starving polling.
     static uint32_t lastDrawMs = 0;
-    const uint32_t now = millis();
-    if ((dirty && now - lastDrawMs >= AppConfig::Ui::kMinRedrawMs) ||
-        now - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
-      lastDrawMs = now;
-      dirty = false;
+    if (millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
+      lastDrawMs = millis();
       g_display.render(g_ui, snap);
     }
   }
