@@ -167,6 +167,7 @@ bool SdLogger::eraseAll() {
 
 int SdLogger::startRun(const char* name) {
   if (!mounted_) return 0;
+  if (currentId_ != 0) endRun(true);   // finalize (save) any run already open before starting a new one
   if (!SD.exists("/runs")) SD.mkdir("/runs");
 
   // Next id = max existing + 1.
