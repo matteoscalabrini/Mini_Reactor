@@ -25,9 +25,18 @@ const char* cardTypeStr(uint8_t type) {
 }
 }  // namespace
 
-SdLogger::SdLogger(const Config& config) : cfg_(config) {}
+SdLogger::SdLogger(const Config& config) : cfg_(config), logIntervalMs_(config.logIntervalMs) {}
+
+void SdLogger::setLogIntervalSec(uint32_t seconds) {
+  if (seconds < 1) seconds = 1;
+  if (seconds > 3600) seconds = 3600;
+  logIntervalMs_ = seconds * 1000UL;
+  prefs_.putUInt("intervalMs", logIntervalMs_);
+}
 
 bool SdLogger::begin() {
+  prefs_.begin("sdlog", false);
+  logIntervalMs_ = prefs_.getUInt("intervalMs", logIntervalMs_);
   pinMode(cfg_.pinCardDetect, INPUT_PULLUP);
 
   // SD.begin manages the CS pin; bind it to the SPI bus here.

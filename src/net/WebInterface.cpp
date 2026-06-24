@@ -13,6 +13,7 @@
  *   POST /api/v1/wifi/forget
  *   GET  /api/v1/log            download the SD CSV log
  *   POST /api/v1/log/clear      rotate (clear) the SD log
+ *   POST /api/v1/log/interval   {seconds} set the SD log row interval (1..3600)
  *   GET  /api/v1/calibration          returns cached calibration state (method, calibrated, points)
  *   POST /api/v1/calibration/point    {referenceC}; queues capture of a calibration point (live NTC resistance)
  *   POST /api/v1/calibration/compute  queues fit (offset/Beta/Steinhart by point count); result via GET
@@ -333,6 +334,27 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
+  // ── POST log interval (seconds between SD log rows) ──
+  auto* logIntervalHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/log/interval", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        JsonObject o = json.as<JsonObject>();
+        if (o["seconds"].isNull()) {
+          sendError(req, 400, "invalid_request", "seconds required");
+          return;
+        }
+        const long s = o["seconds"].as<long>();
+        if (s < 1 || s > 3600) {
+          sendError(req, 400, "out_of_range", "seconds must be 1..3600");
+          return;
+        }
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        pending_.logInterval = true;
+        pending_.logIntervalSec = (uint32_t)s;
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(logIntervalHandler);
+
   // ── GET runs list (served from the loop-built cache) ──
   server_->on("/api/v1/runs", HTTP_GET, [this](AsyncWebServerRequest* req) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
@@ -423,6 +445,7 @@ void WebInterface::applyPending() {
   if (p.wifiForget) { Serial.println("[CMD] wifi forget"); wifi_.forget(); }
   if (p.wifiScan) { Serial.println("[CMD] wifi scan requested"); wifi_.requestScan(); }
   if (p.logClear) { Serial.println("[CMD] sd log clear"); sd_.clearLog(); }
+  if (p.logInterval) { Serial.printf("[CMD] log interval=%us\n", (unsigned)p.logIntervalSec); sd_.setLogIntervalSec(p.logIntervalSec); }
   if (p.sdErase) { Serial.println("[CMD] sd ERASE all files"); sd_.eraseAll(); }
   if (p.motorTest) { Serial.println("[CMD] motor test jog"); reactor_.startMotorTest(); }
 }

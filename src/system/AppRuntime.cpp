@@ -122,6 +122,7 @@ SdLogger::Config makeSdLoggerConfig() {
   c.freqHz = AppConfig::Sd::kFreqHz;
   c.logPath = AppConfig::Sd::kLogPath;
   c.logHeader = AppConfig::Sd::kLogHeader;
+  c.logIntervalMs = AppConfig::Timing::kLogPeriodMs;  // default; runtime-settable via API
   return c;
 }
 
@@ -357,6 +358,7 @@ String buildStatusJson() {
   storage["sdMounted"] = g_sd.mounted();
   storage["logBytes"] = nullptr;  // accurate size arrives with the SD-mgmt phase
   storage["logging"] = g_sd.mounted();
+  storage["logIntervalSec"] = g_sd.logIntervalSec();
 
   static AlarmTracker s_alarms;
   s_alarms.beginFrame(millis() / 1000UL);
@@ -506,7 +508,7 @@ void tick() {
 
   // Periodic SD logging.
   static uint32_t lastLogMs = 0;
-  if (g_sd.mounted() && now - lastLogMs >= AppConfig::Timing::kLogPeriodMs) {
+  if (g_sd.mounted() && now - lastLogMs >= g_sd.logIntervalMs()) {
     lastLogMs = now;
     g_sd.appendLine(g_reactor.csvRow());
   }

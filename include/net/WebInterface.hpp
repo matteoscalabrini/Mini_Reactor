@@ -107,5 +107,6 @@ class WebInterface {
     bool wifiForget = false;
     bool wifiScan = false;
     bool logClear = false;
+    bool logInterval = false;  uint32_t logIntervalSec = 0;
   } pending_;
 };

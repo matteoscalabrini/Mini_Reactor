@@ -15,6 +15,7 @@
 
 #include <Arduino.h>
 #include <FS.h>
+#include <Preferences.h>
 
 #include <vector>
 
@@ -30,6 +31,7 @@ class SdLogger {
     uint32_t freqHz = 10000000;
     const char* logPath   = "/log.csv";
     const char* logHeader = "";  // written once when a fresh log is created
+    uint32_t logIntervalMs = 10000;  // default SD log row interval
   };
 
   explicit SdLogger(const Config& config);
@@ -96,6 +98,11 @@ class SdLogger {
   /* deleteRun() — Remove a run's CSV + sidecar. Returns success. */
   bool deleteRun(int id);
 
+  /* Data-log row interval — runtime-settable (1..3600 s), persisted in NVS. */
+  void setLogIntervalSec(uint32_t seconds);
+  uint32_t logIntervalSec() const { return logIntervalMs_ / 1000; }
+  uint32_t logIntervalMs() const { return logIntervalMs_; }
+
  private:
   Config cfg_;
   bool mounted_ = false;
@@ -107,4 +114,7 @@ class SdLogger {
   File current_;
   int currentId_ = 0;
   char currentName_[33] = {0};
+
+  uint32_t logIntervalMs_ = 10000;  // SD log row interval (NVS-persisted)
+  Preferences prefs_;
 };
