@@ -205,7 +205,8 @@ void SdLogger::endRun(bool save) {
   if (current_) current_.close();
   if (!save) {
     SD.remove(RunFiles::csvPath(currentId_).c_str());
-    SD.remove(RunFiles::namePath(currentId_).c_str());
+    const std::string np = RunFiles::namePath(currentId_);
+    if (SD.exists(np.c_str())) SD.remove(np.c_str());  // sidecar is optional (unnamed runs)
   }
   currentId_ = 0;
   currentName_[0] = '\0';
@@ -247,6 +248,7 @@ String SdLogger::runCsvPath(int id) { return String(RunFiles::csvPath(id).c_str(
 bool SdLogger::deleteRun(int id) {
   if (!mounted_) return false;
   if (id == currentId_) endRun(false);     // can't delete the open run; discard it
-  SD.remove(RunFiles::namePath(id).c_str());
+  const std::string np = RunFiles::namePath(id);
+  if (SD.exists(np.c_str())) SD.remove(np.c_str());  // sidecar is optional (unnamed runs)
   return SD.remove(RunFiles::csvPath(id).c_str());
 }
