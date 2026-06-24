@@ -38,9 +38,47 @@ state = {
     "atActive": False, "atProgress": 0, "atResult": None, "atStartMs": 0.0,
     "calMethod": "beta", "calibrated": False, "calPoints": [], "ntcAdc": 1820, "ntcR": 9120.0,
     "motorTestUntil": 0.0,
+    "pause": {"motor": False, "heater": False}, "runId": None,
 }
 clients = set()
 _alarm_since = {}
+
+runs = []          # run records: {id,label,started,rows,durationSec,current}
+_run_seq = [0]
+_tick = [0]
+CSV_HEADER = "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety"
+
+
+def _start_run():
+    _run_seq[0] += 1
+    rec = {"id": _run_seq[0], "label": f"Run {_run_seq[0]}",
+           "started": time.monotonic(), "rows": [], "durationSec": None, "current": True}
+    runs.append(rec)
+    state["runId"] = rec["id"]
+    state["startMs"] = rec["started"]
+    return rec
+
+
+def _current_run():
+    for r in runs:
+        if r["current"]:
+            return r
+    return None
+
+
+def _finalize_run(save):
+    r = _current_run()
+    if not r:
+        return
+    r["current"] = False
+    r["durationSec"] = int(time.monotonic() - r["started"])
+    if not save:
+        runs.remove(r)
+    state["runId"] = None
+
+
+def _run_csv(r):
+    return CSV_HEADER + "\n" + "\n".join(r["rows"]) + ("\n" if r["rows"] else "")
 
 
 def status():
@@ -54,6 +92,8 @@ def status():
     heaterC = None if state["heaterProbeFault"] else round(state["heaterTempC"], 1)
     testing = time.monotonic() < state["motorTestUntil"]
     rpm = 8.0 if testing else (state["rpm"] if state["running"] else 0.0)
+    if state["pause"]["motor"] and not testing:
+        rpm = 0.0
     active = []
     if state["fault"]:
         active.append(("sensor_fault", "warn"))
@@ -116,7 +156,10 @@ def status():
                 "shortA": state["drvShortA"], "shortB": state["drvShortB"]}},
         },
         "run": {"active": state["running"], "elapsedSec": elapsed,
-                "remainingSec": remaining, "durationMin": state["durationMin"]},
+                "remainingSec": remaining, "durationMin": state["durationMin"],
+                "id": state["runId"],
+                "pause": {"motor": state["pause"]["motor"],
+                          "heater": state["pause"]["heater"]}},
         "wifi": {"mode": "ap" if state["ap"] else "sta",
                  "connected": state["connected"], "ssid": state["ssid"],
                  "ip": state["ip"], "rssi": -54 if state["connected"] else None},
@@ -129,21 +172,37 @@ async def simulate():
     dt = 0.25
     while True:
         s = state
+        _tick[0] += 1
         if s["running"]:
             err = s["targetC"] - s["tempC"]
             # Feed-forward the duty that holds the setpoint against ambient loss, plus a
             # proportional trim — so the bath settles AT the setpoint (a "good" 36 C),
             # not a few degrees under it.
-            hold = 100.0 * 0.02 * (s["targetC"] - AMBIENT) / 0.6
-            s["heaterPct"] = max(0.0, min(100.0, hold + 14.0 * err))
+            if s["pause"]["heater"]:
+                s["heaterPct"] = 0.0
+            else:
+                hold = 100.0 * 0.02 * (s["targetC"] - AMBIENT) / 0.6
+                s["heaterPct"] = max(0.0, min(100.0, hold + 14.0 * err))
             duty = s["heaterPct"] / 100.0
             s["tempC"] += (0.6 * duty - 0.02 * (s["tempC"] - AMBIENT)) * dt
             s["heaterTempC"] = s["tempC"] + 18.0 * duty  # heater runs hotter than bath
-            s["loadBias"] = min(120.0, s["loadBias"] + 0.05)   # biofilm slowly loads the disc
-            s["load"] = int(max(0, 380 - s["loadBias"] + random.uniform(-8, 8)))
+            if s["pause"]["motor"]:
+                s["load"] = 0
+            else:
+                s["loadBias"] = min(120.0, s["loadBias"] + 0.05)   # biofilm slowly loads the disc
+                s["load"] = int(max(0, 380 - s["loadBias"] + random.uniform(-8, 8)))
+            rec = _current_run()
+            if rec is not None and _tick[0] % 8 == 0:  # ~every 2 s
+                rpm_now = 0.0 if s["pause"]["motor"] else s["rpm"]
+                t_ms = int((time.monotonic() - rec["started"]) * 1000)
+                rec["rows"].append(
+                    f'{t_ms},1,{s["tempC"]:.2f},{s["heaterTempC"]:.1f},{s["targetC"]:.1f},'
+                    f'{s["heaterPct"]:.0f},{rpm_now:.1f},{s["load"]},0,'
+                    f'{1 if s["safetyTripped"] else 0}')
             if s["durationMin"] > 0 and \
                time.monotonic() - s["startMs"] >= s["durationMin"] * 60:
                 s["running"] = False
+                _finalize_run(True)
         else:
             s["heaterPct"] = 0.0
             s["tempC"] += (-0.02 * (s["tempC"] - AMBIENT)) * dt
@@ -186,7 +245,8 @@ async def api_status(req):
 
 async def api_run(req):
     b = await req.json()
-    if b.get("action") == "start":
+    action = b.get("action")
+    if action == "start":
         rpm = float(b.get("rpm", 8))
         targetC = float(b.get("targetC", 36))
         if rpm < 0 or rpm > 30:
@@ -202,17 +262,40 @@ async def api_run(req):
             # Mirror firmware pre-flight: heater NTC faulted -> start refused, run stays
             # idle. /run still acks (async queue); refusal observed via GET /status.
             return web.json_response({"ok": True})
-        state.update(running=True, targetC=targetC,
-                     rpm=rpm, rpmSetpoint=rpm,
-                     durationMin=int(b.get("durationMin", 0)),
-                     startMs=time.monotonic())
+        state.update(running=True, targetC=targetC, rpm=rpm, rpmSetpoint=rpm,
+                     durationMin=int(b.get("durationMin", 0)))
+        state["pause"] = {"motor": False, "heater": False}
+        _start_run()
         return web.json_response({"ok": True})
-    if b.get("action") == "stop":
-        state["running"] = False
+    if action == "pause":
+        target = b.get("target")
+        if target not in ("motor", "heater", "all"):
+            return web.json_response(
+                {"ok": False, "error": {"code": "invalid_request",
+                                        "message": "target must be motor|heater|all"}}, status=400)
+        if state["running"]:
+            if target in ("motor", "all"):
+                state["pause"]["motor"] = True
+            if target in ("heater", "all"):
+                state["pause"]["heater"] = True
+        return web.json_response({"ok": True})
+    if action == "resume":
+        state["pause"] = {"motor": False, "heater": False}
+        return web.json_response({"ok": True})
+    if action == "stop":
+        data = b.get("data")
+        if data not in ("save", "discard"):
+            return web.json_response(
+                {"ok": False, "error": {"code": "invalid_request",
+                                        "message": "data must be save|discard"}}, status=400)
+        if state["running"]:
+            state["running"] = False
+            state["pause"] = {"motor": False, "heater": False}
+            _finalize_run(data == "save")
         return web.json_response({"ok": True})
     return web.json_response(
         {"ok": False, "error": {"code": "invalid_request",
-                                "message": "action must be start|stop"}}, status=400)
+                                "message": "action must be start|pause|resume|stop"}}, status=400)
 
 
 async def api_debug_probe_fault(req):
@@ -286,14 +369,41 @@ async def api_forget(req):
 
 
 async def api_log(req):
-    header = "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety"
-    rows, sp, t = [header], 36.0, 20.0
-    for i in range(40):
-        t += (sp - t) * 0.12
-        heater = t + 8.0
-        duty = max(0.0, min(100.0, (sp - t) * 18.0))
-        rows.append(f"{i*2000},1,{t:.2f},{heater:.1f},{sp:.1f},{duty:.0f},8.0,{420+i},0,0")
-    return web.Response(text="\n".join(rows) + "\n", content_type="text/csv")
+    if runs:
+        return web.Response(text=_run_csv(runs[-1]), content_type="text/csv")
+    return web.Response(text=CSV_HEADER + "\n", content_type="text/csv")
+
+
+async def api_runs(req):
+    out = []
+    for r in runs:
+        dur = r["durationSec"] if r["durationSec"] is not None \
+            else int(time.monotonic() - r["started"])
+        out.append({"id": r["id"], "label": r["label"], "startedSec": int(r["started"]),
+                    "durationSec": dur, "bytes": len(_run_csv(r).encode()),
+                    "current": r["current"]})
+    return web.json_response({"runs": out})
+
+
+async def api_run_csv(req):
+    rid = int(req.match_info["id"])
+    for r in runs:
+        if r["id"] == rid:
+            return web.Response(text=_run_csv(r), content_type="text/csv")
+    return web.json_response(
+        {"ok": False, "error": {"code": "not_found", "message": "no such run"}}, status=404)
+
+
+async def api_run_delete(req):
+    rid = int(req.match_info["id"])
+    for r in list(runs):
+        if r["id"] == rid:
+            runs.remove(r)
+            if state["runId"] == rid:
+                state["runId"] = None
+            return web.json_response({"ok": True})
+    return web.json_response(
+        {"ok": False, "error": {"code": "not_found", "message": "no such run"}}, status=404)
 
 
 async def api_log_clear(req):
@@ -375,6 +485,9 @@ def main():
     app.router.add_post("/api/v1/wifi/connect", api_connect)
     app.router.add_post("/api/v1/wifi/forget", api_forget)
     app.router.add_get("/api/v1/log", api_log)
+    app.router.add_get("/api/v1/runs", api_runs)
+    app.router.add_get("/api/v1/runs/{id}", api_run_csv)
+    app.router.add_post("/api/v1/runs/{id}/delete", api_run_delete)
     app.router.add_post("/api/v1/log/clear", api_log_clear)
     app.router.add_post("/api/v1/pid", api_pid)
     app.router.add_post("/api/v1/pid/autotune", api_autotune)
@@ -388,7 +501,8 @@ def main():
     app.router.add_static("/", DATA)
 
     async def on_start(a):
-        state["startMs"] = time.monotonic()  # anchor elapsed for the demo's initial run
+        state["pause"] = {"motor": False, "heater": False}
+        _start_run()  # anchor the demo's initial running session as Run 1
         a["sim"] = asyncio.create_task(simulate())
 
     async def on_stop(a):
