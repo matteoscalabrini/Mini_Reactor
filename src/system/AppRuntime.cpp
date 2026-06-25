@@ -429,6 +429,9 @@ void begin() {
   while (!Serial && millis() - t0 < AppConfig::kSerialStartupDelayMs) {
   }
   Serial.println(F("\n=== Bioreactor Module — fermentation firmware ==="));
+  Serial.printf("[FEAT] SD logging: %s\n", AppConfig::Features::kEnableSdLogging ? "enabled" : "disabled");
+  Serial.printf("[FEAT] OLED UI:    %s\n", AppConfig::Features::kEnableOledUi ? "enabled" : "disabled");
+  Serial.printf("[FEAT] autotune:   %s\n", AppConfig::Features::kEnableAutotune ? "enabled" : "disabled");
 
   // Primary I2C bus (Wire, GPIO1/2): HUSB238 and anything else on the board header.
   Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin, AppConfig::I2c::kClockHz);
