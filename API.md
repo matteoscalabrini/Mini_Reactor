@@ -93,7 +93,8 @@ source of truth for all live state. Shape:
     "remainingSec": null,      // null when durationMin == 0 (run-until-stopped)
     "durationMin": 0,
     "id": 7,                   // current run id; null when idle
-    "name": "Ethanol distillation"  // null when unnamed or idle
+    "name": "Ethanol distillation",  // null when unnamed or idle
+    "pause": { "motor": false, "heater": false }  // active holds; motor+heater = full hold
   },
   "wifi": { "mode": "sta", "connected": true, "ssid": "LAB-NET", "ip": "192.168.1.42", "rssi": -55 },
   "storage": {
@@ -112,9 +113,9 @@ Alarm codes the firmware emits: `sensor_fault`, `heater_probe_fault`,
 `safety_tripped`, `driver_ot`, `driver_otpw`, `driver_stall`, `driver_open_load`
 (severity `warn` or `critical`).
 
-> **Gap:** the UI's pause logic reads `run.pause.{motor,heater}`
-> ([`runstate.js`](data/core/runstate.js)), but the firmware `run` object does **not**
-> emit a `pause` object. See [Connection audit](#connection-audit).
+`run.pause` reflects the live holds: `motor:true` = disc stopped (heater still
+controlled), `heater:true` = heater forced off (disc still turns), both = full hold.
+Set via `POST /api/v1/run` `pause`/`resume` (below).
 
 ### `WS /ws`
 On connect, the server sends one status snapshot immediately, then broadcasts the
@@ -126,7 +127,7 @@ socket is push-only; the client sends nothing.
 ## Run control
 
 ### `POST /api/v1/run`
-Start or stop a run. Body field `action` selects the operation.
+Start, stop, pause, or resume a run. Body field `action` selects the operation.
 
 **Start:**
 ```json
@@ -145,9 +146,22 @@ Start or stop a run. Body field `action` selects the operation.
 ```
 `discard` deletes the in-progress CSV + sidecar; `save` keeps them.
 
-- ❌ `action: "pause"` and `action: "resume"` are **rejected** (HTTP 400
-  `invalid_request`, "action must be start|stop"). The UI sends these — see
-  [Connection audit](#connection-audit).
+**Pause** (holds apply while the run stays active; additive — pausing motor then
+heater leaves both held):
+```json
+{ "action": "pause", "target": "motor" }   // "motor" | "heater" | "all" (default "all")
+```
+- `target:"motor"` → disc off, heater still controlled.
+- `target:"heater"` → heater forced off (anti-windup integrator reset), disc keeps turning.
+- `target:"all"` → both (full hold).
+- 400 `invalid_request` — `target` not `motor|heater|all`.
+
+**Resume** (clears both holds):
+```json
+{ "action": "resume" }
+```
+
+Holds surface in `status.run.pause:{motor,heater}` and are cleared on stop/start.
 
 ### `GET /api/v1/runs`
 Saved-run index, served from a ~1 Hz loop-built cache:
@@ -322,9 +336,9 @@ Mock = [`tools/mock_server.py`](tools/mock_server.py).
 | `WS /ws` | ✅ | ✅ | ✅ | OK |
 | `POST /run` start | ✅ | ✅ | ✅ | OK |
 | `POST /run` stop | ✅ | ✅ | ✅ | OK |
-| **`POST /run` pause** | ✅ `runPause()` | ❌ **400** | ✅ | **MISSING in FW** |
-| **`POST /run` resume** | ✅ `runResume()` | ❌ **400** | ✅ | **MISSING in FW** |
-| `status.run.pause` field | ✅ reads it | ❌ not emitted | ✅ | **MISSING in FW** |
+| `POST /run` pause | ✅ `runPause()` | ✅ | ✅ | OK |
+| `POST /run` resume | ✅ `runResume()` | ✅ | ✅ | OK |
+| `status.run.pause` field | ✅ reads it | ✅ emits it | ✅ | OK |
 | `GET /runs` | ✅ | ✅ | ✅ | OK |
 | `GET /runs/{id}` | ✅ | ✅ | ✅ | OK |
 | `POST /runs/{id}/delete` | ✅ | ✅ | ✅ | OK |
@@ -343,11 +357,13 @@ Mock = [`tools/mock_server.py`](tools/mock_server.py).
 | `POST /wifi/forget` | ✅ | ✅ | ✅ | OK |
 | `POST /debug/probe-fault` | ❌ | ❌ | ✅ | Mock-only test affordance |
 
-**Only gap: run pause/resume** (the deferred "Plan B"). The UI ships Pause ▾ /
-Resume controls and derives a `paused` state from `status.run.pause`, but the
-firmware neither accepts the actions nor emits the field. To close it the firmware
-needs: (1) `action:"pause"` with `target` ∈ `motor|heater|all`, (2) `action:"resume"`,
-and (3) a `run.pause:{motor,heater}` object in the status document.
+**No open gaps.** Run pause/resume (the former "Plan B") is now wired end to end:
+the firmware accepts `action:"pause"` (`target` ∈ `motor|heater|all`) and
+`action:"resume"`, and emits `run.pause:{motor,heater}` in the status document.
+Internally the `Reactor` keeps independent `motorPaused`/`heaterPaused` flags; full
+hold is both at once. (The front-panel OLED shows motor-only and full-hold; a
+web-initiated heater-only hold reads as RUNNING on the OLED, since the panel has no
+heater-only button.)
 
 ### Route registration order (firmware footgun)
 

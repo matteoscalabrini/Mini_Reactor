@@ -27,8 +27,8 @@ struct ReactorTelemetry {
   float rpm = 0.0f;          // disc rpm (0 when stopped)
   bool sensorFault = false;  // liquid probe fault
   bool safetyTripped = false;
-  bool motorPaused = false;   // B1 hold: disc off, heater on
-  bool fullHold = false;      // B2 hold: disc off, heater off
+  bool motorPaused = false;   // disc off (heater still controlled)
+  bool heaterPaused = false;  // heater forced off (motor still runs unless also motorPaused)
   uint32_t elapsedSec = 0;
   uint32_t remainingSec = 0;  // 0 when no duration timer is set
   uint16_t durationMin = 0;
@@ -75,11 +75,13 @@ class Reactor {
   void setDiscReverse(bool reverse);
   void setDiscEnabled(bool on);
 
-  /* Pause holds toggled from the front panel (run stays active). */
-  void setMotorPaused(bool on);   // B1: disc off
-  void setFullHold(bool on);      // B2: disc off + heater off
+  /* Independent pause holds (run stays active). Motor and heater pause are
+   * orthogonal; full-hold is just both at once (front-panel B2 / web "all"). */
+  void setMotorPaused(bool on);    // disc off
+  void setHeaterPaused(bool on);   // heater forced off
+  void setFullHold(bool on);       // disc off + heater off (both)
   bool motorPaused() const { return motorPaused_; }
-  bool fullHold() const { return fullHold_; }
+  bool heaterPaused() const { return heaterPaused_; }
 
   /* PID control surface (delegates to the ThermalController). */
   void setPidGains(float kp, float ki, float kd) { thermal_.setGains(kp, ki, kd); }
@@ -97,7 +99,7 @@ class Reactor {
 
  private:
   void persist();
-  void applyMotorState();   // disc runs only if running && !motorPaused_ && !fullHold_
+  void applyMotorState();   // disc runs only if running && !motorPaused_
 
   ThermalController& thermal_;
   Tmc2209Motor& motor_;
@@ -106,7 +108,7 @@ class Reactor {
 
   bool running_ = false;
   bool motorPaused_ = false;
-  bool fullHold_ = false;
+  bool heaterPaused_ = false;
   bool motorTesting_ = false;
   uint32_t motorTestStartMs_ = 0;
   float targetC_ = 36.0f;

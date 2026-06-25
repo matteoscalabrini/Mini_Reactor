@@ -5,7 +5,7 @@
  * Routes:
  *   GET  /                      static UI from SPIFFS (index.html, app.css, app.js, logo.svg)
  *   GET  /api/v1/status         cached reactor + wifi + system status JSON
- *   POST /api/v1/run            {action:"start"|"stop", targetC, rpm, durationMin}
+ *   POST /api/v1/run            {action:"start"|"stop"|"pause"|"resume", targetC, rpm, durationMin, target}
  *   POST /api/v1/setpoint       {targetC?, rpm?}  (live changes)
  *   POST /api/v1/disc           {rpm?, currentMa?, microsteps?, direction?, enabled?}
  *   GET  /api/v1/wifi/scan      cached scan results (also triggers a fresh scan)
@@ -156,8 +156,25 @@ void WebInterface::registerRoutes() {
           pending_.runStopSave = (data == "save");
           xSemaphoreGive(mutex_);
           sendOk(req);
+        } else if (action == "pause") {
+          const String target = o["target"] | "all";  // motor|heater|all
+          if (target != "motor" && target != "heater" && target != "all") {
+            sendError(req, 400, "invalid_request", "target must be motor|heater|all");
+            return;
+          }
+          xSemaphoreTake(mutex_, portMAX_DELAY);
+          pending_.runPause = true;
+          pending_.runPauseMotor = (target == "motor" || target == "all");
+          pending_.runPauseHeater = (target == "heater" || target == "all");
+          xSemaphoreGive(mutex_);
+          sendOk(req);
+        } else if (action == "resume") {
+          xSemaphoreTake(mutex_, portMAX_DELAY);
+          pending_.runResume = true;
+          xSemaphoreGive(mutex_);
+          sendOk(req);
         } else {
-          sendError(req, 400, "invalid_request", "action must be start|stop");
+          sendError(req, 400, "invalid_request", "action must be start|stop|pause|resume");
         }
       });
   server_->addHandler(runHandler);
@@ -455,6 +472,16 @@ void WebInterface::applyPending() {
   if (p.runDelete) {
     Serial.printf("[CMD] run delete id=%d\n", p.runDeleteId);
     sd_.deleteRun(p.runDeleteId);
+  }
+  if (p.runPause) {
+    Serial.printf("[CMD] run pause: motor=%d heater=%d\n", p.runPauseMotor, p.runPauseHeater);
+    if (p.runPauseMotor) reactor_.setMotorPaused(true);
+    if (p.runPauseHeater) reactor_.setHeaterPaused(true);
+  }
+  if (p.runResume) {
+    Serial.println("[CMD] run resume");
+    reactor_.setMotorPaused(false);
+    reactor_.setHeaterPaused(false);
   }
   if (p.setTarget) { Serial.printf("[CMD] setpoint target=%.1fC\n", p.setTargetC); reactor_.setTargetC(p.setTargetC); }
   if (p.setRpm) { Serial.printf("[CMD] setpoint rpm=%.1f\n", p.setRpmVal); reactor_.setRpm(p.setRpmVal); }

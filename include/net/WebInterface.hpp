@@ -83,6 +83,10 @@ class WebInterface {
     bool runStopSave = true;     // stop&save vs stop&discard
     bool runDelete = false;
     int  runDeleteId = 0;
+    bool runPause = false;        // additive: pause the targeted subsystem(s)
+    bool runPauseMotor = false;
+    bool runPauseHeater = false;
+    bool runResume = false;       // clears both holds
 
     bool setTarget = false;
     float setTargetC = 0;

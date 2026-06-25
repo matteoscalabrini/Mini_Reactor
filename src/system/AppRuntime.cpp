@@ -198,7 +198,7 @@ ui::ReactorSnapshot buildUiSnapshot() {
   ui::ReactorSnapshot s;
   s.running = t.running;
   s.motorPaused = t.motorPaused;
-  s.fullHold = t.fullHold;
+  s.fullHold = t.motorPaused && t.heaterPaused;  // OLED shows the combined hold
   s.sensorFault = t.sensorFault;
   s.safetyTripped = t.safetyTripped;
   s.liquidTempC = t.liquidTempC;
@@ -348,6 +348,9 @@ String buildStatusJson() {
   const char* runName = g_sd.currentRunName();
   if (runId && runName[0]) run["name"] = runName;
   else run["name"] = nullptr;
+  JsonObject pause = run["pause"].to<JsonObject>();
+  pause["motor"] = t.motorPaused;
+  pause["heater"] = t.heaterPaused;
 
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["mode"] = g_wifi.apActive() ? "ap" : "sta";
