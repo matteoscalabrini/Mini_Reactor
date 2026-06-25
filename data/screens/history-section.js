@@ -2,7 +2,7 @@ import { el, fixed, hhmmss, clear } from "../core/ui.js";
 import { parseCsv } from "../core/csv.js";
 import { render } from "../core/chart.js";
 import { listRuns, runCsvUrl } from "../core/api.js";
-import { parseRunList, latestRunId } from "../core/runs.js";
+import { parseRunList, latestRunId, runFileName } from "../core/runs.js";
 import { visibleRows } from "../core/runstate.js";
 
 export function mount(root) {
@@ -14,8 +14,9 @@ export function mount(root) {
   const refresh = el("button", { class: "ghost",
     onclick: async () => { await refreshRuns(); load(); } }, "Refresh");
   const status = el("span", { class: "muted" }, "—");
-  const tableWrap = el("div", {});
+  const tableWrap = el("div", { class: "tscroll" });
   let expanded = false;
+  let runsCache = [];   // last-fetched runs, for resolving the download filename
 
   root.append(
     el("div", { class: "card" },
@@ -37,6 +38,7 @@ export function mount(root) {
     const prev = selectedId();
     const r = await listRuns().catch(() => null);
     const runs = parseRunList(r && r.body);
+    runsCache = runs;
     clear(picker);
     if (!runs.length) { picker.append(el("option", { value: "" }, "— no runs —")); return; }
     runs.sort((a, b) => b.id - a.id).forEach((run) =>
@@ -74,7 +76,8 @@ export function mount(root) {
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       dl.removeAttribute("href"); return;
     }
-    dl.href = runCsvUrl(id); dl.download = `run_${id}.csv`;
+    const run = runsCache.find((r) => r.id === id);
+    dl.href = runCsvUrl(id); dl.download = runFileName(run ? run.label : "", id);
     refresh.disabled = true; refresh.textContent = "…"; status.textContent = "loading…";
     try {
       const res = await fetch(runCsvUrl(id)).catch(() => null);

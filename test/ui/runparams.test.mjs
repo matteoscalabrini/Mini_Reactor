@@ -9,7 +9,7 @@ function shim() {
 // defaults when storage empty
 let s = shim();
 let rp = createRunParams(s);
-assert.deepEqual(rp.get(), { targetC: 36, rpm: 8, durationMin: 0 });
+assert.deepEqual(rp.get(), { targetC: 36, rpm: 8, durationMin: 0, name: "" });
 
 // set merges + persists
 rp.set({ targetC: 42 });
@@ -30,5 +30,13 @@ assert.equal(seen[1], 30);
 unsub();
 rp2.set({ targetC: 99 });
 assert.equal(seen.length, 2);
+
+// name: defaults empty, sets + persists, round-trips into a fresh instance
+let sn = shim();
+let rpn = createRunParams(sn);
+assert.equal(rpn.get().name, "");
+rpn.set({ name: "Ethanol distillation" });
+assert.equal(rpn.get().name, "Ethanol distillation");
+assert.equal(createRunParams(sn).get().name, "Ethanol distillation");
 
 console.log("runparams.test OK");

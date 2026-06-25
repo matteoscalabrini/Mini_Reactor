@@ -28,15 +28,18 @@ function menuButton(label, cls, items) {
 }
 
 export function mount(container) {
-  const start = el("button", { class: "go rb-btn" }, "▶ Start");
-  const resume = el("button", { class: "go rb-btn" }, "▶ Resume");
+  const stateLamp = el("span", { class: "lamp" });
+  const stateTxt = el("span", {}, "IDLE");
+  const state = el("span", { class: "rb-state" }, stateLamp, stateTxt);
+  const start = el("button", { class: "go rb-btn" }, "Start");
+  const resume = el("button", { class: "go rb-btn" }, "Resume");
   const held = el("span", { class: "rb-held" }, "");
-  const pause = menuButton("⏸ Pause ▾", "rb-btn warn", [
+  const pause = menuButton("Pause ▾", "rb-btn warn", [
     { label: "Pause motor", onClick: () => runPause("motor") },
     { label: "Pause heater", onClick: () => runPause("heater") },
     { label: "Pause all", onClick: () => runPause("all") },
   ]);
-  const stop = menuButton("■ Stop ▾", "stop rb-btn", [
+  const stop = menuButton("Stop ▾", "stop rb-btn", [
     { label: "Cancel", onClick: () => {} },
     { label: "Stop & save data", onClick: () => runStop("save") },
     { label: "Stop & discard data", kind: "danger",
@@ -47,12 +50,12 @@ export function mount(container) {
     const p = runParams.get();
     if (p.rpm < 0 || p.rpm > 30) return toast("rpm must be 0–30");
     if (p.targetC < 0 || p.targetC > 55) return toast("target must be 0–55 °C");
-    const res = await runStart(p.targetC, p.rpm, p.durationMin);
+    const res = await runStart(p.targetC, p.rpm, p.durationMin, p.name);
     if (!res.ok) toast(res.body && res.body.error ? res.body.error.message : "start failed");
   });
   resume.addEventListener("click", () => runResume());
 
-  container.append(start, pause.wrap, resume, held, stop.wrap);
+  container.append(state, start, pause.wrap, resume, held, stop.wrap);
   document.addEventListener("click", closeAllMenus);
 
   function update(status) {
@@ -64,6 +67,11 @@ export function mount(container) {
     start.disabled = startBlocked;
     start.title = startBlocked ? "Heater probe faulted — Start is blocked" : "";
     held.textContent = heldWhich ? `${heldWhich} held` : "";
+    const cls = mode === "running" ? "running" : mode === "paused" ? "paused"
+      : startBlocked ? "fault" : "";
+    state.className = `rb-state ${cls}`;
+    stateTxt.textContent = mode === "running" ? "RUNNING" : mode === "paused" ? "PAUSED"
+      : startBlocked ? "HEATER FAULT" : "IDLE";
     if (mode === "idle") closeAllMenus();
   }
 

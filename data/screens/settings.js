@@ -1,7 +1,8 @@
 import * as store from "../core/store.js";
-import { el, toast, flashApplied, hhmmss } from "../core/ui.js";
+import { el, toast, flashApplied, hhmmss, triggerDownload } from "../core/ui.js";
 import { runParams } from "../core/runparams.js";
 import * as api from "../core/api.js";
+import { parseRunList, latestRunId, runFileName } from "../core/runs.js";
 import { pollScan } from "../core/wifiscan.js";
 
 const sec = (title, ...body) => el("div", { class: "card set-sec" }, el("h3", {}, title), ...body);
@@ -57,8 +58,18 @@ export function mount(root) {
         if (s < 1 || s > 3600) return toast("interval must be 1–3600 s");
         const r = await api.setLogInterval(s); flashApplied(b, r.ok);
       } }, "Apply interval"),
-      el("a", { class: "btn", href: "/api/v1/log", download: "reactor_log.csv" }, "⬇ Download CSV"),
-      el("button", { class: "ghost", onclick: () => { if (confirm("Clear the SD log?")) api.logClear(); } }, "Clear log"),
+      el("button", { class: "btn", onclick: async (e) => {
+        const b = e.currentTarget, old = b.textContent;
+        b.disabled = true; b.textContent = "…";
+        try {
+          const r = await api.listRuns().catch(() => null);
+          const runs = parseRunList(r && r.body);
+          const id = latestRunId(runs);
+          if (id == null) return toast("No runs recorded yet");
+          const run = runs.find((x) => x.id === id);
+          triggerDownload(api.runCsvUrl(id), runFileName(run && run.label, id));
+        } finally { b.disabled = false; b.textContent = old; }
+      } }, "⬇ Download latest run"),
       el("button", { class: "stop", onclick: eraseModal }, "Erase all files")));
 
   // PID + autotune
@@ -105,6 +116,10 @@ export function mount(root) {
 
   // RUN (relocated from the old Run page; Start/Stop live in the global run bar)
   const p0 = runParams.get();
+  // Optional session name; applied to the run when Start is pressed (shown as the
+  // run's label in History). Persisted via runParams like the other run params.
+  const inName = el("input", { type: "text", maxlength: "32", placeholder: "e.g. Ethanol distillation", value: p0.name || "" });
+  inName.addEventListener("change", () => runParams.set({ name: inName.value.trim() }));
   const inTarget = el("input", { type: "number", step: "0.5", min: "0", max: "55", value: p0.targetC });
   const inRpm = el("input", { type: "number", step: "1", min: "0", max: "30", value: p0.rpm });
   // Duration is split into days · hours · minutes but stored as total minutes.
@@ -135,6 +150,7 @@ export function mount(root) {
   inMins.addEventListener("change", setDur);
 
   const runSec = sec("RUN",
+    field("SESSION NAME", inName),
     field("TARGET TEMPERATURE °C", inTarget),
     field("AGITATOR SPEED rpm", inRpm),
     el("div", { class: "field" },

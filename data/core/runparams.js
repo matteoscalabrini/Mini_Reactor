@@ -1,6 +1,6 @@
 // Shared run parameters (target / rpm / duration), persisted so the global
 // Start button works from any page. Storage is injectable for host tests.
-const DEFAULTS = { targetC: 36, rpm: 8, durationMin: 0 };
+const DEFAULTS = { targetC: 36, rpm: 8, durationMin: 0, name: "" };
 const KEY = "reactor.runparams";
 
 function memoryStorage() {

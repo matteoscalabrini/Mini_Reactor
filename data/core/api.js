@@ -13,7 +13,7 @@ async function req(method, path, body) {
 export const get = (p) => req("GET", p);
 export const post = (p, b) => req("POST", p, b || {});
 
-export const runStart = (targetC, rpm, durationMin) => post("/api/v1/run", { action: "start", targetC, rpm, durationMin });
+export const runStart = (targetC, rpm, durationMin, name) => post("/api/v1/run", { action: "start", targetC, rpm, durationMin, name });
 export const runPause = (target) => post("/api/v1/run", { action: "pause", target });
 export const runResume = () => post("/api/v1/run", { action: "resume" });
 export const runStop = (data) => post("/api/v1/run", { action: "stop", data });
@@ -32,5 +32,4 @@ export const calReset = () => post("/api/v1/calibration/reset");
 export const wifiScan = () => get("/api/v1/wifi/scan");
 export const wifiConnect = (ssid, password) => post("/api/v1/wifi/connect", { ssid, password });
 export const wifiForget = () => post("/api/v1/wifi/forget");
-export const logClear = () => post("/api/v1/log/clear");
 export const setLogInterval = (seconds) => post("/api/v1/log/interval", { seconds });

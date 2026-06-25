@@ -120,7 +120,6 @@ SdLogger::Config makeSdLoggerConfig() {
   c.pinCs = AppConfig::Spi::kCsPin;
   c.pinCardDetect = AppConfig::Sd::kCardDetectPin;
   c.freqHz = AppConfig::Sd::kFreqHz;
-  c.logPath = AppConfig::Sd::kLogPath;
   c.logHeader = AppConfig::Sd::kLogHeader;
   c.logIntervalMs = AppConfig::Timing::kLogPeriodMs;  // default; runtime-settable via API
   return c;
@@ -388,16 +387,18 @@ String buildStatusJson() {
 // Build the runs-list JSON for GET /api/v1/runs (spec §Runs). current=true marks
 // the in-progress run. startedSec/durationSec are omitted (no per-run RTC); the
 // UI tolerates their absence.
-String buildRunsJson() {
+String buildRunsJson(int& latestOut) {
   JsonDocument doc;
   JsonArray arr = doc["runs"].to<JsonArray>();
   const int curId = g_sd.currentRunId();
-  for (const SdLogger::RunInfo& r : g_sd.listRuns()) {
+  latestOut = 0;
+  for (const SdLogger::RunInfo& r : g_sd.listRuns()) {  // one enumeration, reused below
     JsonObject o = arr.add<JsonObject>();
     o["id"] = r.id;
     o["label"] = r.label;
     o["bytes"] = r.bytes;
     o["current"] = (r.id == curId);
+    if (r.id > latestOut) latestOut = r.id;
   }
   String out;
   serializeJson(doc, out);
@@ -501,14 +502,16 @@ void tick() {
     static uint32_t lastRunsMs = 0;
     if (now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
       lastRunsMs = now;
-      g_web.cacheRunsJson(buildRunsJson());
+      int latestRun = 0;
+      g_web.cacheRunsJson(buildRunsJson(latestRun));
+      g_web.cacheLatestRunId(latestRun);  // lets GET /log resolve the newest run off-bus
     }
   }
   g_web.update(statusJson, scanJson);
 
-  // Periodic SD logging.
+  // Periodic SD logging — run-only: rows are written only while a run is open.
   static uint32_t lastLogMs = 0;
-  if (g_sd.mounted() && now - lastLogMs >= g_sd.logIntervalMs()) {
+  if (g_sd.mounted() && g_sd.currentRunId() != 0 && now - lastLogMs >= g_sd.logIntervalMs()) {
     lastLogMs = now;
     g_sd.appendLine(g_reactor.csvRow());
   }

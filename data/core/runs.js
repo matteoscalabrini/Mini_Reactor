@@ -18,3 +18,17 @@ export function latestRunId(runs) {
   if (cur) return cur.id;
   return runs.reduce((m, r) => (r.id > m ? r.id : m), runs[0].id);
 }
+
+// Download filename for a run CSV: the session name when set, else run_<id>.csv.
+// "Run <id>" is the firmware's label for an unnamed run, so it's treated as
+// unnamed. The name becomes the browser's saved filename, so keep only a safe
+// whitelist (letters/digits/space/._-), collapse runs to "_", and cap the length.
+export function runFileName(label, id) {
+  const auto = !label || /^Run \d+$/.test(label);
+  const safe = (auto ? `run_${id}` : label)
+    .replace(/[^a-zA-Z0-9 ._-]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "_")
+    .slice(0, 48);
+  return `${safe || `run_${id}`}.csv`;
+}

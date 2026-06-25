@@ -38,7 +38,7 @@ state = {
     "atActive": False, "atProgress": 0, "atResult": None, "atStartMs": 0.0,
     "calMethod": "beta", "calibrated": False, "calPoints": [], "ntcAdc": 1820, "ntcR": 9120.0,
     "motorTestUntil": 0.0,
-    "pause": {"motor": False, "heater": False}, "runId": None,
+    "pause": {"motor": False, "heater": False}, "runId": None, "runName": "",
     "logIntervalSec": 2.0,
 }
 clients = set()
@@ -50,12 +50,20 @@ _tick = [0]
 CSV_HEADER = "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety"
 
 
-def _start_run():
+def _sanitize_name(raw):
+    # Mirror the firmware: strip control chars (< 0x20), trim, truncate to 32.
+    s = "".join(c for c in str(raw) if ord(c) >= 0x20).strip()
+    return s[:32]
+
+
+def _start_run(name=""):
     _run_seq[0] += 1
-    rec = {"id": _run_seq[0], "label": f"Run {_run_seq[0]}",
+    label = name if name else f"Run {_run_seq[0]}"
+    rec = {"id": _run_seq[0], "label": label, "name": name,
            "started": time.monotonic(), "rows": [], "durationSec": None, "current": True}
     runs.append(rec)
     state["runId"] = rec["id"]
+    state["runName"] = name
     state["startMs"] = rec["started"]
     return rec
 
@@ -76,6 +84,7 @@ def _finalize_run(save):
     if not save:
         runs.remove(r)
     state["runId"] = None
+    state["runName"] = ""
 
 
 def _run_csv(r):
@@ -158,7 +167,7 @@ def status():
         },
         "run": {"active": state["running"], "elapsedSec": elapsed,
                 "remainingSec": remaining, "durationMin": state["durationMin"],
-                "id": state["runId"],
+                "id": state["runId"], "name": state["runName"] or None,
                 "pause": {"motor": state["pause"]["motor"],
                           "heater": state["pause"]["heater"]}},
         "wifi": {"mode": "ap" if state["ap"] else "sta",
@@ -268,7 +277,7 @@ async def api_run(req):
         state.update(running=True, targetC=targetC, rpm=rpm, rpmSetpoint=rpm,
                      durationMin=int(b.get("durationMin", 0)))
         state["pause"] = {"motor": False, "heater": False}
-        _start_run()
+        _start_run(_sanitize_name(b.get("name", "")))
         return web.json_response({"ok": True})
     if action == "pause":
         target = b.get("target")
@@ -372,9 +381,11 @@ async def api_forget(req):
 
 
 async def api_log(req):
+    # Alias for the latest run's CSV (run-only logging — no legacy whole-card log).
     if runs:
         return web.Response(text=_run_csv(runs[-1]), content_type="text/csv")
-    return web.Response(text=CSV_HEADER + "\n", content_type="text/csv")
+    return web.json_response(
+        {"ok": False, "error": {"code": "no_log", "message": "no runs recorded yet"}}, status=503)
 
 
 async def api_runs(req):
@@ -404,13 +415,10 @@ async def api_run_delete(req):
             runs.remove(r)
             if state["runId"] == rid:
                 state["runId"] = None
+                state["runName"] = ""
             return web.json_response({"ok": True})
     return web.json_response(
         {"ok": False, "error": {"code": "not_found", "message": "no such run"}}, status=404)
-
-
-async def api_log_clear(req):
-    return web.json_response({"ok": True})
 
 
 async def api_log_interval(req):
@@ -502,7 +510,6 @@ def main():
     app.router.add_get("/api/v1/runs", api_runs)
     app.router.add_get("/api/v1/runs/{id}", api_run_csv)
     app.router.add_post("/api/v1/runs/{id}/delete", api_run_delete)
-    app.router.add_post("/api/v1/log/clear", api_log_clear)
     app.router.add_post("/api/v1/log/interval", api_log_interval)
     app.router.add_post("/api/v1/pid", api_pid)
     app.router.add_post("/api/v1/pid/autotune", api_autotune)

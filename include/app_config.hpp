@@ -54,7 +54,7 @@ static constexpr int kCsPin   = 10;  // GPIO10 -> SD CS (DAT3/CD)
 namespace Sd {
 static constexpr int      kCardDetectPin = 14;        // GPIO14 -> SD DET
 static constexpr uint32_t kFreqHz        = 10000000;  // 10 MHz bring-up speed
-static constexpr const char* kLogPath    = "/reactor_log.csv";
+// CSV header written at the top of each per-run file (/runs/NNNNN.csv).
 static constexpr const char* kLogHeader  =
     "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety";
 }  // namespace Sd
@@ -108,7 +108,7 @@ static constexpr uint8_t kDisplayI2cAddr = 0x3C;   // SH1107 address
 // the primary bus (GPIO1/2) — no shared-bus contention or pull-up fighting.
 static constexpr int kDisplaySdaPin = 43;   // GPIO43 (U0TXD) -> OLED SDA, Wire1
 static constexpr int kDisplaySclPin = 44;   // GPIO44 (U0RXD) -> OLED SCL, Wire1
-static constexpr uint32_t kDisplayBusClockHz = 400000;  // dedicated bus, fast refresh
+static constexpr uint32_t kDisplayBusClockHz = 400000;  // SW-I2C bit-bang speed (240 MHz S3)
 static constexpr int kEncAPin  = 8;    // GPIO8
 static constexpr int kEncBPin  = 9;    // GPIO9
 static constexpr int kEncSwPin = 41;   // GPIO41 (push)
@@ -119,7 +119,9 @@ static constexpr float kTargetStepC = 0.5f;
 static constexpr float kRpmStep     = 0.5f;
 static constexpr float kTargetMinC  = 0.0f;
 static constexpr float kTargetMaxC  = 55.0f;   // matches Thermal::kProcessMaxC
-static constexpr uint32_t kRedrawIntervalMs = 150;  // ~6.6 Hz (full-frame I2C blit is ~46 ms)
+static constexpr uint32_t kRedrawIntervalMs = 250;  // idle live-data refresh (~4 Hz)
+static constexpr uint32_t kMinRedrawMs = 40;        // floor between input-driven redraws (keeps the
+                                                    // blocking SW-I2C blit from starving input polling)
 }  // namespace Ui
 
 // ── Thermal: liquid-temp PID + heater NTC safety high-limit ──────────────────

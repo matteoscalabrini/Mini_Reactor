@@ -10,6 +10,17 @@ export function mount(root) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("width", "100%"); svg.setAttribute("height", "170"); svg.setAttribute("preserveAspectRatio", "none");
 
+  // Signature: deviation strip. Full scale ±3 °C, in-spec band ±0.5 °C, so the
+  // band sits at 50%±8.33% of the scale width.
+  const DEV_FS = 3, DEV_TOL = 0.5;
+  const devTick = el("i", { class: "dev-tick", style: "left:50%" });
+  const dev = el("div", { class: "dev" },
+    el("div", { class: "dev-scale" },
+      el("span", { class: "dev-band", style: "left:41.67%;width:16.66%" }),
+      el("span", { class: "dev-zero" }), devTick),
+    el("div", { class: "dev-meta" },
+      el("span", {}, "−" + DEV_FS + " °C"), el("span", { class: "c" }, "SETPOINT"), el("span", {}, "+" + DEV_FS + " °C")));
+
   const runPill = el("span", { class: "pill off" }, "IDLE");
   const elapsed = el("div", { class: "v" }, "—"), remain = el("div", { class: "v" }, "—"), dur = el("div", { class: "v" }, "—");
   const progBar = bar(0), progPct = el("span", { class: "n" }, "—");
@@ -27,6 +38,7 @@ export function mount(root) {
           el("div", { class: "meta" },
             el("div", {}, el("div", { class: "lbl" }, "SETPOINT"), setp),
             el("div", {}, el("div", { class: "lbl" }, "ERROR"), errv))),
+        dev,
         el("div", { class: "chart" }, svg,
           el("div", { class: "legend" }, el("span", {}, el("i", {}), "Measured"),
             el("span", {}, el("i", { class: "sp" }), "Setpoint"),
@@ -57,6 +69,11 @@ export function mount(root) {
     errv.className = "v" + ((th.errorC || 0) > 0 ? " up" : "");
     heroPill.className = "pill " + (sf.tripped ? "bad" : th.fault ? "warn" : run.active ? "on" : "off");
     heroPill.textContent = sf.tripped ? "SAFETY CUTOUT" : th.fault ? "PROBE FAULT" : run.active ? "REGULATING" : "MONITOR";
+    // Deviation strip: measured minus setpoint, mapped onto the ±DEV_FS scale.
+    // In-spec = accent; out of tolerance either side = bad (out).
+    const d2 = (th.tempC != null && th.setpointC != null) ? th.tempC - th.setpointC : null;
+    devTick.style.left = (d2 == null ? 50 : Math.max(2, Math.min(98, 50 + (d2 / DEV_FS) * 50))) + "%";
+    devTick.className = "dev-tick" + (d2 != null && Math.abs(d2) > DEV_TOL ? " out" : "");
     runPill.className = "pill " + (run.active ? "on" : "off"); runPill.textContent = run.active ? "RUNNING" : "IDLE";
     elapsed.textContent = hhmmss(run.elapsedSec || 0);
     remain.textContent = run.remainingSec == null ? (run.active ? "∞" : "—") : hhmmss(run.remainingSec);

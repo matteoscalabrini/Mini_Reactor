@@ -52,16 +52,7 @@ bool SdLogger::begin() {
     return false;
   }
   mounted_ = true;
-
-  // Write the CSV header once for a fresh log (don't wipe an existing one).
-  if (cfg_.logHeader[0] != '\0' && !SD.exists(cfg_.logPath)) {
-    File h = SD.open(cfg_.logPath, FILE_WRITE);
-    if (h) {
-      h.println(cfg_.logHeader);
-      h.close();
-    }
-  }
-  return true;
+  return true;  // run-only logging: per-run files are created in startRun()
 }
 
 void SdLogger::checkAndReport(Stream& out) {
@@ -109,32 +100,10 @@ void SdLogger::checkAndReport(Stream& out) {
 }
 
 bool SdLogger::appendLine(const String& line) {
-  if (!mounted_) return false;
-  if (currentId_ != 0 && current_) {       // an open run takes the data
-    current_.println(line);
-    current_.flush();                       // survive a yanked card mid-run
-    return true;
-  }
-  File f = SD.open(cfg_.logPath, FILE_APPEND);  // idle fallback: legacy log
-  if (!f) {
-    mounted_ = false;
-    return false;
-  }
-  f.println(line);
-  f.close();
-  return true;
-}
-
-bool SdLogger::clearLog() {
-  if (!mounted_) return false;
-  SD.remove(cfg_.logPath);
-  File h = SD.open(cfg_.logPath, FILE_WRITE);
-  if (!h) {
-    mounted_ = false;
-    return false;
-  }
-  if (cfg_.logHeader[0] != '\0') h.println(cfg_.logHeader);
-  h.close();
+  // Run-only logging: rows go to the open run file; no run open -> nothing to write.
+  if (!mounted_ || currentId_ == 0 || !current_) return false;
+  current_.println(line);
+  current_.flush();                         // survive a yanked card mid-run
   return true;
 }
 
@@ -169,9 +138,7 @@ bool SdLogger::removeRecursive(const char* path) {
 bool SdLogger::eraseAll() {
   if (!mounted_) return false;
   if (currentId_ != 0) endRun(false);   // close+discard the open run before wiping
-  const bool cleared = removeRecursive("/");  // best-effort full wipe
-  const bool logOk = clearLog();              // recreate the empty log with its header
-  return cleared && logOk;                    // false if any entry resisted deletion
+  return removeRecursive("/");          // best-effort full wipe (run-only: no log to recreate)
 }
 
 int SdLogger::startRun(const char* name) {

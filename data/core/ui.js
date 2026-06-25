@@ -35,6 +35,15 @@ export function toast(msg, kind = "err") {
   setTimeout(() => t.remove(), 2600);
 }
 
+// Programmatically download `url`, saving it as `filename` (same-origin, so the
+// download attribute wins over the server's Content-Disposition).
+export function triggerDownload(url, filename) {
+  const a = el("a", { href: url, download: filename || "" });
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
 // Briefly confirm a command was accepted, inline next to its control. Reuses a
 // single note per target so repeat clicks don't stack. ok=false shows a red ✕.
 export function flashApplied(target, ok = true) {
