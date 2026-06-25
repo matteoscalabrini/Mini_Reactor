@@ -168,6 +168,12 @@ All pin assignments, bus parameters, and device defaults live in
 `src/system/AppRuntime.cpp` are built from these — change hardware wiring or defaults in one
 place.
 
+Optional features are gated by compile-time toggles in `AppConfig::Features`
+(`kEnableSdLogging`, `kEnableOledUi`, `kEnableAutotune`, all default `true`).
+Setting one to `false` skips that module's init/runtime, makes its control
+endpoints return `503 feature_disabled`, logs its state at boot (`[FEAT] …`),
+and hides its web-UI section. See [`API.md`](API.md#feature-toggles).
+
 ## License
 
 Not yet specified.
