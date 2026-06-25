@@ -59,7 +59,6 @@ Tmc2209Motor::Config makeMotorConfig() {
 Heater::Config makeHeaterConfig() {
   Heater::Config c;
   c.gatePin = AppConfig::Heater::kGatePin;
-  c.ledcChannel = AppConfig::Heater::kLedcChannel;
   c.freqHz = AppConfig::Heater::kFreqHz;
   c.resBits = AppConfig::Heater::kResBits;
   return c;
@@ -434,6 +433,7 @@ void begin() {
   while (!Serial && millis() - t0 < AppConfig::kSerialStartupDelayMs) {
   }
   Serial.println(F("\n=== Bioreactor Module — fermentation firmware ==="));
+  Serial.printf("[boot] ESP-IDF %s / Arduino-ESP32 %s\n", ESP.getSdkVersion(), ESP_ARDUINO_VERSION_STR);
   Serial.printf("[FEAT] SD logging: %s\n", AppConfig::Features::kEnableSdLogging ? "enabled" : "disabled");
   Serial.printf("[FEAT] OLED UI:    %s\n", AppConfig::Features::kEnableOledUi ? "enabled" : "disabled");
   Serial.printf("[FEAT] autotune:   %s\n", AppConfig::Features::kEnableAutotune ? "enabled" : "disabled");

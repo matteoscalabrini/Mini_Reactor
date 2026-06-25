@@ -19,7 +19,6 @@ class Heater {
   // Config — built from AppConfig::Heater.
   struct Config {
     int gatePin = -1;
-    int ledcChannel = 0;
     uint32_t freqHz = 1000;
     int resBits = 10;
   };

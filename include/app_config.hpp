@@ -84,7 +84,6 @@ static constexpr float    kSpinMicrostepHz  = 3200.0f;
 // ── Heater MOSFET (Q1, low-side NMOS), driven by LEDC PWM ─────────────────────
 namespace Heater {
 static constexpr int      kGatePin     = 40;    // GPIO40 HEATER_PWM -> 47R -> gate
-static constexpr int      kLedcChannel = 0;     // dedicated LEDC channel
 static constexpr uint32_t kFreqHz      = 1000;  // 1 kHz — quiet, easy on the FET
 static constexpr int      kResBits     = 10;    // 10-bit duty (0..1023)
 }  // namespace Heater

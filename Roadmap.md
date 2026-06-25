@@ -39,7 +39,7 @@ the specs/plans under `docs/superpowers/`.
 
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)
 
-- [ ] **IDF 5.5.x port** — currently on `espressif32@6.9.0` → Arduino 2.0.17 → IDF 4.4.7. Port on `feature/idf55-port` (pioarduino platform, Arduino 3.x). See `docs/superpowers/plans/` port plan.
+- [x] **IDF 5.5.x port** — `feature/idf55-port` now on pioarduino `55.03.39` → Arduino-ESP32 **3.3.9** → ESP-IDF **5.5.4** (was `espressif32@6.9.0`/2.0.17/4.4.7). Heater LEDC migrated to pin-based API; ADC attenuation set as global default for the 3.x one-shot driver. Clean build green; verified on hardware (boot banner `ESP-IDF v5.5.4`, `GET /api/v1/status` 200). See `docs/superpowers/plans/2026-06-25-idf55-port.md`.
 - [x] **Feature-toggle scaffold** — add `AppConfig::Features::kEnable*` flags; gate init in `AppRuntime::begin()`; `503 + feature_disabled` on disabled control APIs; explicit enabled/disabled startup logs. Targets: SD logging, OLED UI, autotune, (later) OTA/MQTT/ESP-NOW.
 - [x] **`features/` module layout** — product features moved under `include/features/*` and `src/features/*` (control, heater, motor, sensor, ui); platform services (net, storage, security, power, system) kept separate.
 - [x] `main.cpp` orchestration-only (delegates to `AppRuntime`)

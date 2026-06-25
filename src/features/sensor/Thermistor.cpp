@@ -11,7 +11,10 @@ Thermistor::Thermistor(const Config& config) : cfg_(config) {}
 
 void Thermistor::begin() {
   analogReadResolution(12);
-  analogSetPinAttenuation(cfg_.adcPin, ADC_11db);  // full ~0..3.3V range
+  // Arduino 3.x oneshot ADC: set attenuation as the global default *before* the pin
+  // is registered (per-pin analogSetPinAttenuation errors until the first read inits
+  // the channel). 11db == full ~0..3.3V range; the NTC pin inherits it on first read.
+  analogSetAttenuation(ADC_11db);
   cal_.begin({cfg_.r0Ohms, cfg_.beta, cfg_.t0C}, cfg_.minPlausibleC, cfg_.maxPlausibleC);
   loadCalibration();
 }
