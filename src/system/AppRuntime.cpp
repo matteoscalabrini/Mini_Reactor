@@ -443,13 +443,17 @@ void begin() {
   // The OLED lives on its OWN bus (Wire1, GPIO43/44), brought up inside g_display.begin()
   // — fully isolated from the HUSB238, so neither can disturb the other.
   g_input.begin();
-  g_display.begin();
-  Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
+  if (AppConfig::Features::kEnableOledUi) {
+    g_display.begin();
+    Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
+  }
   requestPd();
 
   // Storage.
-  g_sd.begin();
-  g_sd.checkAndReport(Serial);
+  if (AppConfig::Features::kEnableSdLogging) {
+    g_sd.begin();
+    g_sd.checkAndReport(Serial);
+  }
 
   // Control hardware: thermistor + heater (PID), then the motor.
   g_thermal.begin();
@@ -481,7 +485,7 @@ void tick() {
   // endRun() in applyPending.
   static bool prevRunning = false;
   const bool nowRunning = g_reactor.running();
-  if (prevRunning && !nowRunning && g_sd.currentRunId() != 0) {
+  if (AppConfig::Features::kEnableSdLogging && prevRunning && !nowRunning && g_sd.currentRunId() != 0) {
     g_sd.endRun(true);  // auto-stop saves
   }
   prevRunning = nowRunning;
@@ -491,7 +495,7 @@ void tick() {
     for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll())
       g_ui.handle(e, snap);
     static uint32_t lastDrawMs = 0;
-    if (millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
+    if (AppConfig::Features::kEnableOledUi && millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
       lastDrawMs = millis();
       g_display.render(g_ui, snap);
     }
@@ -508,7 +512,7 @@ void tick() {
     scanJson = g_wifi.scanJson();
     g_web.cacheCalJson(buildCalJson());
     static uint32_t lastRunsMs = 0;
-    if (now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
+    if (AppConfig::Features::kEnableSdLogging && now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
       lastRunsMs = now;
       int latestRun = 0;
       g_web.cacheRunsJson(buildRunsJson(latestRun));
@@ -519,7 +523,7 @@ void tick() {
 
   // Periodic SD logging — run-only: rows are written only while a run is open.
   static uint32_t lastLogMs = 0;
-  if (g_sd.mounted() && g_sd.currentRunId() != 0 && now - lastLogMs >= g_sd.logIntervalMs()) {
+  if (AppConfig::Features::kEnableSdLogging && g_sd.mounted() && g_sd.currentRunId() != 0 && now - lastLogMs >= g_sd.logIntervalMs()) {
     lastLogMs = now;
     g_sd.appendLine(g_reactor.csvRow());
   }
