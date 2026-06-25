@@ -1,5 +1,5 @@
 #pragma once
-#include "ui/UiTypes.hpp"
+#include "features/ui/UiTypes.hpp"
 
 namespace ui {
 

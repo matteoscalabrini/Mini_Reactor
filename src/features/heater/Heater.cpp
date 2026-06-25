@@ -3,7 +3,7 @@
  * See include/heater/Heater.hpp and AppConfig::Heater.
  */
 
-#include "heater/Heater.hpp"
+#include "features/heater/Heater.hpp"
 
 Heater::Heater(const Config& config) : cfg_(config) {}
 

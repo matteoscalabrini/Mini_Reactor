@@ -91,6 +91,11 @@ def _run_csv(r):
     return CSV_HEADER + "\n" + "\n".join(r["rows"]) + ("\n" if r["rows"] else "")
 
 
+# Compile-time feature toggles mirrored from AppConfig::Features. Flip any to
+# False to preview the SPA hiding that feature's controls (no hardware needed).
+MOCK_FEATURES = {"sdLogging": True, "oledUi": True, "autotune": True}
+
+
 def status():
     now = time.monotonic()
     elapsed = int(now - state["startMs"]) if state["running"] else 0
@@ -130,6 +135,7 @@ def status():
         alarms.append({"code": code, "severity": sev, "since": _alarm_since[code]})
     return {
         "apiVersion": "1.0", "uptimeSec": int(now),
+        "features": MOCK_FEATURES,
         "system": {"firmware": "1.0.0-mock", "freeHeap": 142000,
                    "vbus": "12V", "sdMounted": True},
         "thermal": {

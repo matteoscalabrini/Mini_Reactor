@@ -3,13 +3,13 @@
  * See include/control/Reactor.hpp and AppConfig::Process.
  */
 
-#include "control/Reactor.hpp"
+#include "features/control/Reactor.hpp"
 
 #include <math.h>
 
 #include "app_config.hpp"
 
-#include "motor/RpmKinematics.hpp"
+#include "features/motor/RpmKinematics.hpp"
 
 Reactor::Reactor(ThermalController& thermal, Tmc2209Motor& motor,
                  const Config& config)

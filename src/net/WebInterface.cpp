@@ -31,7 +31,8 @@
 #include <SPIFFS.h>
 
 #include <string.h>
-#include "control/Reactor.hpp"
+#include "app_config.hpp"
+#include "features/control/Reactor.hpp"
 #include "net/WifiManager.hpp"
 #include "storage/SdLogger.hpp"
 #include "storage/RunFiles.hpp"
@@ -72,6 +73,14 @@ static void sendError(AsyncWebServerRequest* req, int status, const char* code,
   AsyncWebServerResponse* resp = req->beginResponse(status, "application/json", body);
   resp->addHeader("Access-Control-Allow-Origin", "*");
   req->send(resp);
+}
+
+// Returns true (and sends 503 feature_disabled) when the feature is off; the
+// caller then returns. Keeps each gated handler to a single guard line.
+static bool featureGate(AsyncWebServerRequest* req, bool enabled) {
+  if (enabled) return false;
+  sendError(req, 503, "feature_disabled", "feature disabled at build time");
+  return true;
 }
 
 // Copy a sanitized session name into a fixed buffer (firmware is authoritative).
@@ -209,6 +218,7 @@ void WebInterface::registerRoutes() {
   // route must come first or /pid would swallow /pid/autotune. First match wins.
   auto* autotuneHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/pid/autotune", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        if (featureGate(req, AppConfig::Features::kEnableAutotune)) return;
         JsonObject o = json.as<JsonObject>();
         const String action = o["action"] | "";
         if (action != "start" && action != "cancel") {
@@ -285,6 +295,7 @@ void WebInterface::registerRoutes() {
 
   // ── POST sd/erase ──
   server_->on("/api/v1/sd/erase", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.sdErase = true;
     xSemaphoreGive(mutex_);
@@ -321,6 +332,7 @@ void WebInterface::registerRoutes() {
   // enumeration) to keep this async handler off the SD bus; only the single
   // file send touches the card, same as GET /runs/{id}.
   server_->on("/api/v1/log", HTTP_GET, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     if (!sd_.mounted()) {
       sendError(req, 503, "no_log", "no SD card mounted");
       return;
@@ -343,6 +355,7 @@ void WebInterface::registerRoutes() {
   // ── POST log interval (seconds between SD log rows) ──
   auto* logIntervalHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/log/interval", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
         JsonObject o = json.as<JsonObject>();
         if (o["seconds"].isNull()) {
           sendError(req, 400, "invalid_request", "seconds required");
@@ -371,6 +384,7 @@ void WebInterface::registerRoutes() {
   // ── GET one run's CSV (download) ──
   server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)$", HTTP_GET,
               [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     const int id = req->pathArg(0).toInt();
     const String path = sd_.runCsvPath(id);
     if (!sd_.mounted() || !SD.exists(path)) {
@@ -383,6 +397,7 @@ void WebInterface::registerRoutes() {
   // ── POST delete a run ──
   server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)\\/delete$", HTTP_POST,
               [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     const int id = req->pathArg(0).toInt();
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.runDelete = true;
@@ -393,6 +408,7 @@ void WebInterface::registerRoutes() {
 
   // ── GET runs list (served from the loop-built cache) ──
   server_->on("/api/v1/runs", HTTP_GET, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     xSemaphoreTake(mutex_, portMAX_DELAY);
     const String body = runsJson_;
     xSemaphoreGive(mutex_);
@@ -429,7 +445,7 @@ void WebInterface::applyPending() {
     Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin name='%s'\n",
                   p.runTargetC, p.runRpm, (unsigned)p.runDurMin, p.runName);
     reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
-    if (reactor_.running()) sd_.startRun(p.runName);  // open the per-run file
+    if (AppConfig::Features::kEnableSdLogging && reactor_.running()) sd_.startRun(p.runName);  // open the per-run file
   }
   if (p.runStop) {
     Serial.printf("[CMD] run stop (%s)\n", p.runStopSave ? "save" : "discard");

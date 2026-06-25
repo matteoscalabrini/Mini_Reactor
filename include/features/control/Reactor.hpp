@@ -15,8 +15,8 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
-#include "control/ThermalController.hpp"
-#include "motor/Tmc2209Motor.hpp"
+#include "features/control/ThermalController.hpp"
+#include "features/motor/Tmc2209Motor.hpp"
 
 struct ReactorTelemetry {
   bool running = false;

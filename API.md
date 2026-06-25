@@ -38,6 +38,7 @@ payload directly instead of `{ok:true}`. File downloads return the raw file.
 | `not_found` | unknown endpoint or run id |
 | `no_log` | SD not mounted / no log file |
 | `wifi_ssid_required` | connect without ssid |
+| `feature_disabled` | endpoint's feature toggled off at build time (HTTP 503) |
 
 ---
 
@@ -229,6 +230,29 @@ No body. Fits offset/Beta/Steinhart by point count; result via `GET /calibration
 No body. Reverts to factory Beta.
 
 ---
+
+## Feature toggles
+
+Three compile-time flags in [`include/app_config.hpp`](include/app_config.hpp)
+(`AppConfig::Features::kEnableSdLogging`, `kEnableOledUi`, `kEnableAutotune`,
+all default `true`) gate optional features. `GET /api/v1/status` advertises their
+state so the UI can react:
+
+```jsonc
+"features": { "sdLogging": true, "oledUi": true, "autotune": true }
+```
+
+When a flag is `false`, that feature's control endpoints return **HTTP 503**
+with `code: "feature_disabled"`:
+
+| Flag | Endpoints that return 503 when off |
+|------|-------------------------------------|
+| `kEnableSdLogging` | `GET /log`, `POST /log/interval`, `POST /sd/erase`, `GET /runs`, `GET /runs/{id}`, `POST /runs/{id}/delete` |
+| `kEnableAutotune` | `POST /pid/autotune` |
+| `kEnableOledUi` | none (front-panel display only; no HTTP surface) |
+
+`POST /api/v1/run` is never gated — running the reactor is core control; SD
+logging only records the run.
 
 ## Storage / data log
 

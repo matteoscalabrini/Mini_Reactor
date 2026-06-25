@@ -1,5 +1,5 @@
 #include <unity.h>
-#include "motor/DrvStatus.hpp"
+#include "features/motor/DrvStatus.hpp"
 
 void setUp() {}
 void tearDown() {}

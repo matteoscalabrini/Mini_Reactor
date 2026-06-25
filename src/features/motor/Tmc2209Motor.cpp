@@ -6,8 +6,8 @@
  * the STEP/DIR pins are held idle.
  */
 
-#include "motor/Tmc2209Motor.hpp"
-#include "motor/RpmKinematics.hpp"
+#include "features/motor/Tmc2209Motor.hpp"
+#include "features/motor/RpmKinematics.hpp"
 
 namespace {
 constexpr float kTmcClockHz = 12000000.0f;  // internal oscillator

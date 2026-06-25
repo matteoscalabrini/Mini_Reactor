@@ -83,8 +83,9 @@ platformio.ini          PlatformIO project (esp32-s3-devkitc-1 + native test env
 partitions.csv          flash partition table
 include/                headers
   app_config.hpp        single source of truth for pins, buses, and defaults
-  control/ motor/ sensor/ heater/ power/ storage/ net/ security/ system/
-src/                    implementations mirroring include/
+  features/             product features: control/ heater/ motor/ sensor/ ui/
+  net/ storage/ security/ power/ system/   reusable platform services
+src/                    implementations mirroring include/ (incl. src/features/*)
 data/                   web UI served from SPIFFS (index.html, app.js, app.css, core/, screens/)
 test/                   Unity unit tests (run on the native env)
 tools/mock_server.py    aiohttp mock of the /api/v1 REST + WebSocket contract for UI dev
@@ -167,6 +168,12 @@ All pin assignments, bus parameters, and device defaults live in
 `AppConfig::Motor::kCurrentMilliamps`). The per-device `Config` structs in
 `src/system/AppRuntime.cpp` are built from these — change hardware wiring or defaults in one
 place.
+
+Optional features are gated by compile-time toggles in `AppConfig::Features`
+(`kEnableSdLogging`, `kEnableOledUi`, `kEnableAutotune`, all default `true`).
+Setting one to `false` skips that module's init/runtime, makes its control
+endpoints return `503 feature_disabled`, logs its state at boot (`[FEAT] …`),
+and hides its web-UI section. See [`API.md`](API.md#feature-toggles).
 
 ## License
 

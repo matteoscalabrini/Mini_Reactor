@@ -1,7 +1,7 @@
 #pragma once
 #include <U8g2lib.h>
-#include "ui/UiController.hpp"
-#include "ui/UiTypes.hpp"
+#include "features/ui/UiController.hpp"
+#include "features/ui/UiTypes.hpp"
 
 namespace ui {
 

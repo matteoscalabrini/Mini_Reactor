@@ -3,7 +3,7 @@
  * See include/sensor/Ds18b20.hpp and AppConfig::Sense / AppConfig::Thermal.
  */
 
-#include "sensor/Ds18b20.hpp"
+#include "features/sensor/Ds18b20.hpp"
 
 #include <DallasTemperature.h>
 #include <OneWire.h>
