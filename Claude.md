@@ -35,6 +35,7 @@ This firmware must stay modular and feature-toggle driven.
 - Always use full path for PlatformIO commands.
 - Preferred command path: `~/.platformio/penv/bin/pio`.
 - Do not rely on `pio`/`platformio` being present in shell `PATH`.
+- pioarduino first-build gotcha: the first clean build on a machine/CI that lacks the toolchain fails once with `xtensa-esp32s3-elf-g++: command not found` (pioarduino installs the toolchain mid-build, after PATH is snapshotted). It is benign — just re-run the same `pio run`; every build afterwards (including `rm -rf .pio` clean builds) succeeds.
 
 ## Validation Checklist (Before Delivery)
 - Build passes for the relevant product environment (`~/.platformio/penv/bin/pio run -e <env>`).
