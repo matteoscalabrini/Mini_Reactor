@@ -3,7 +3,7 @@
  * See include/sensor/Thermistor.hpp and AppConfig::Thermal.
  */
 
-#include "sensor/Thermistor.hpp"
+#include "features/sensor/Thermistor.hpp"
 
 #include <math.h>
 

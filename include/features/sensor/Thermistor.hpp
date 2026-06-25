@@ -16,7 +16,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
-#include "sensor/ThermistorCalibration.hpp"
+#include "features/sensor/ThermistorCalibration.hpp"
 
 class Thermistor {
  public:

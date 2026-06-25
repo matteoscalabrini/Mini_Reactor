@@ -15,21 +15,21 @@
 #include <Wire.h>
 
 #include "app_config.hpp"
-#include "control/Reactor.hpp"
-#include "control/ThermalController.hpp"
-#include "heater/Heater.hpp"
-#include "motor/DrvStatus.hpp"
-#include "motor/Tmc2209Motor.hpp"
+#include "features/control/Reactor.hpp"
+#include "features/control/ThermalController.hpp"
+#include "features/heater/Heater.hpp"
+#include "features/motor/DrvStatus.hpp"
+#include "features/motor/Tmc2209Motor.hpp"
 #include "system/AlarmTracker.hpp"
 #include "net/WebInterface.hpp"
 #include "net/WifiManager.hpp"
 #include "power/Husb238.hpp"
-#include "sensor/Ds18b20.hpp"
-#include "sensor/Thermistor.hpp"
+#include "features/sensor/Ds18b20.hpp"
+#include "features/sensor/Thermistor.hpp"
 #include "storage/SdLogger.hpp"
-#include "ui/Display.hpp"
-#include "ui/InputManager.hpp"
-#include "ui/UiController.hpp"
+#include "features/ui/Display.hpp"
+#include "features/ui/InputManager.hpp"
+#include "features/ui/UiController.hpp"
 
 namespace AppRuntime {
 namespace {

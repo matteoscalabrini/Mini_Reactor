@@ -3,7 +3,7 @@
  * See include/control/ThermalController.hpp.
  */
 
-#include "control/ThermalController.hpp"
+#include "features/control/ThermalController.hpp"
 
 #include <math.h>
 #include <string.h>

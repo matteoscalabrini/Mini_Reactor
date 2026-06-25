@@ -32,7 +32,7 @@
 
 #include <string.h>
 #include "app_config.hpp"
-#include "control/Reactor.hpp"
+#include "features/control/Reactor.hpp"
 #include "net/WifiManager.hpp"
 #include "storage/SdLogger.hpp"
 #include "storage/RunFiles.hpp"

@@ -19,7 +19,7 @@
 
 #include <Arduino.h>
 #include <TMCStepper.h>
-#include "motor/DrvStatus.hpp"
+#include "features/motor/DrvStatus.hpp"
 
 class Tmc2209Motor {
  public:

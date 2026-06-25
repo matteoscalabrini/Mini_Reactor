@@ -83,8 +83,9 @@ platformio.ini          PlatformIO project (esp32-s3-devkitc-1 + native test env
 partitions.csv          flash partition table
 include/                headers
   app_config.hpp        single source of truth for pins, buses, and defaults
-  control/ motor/ sensor/ heater/ power/ storage/ net/ security/ system/
-src/                    implementations mirroring include/
+  features/             product features: control/ heater/ motor/ sensor/ ui/
+  net/ storage/ security/ power/ system/   reusable platform services
+src/                    implementations mirroring include/ (incl. src/features/*)
 data/                   web UI served from SPIFFS (index.html, app.js, app.css, core/, screens/)
 test/                   Unity unit tests (run on the native env)
 tools/mock_server.py    aiohttp mock of the /api/v1 REST + WebSocket contract for UI dev

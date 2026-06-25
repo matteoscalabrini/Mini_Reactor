@@ -19,14 +19,14 @@
 
 #include <Arduino.h>
 
-#include "heater/Heater.hpp"
-#include "sensor/Ds18b20.hpp"
-#include "sensor/Thermistor.hpp"
+#include "features/heater/Heater.hpp"
+#include "features/sensor/Ds18b20.hpp"
+#include "features/sensor/Thermistor.hpp"
 
 #include <Preferences.h>
 
-#include "control/PidController.hpp"
-#include "control/RelayAutotune.hpp"
+#include "features/control/PidController.hpp"
+#include "features/control/RelayAutotune.hpp"
 
 class ThermalController {
  public:

@@ -1,4 +1,4 @@
-#include "ui/UiController.hpp"
+#include "features/ui/UiController.hpp"
 
 namespace ui {
 
