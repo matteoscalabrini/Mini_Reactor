@@ -13,6 +13,8 @@ class InputManager {
   void begin();
   UiEvent poll();   // returns one pending event per call, or UiEvent::None
 
+  int32_t debugEncoderCount() const;  // TEMP: raw ISR counter, for bring-up
+
  private:
   UiEvent pollButton(int pin, UiEvent ev, bool& downState, uint32_t& edgeMs);
   Pins pins_;

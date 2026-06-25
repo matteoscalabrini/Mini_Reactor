@@ -1,30 +1,30 @@
 #include "ui/Display.hpp"
 
-#include <Wire.h>
+#include <driver/gpio.h>
 #include <math.h>
 #include <stdio.h>
 
 namespace ui {
 
 Display::Display(uint8_t i2cAddr, int sclPin, int sdaPin, uint32_t busHz)
-    : u8g2_(U8G2_R0, U8X8_PIN_NONE),
+    : u8g2_(U8G2_R0, /*clock=*/sclPin, /*data=*/sdaPin, U8X8_PIN_NONE),
       addr_(i2cAddr),
       sclPin_(sclPin),
       sdaPin_(sdaPin),
       busHz_(busHz) {}
 
 void Display::begin() {
-  // Bring up the OLED's dedicated bus (Wire1) on its own pins first. U8g2's 2ND
-  // driver later calls Wire1.begin() with no pins, which the core treats as a
-  // no-op once the bus is up — so it rides on the pins we set here without a
-  // second (deadlock-prone) re-init.
-  Wire1.begin(sdaPin_, sclPin_, busHz_);
-  Wire1.setTimeOut(50);              // bound bus ops so a stuck slave can't hang us
+  // GPIO43/44 are UART0 (U0TXD/U0RXD); the core can leave UART0 bound to those
+  // pads. Detach them before bit-banging so UART0 doesn't fight the SW-I2C lines.
+  gpio_reset_pin(static_cast<gpio_num_t>(sdaPin_));
+  gpio_reset_pin(static_cast<gpio_num_t>(sclPin_));
+  // Software (bit-banged) I2C — u8g2 drives the pins directly via digitalWrite, so
+  // there is no hardware I2C peripheral to contend with UART0 or the HUSB238's Wire.
   u8g2_.setI2CAddress(addr_ << 1);
+  u8g2_.setBusClock(busHz_);
   u8g2_.begin();
-  Wire1.beginTransmission(addr_);
-  present_ = (Wire1.endTransmission() == 0);  // headless render if no panel answers
-  if (present_) u8g2_.setContrast(255);
+  present_ = true;                   // SW I2C can't probe; the wired panel is assumed present
+  u8g2_.setContrast(255);
 }
 
 static void fmtElapsed(uint32_t sec, char* out, size_t n) {

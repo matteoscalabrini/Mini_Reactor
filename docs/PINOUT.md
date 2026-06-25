@@ -44,15 +44,16 @@ MCU: **ESP32-S3-WROOM-1** (U2).
 | Heater current sense `HEAT_ISNS` | GPIO5 (ADC1) |
 | Rotary encoder A / B / SW | GPIO8 / GPIO9 / GPIO41 |
 | Button 1 / 2 / 3 | GPIO47 / GPIO48 / GPIO4 |
-| **OLED — SH1107 128×128** (front panel) | SDA=GPIO43 / SCL=GPIO44 — **dedicated I2C (Wire1)** on J6 |
+| **OLED — SH1107 128×128** (front panel) | SDA=GPIO43 / SCL=GPIO44 — **dedicated software I2C** on J6 |
 
 > Temperature control loop: the **DS18B20 in the liquid** is the PID process value; the
 > **heater-mounted NTC** is read independently as an over-temp cutoff (heater forced
 > off above `Thermal::kHeaterSafetyMaxC`), not for control.
 >
-> Front-panel OLED runs on its **own** I2C peripheral (`Wire1`, GPIO43/44), separate from
+> Front-panel OLED runs on its **own bit-banged (software) I2C** on GPIO43/44, separate from
 > the primary bus (GPIO1/2, HUSB238) — sharing the primary bus electrically disturbs the
-> HUSB238. GPIO43/44 are the UART0 pins, free because the console is on USB-CDC.
+> HUSB238. GPIO43/44 are the UART0 pins (free because the console is on USB-CDC); the hardware
+> I2C1 peripheral would not drive them reliably (panel stayed dark), but software I2C does.
 
 ### Programming / USB
 - Native USB (USB-C J1): `D+ = GPIO20`, `D- = GPIO19`.

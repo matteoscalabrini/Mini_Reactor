@@ -19,9 +19,9 @@ class Display {
   void drawInfo(const ReactorSnapshot& s);
   void drawFaultBanner(const ReactorSnapshot& s);
 
-  // Dedicated second I2C peripheral (Wire1) so the OLED never shares the bus
-  // with the HUSB238 on Wire.
-  U8G2_SH1107_PIMORONI_128X128_F_2ND_HW_I2C u8g2_;
+  // Software (bit-banged) I2C on its own pins (GPIO43/44). No hardware I2C
+  // peripheral, so no contention with UART0 on those pads or the HUSB238 on Wire.
+  U8G2_SH1107_PIMORONI_128X128_F_SW_I2C u8g2_;
   uint8_t addr_;
   int sclPin_;
   int sdaPin_;
