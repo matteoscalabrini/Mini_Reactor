@@ -1,5 +1,5 @@
 #include <unity.h>
-#include "motor/RpmKinematics.hpp"
+#include "features/motor/RpmKinematics.hpp"
 
 void setUp() {}
 void tearDown() {}

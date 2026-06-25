@@ -15,18 +15,21 @@
 #include <Wire.h>
 
 #include "app_config.hpp"
-#include "control/Reactor.hpp"
-#include "control/ThermalController.hpp"
-#include "heater/Heater.hpp"
-#include "motor/DrvStatus.hpp"
-#include "motor/Tmc2209Motor.hpp"
+#include "features/control/Reactor.hpp"
+#include "features/control/ThermalController.hpp"
+#include "features/heater/Heater.hpp"
+#include "features/motor/DrvStatus.hpp"
+#include "features/motor/Tmc2209Motor.hpp"
 #include "system/AlarmTracker.hpp"
 #include "net/WebInterface.hpp"
 #include "net/WifiManager.hpp"
 #include "power/Husb238.hpp"
-#include "sensor/Ds18b20.hpp"
-#include "sensor/Thermistor.hpp"
+#include "features/sensor/Ds18b20.hpp"
+#include "features/sensor/Thermistor.hpp"
 #include "storage/SdLogger.hpp"
+#include "features/ui/Display.hpp"
+#include "features/ui/InputManager.hpp"
+#include "features/ui/UiController.hpp"
 
 namespace AppRuntime {
 namespace {
@@ -117,8 +120,8 @@ SdLogger::Config makeSdLoggerConfig() {
   c.pinCs = AppConfig::Spi::kCsPin;
   c.pinCardDetect = AppConfig::Sd::kCardDetectPin;
   c.freqHz = AppConfig::Sd::kFreqHz;
-  c.logPath = AppConfig::Sd::kLogPath;
   c.logHeader = AppConfig::Sd::kLogHeader;
+  c.logIntervalMs = AppConfig::Timing::kLogPeriodMs;  // default; runtime-settable via API
   return c;
 }
 
@@ -158,7 +161,63 @@ SdLogger g_sd(makeSdLoggerConfig());
 WifiManager g_wifi(makeWifiConfig());
 WebInterface g_web(g_reactor, g_wifi, g_sd, makeWebConfig());
 
+struct ReactorControlAdapter : ui::ReactorControl {
+  Reactor& r;
+  explicit ReactorControlAdapter(Reactor& reactor) : r(reactor) {}
+  void startRun(float t, float rpm) override { r.start(t, rpm, 0); }
+  void stopRun() override { r.stop(); }
+  void setTargetC(float c) override { r.setTargetC(c); }
+  void setRpm(float rpm) override { r.setRpm(rpm); }
+  void setMotorPaused(bool on) override { r.setMotorPaused(on); }
+  void setFullHold(bool on) override { r.setFullHold(on); }
+};
+
+ui::UiController::Config makeUiConfig() {
+  ui::UiController::Config c;
+  c.minRpm = AppConfig::Process::kMinRpm;
+  c.maxRpm = AppConfig::Process::kMaxRpm;
+  c.minTargetC = AppConfig::Ui::kTargetMinC;
+  c.maxTargetC = AppConfig::Ui::kTargetMaxC;
+  c.targetStepC = AppConfig::Ui::kTargetStepC;
+  c.rpmStep = AppConfig::Ui::kRpmStep;
+  return c;
+}
+
+ReactorControlAdapter g_uiControl(g_reactor);
+ui::UiController g_ui(g_uiControl, makeUiConfig());
+ui::Display g_display(AppConfig::Ui::kDisplayI2cAddr, AppConfig::Ui::kDisplaySclPin,
+                      AppConfig::Ui::kDisplaySdaPin, AppConfig::Ui::kDisplayBusClockHz);
+ui::InputManager g_input(
+    {AppConfig::Ui::kEncAPin, AppConfig::Ui::kEncBPin, AppConfig::Ui::kEncSwPin,
+     AppConfig::Ui::kBtn1Pin, AppConfig::Ui::kBtn2Pin, AppConfig::Ui::kBtn3Pin},
+    {});
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+ui::ReactorSnapshot buildUiSnapshot() {
+  const ReactorTelemetry t = g_reactor.telemetry();
+  ui::ReactorSnapshot s;
+  s.running = t.running;
+  s.motorPaused = t.motorPaused;
+  s.fullHold = t.fullHold;
+  s.sensorFault = t.sensorFault;
+  s.safetyTripped = t.safetyTripped;
+  s.liquidTempC = t.liquidTempC;
+  s.setpointC = t.setpointC;
+  s.rpm = t.rpm;
+  s.rpmSetpoint = g_reactor.rpmSetpoint();
+  s.heaterDutyPct = t.heaterDutyPct;
+  s.elapsedSec = t.elapsedSec;
+  s.wifiConnected = g_wifi.staConnected();
+  static String ssid, ip;       // keep backing storage alive for the const char*
+  ssid = WiFi.SSID(); ip = g_wifi.ipAddress();
+  s.wifiSsid = ssid.c_str();
+  s.ip = ip.c_str();
+  s.rssi = g_wifi.staConnected() ? WiFi.RSSI() : 0;
+  s.sdMounted = g_sd.mounted();
+  s.firmware = AppConfig::kFirmwareVersion;
+  return s;
+}
 
 const char* voltageCodeStr(Husb238::VoltageCode v) {
   switch (v) {
@@ -196,6 +255,11 @@ String buildStatusJson() {
 
   doc["apiVersion"] = "1.0";
   doc["uptimeSec"] = millis() / 1000UL;
+
+  JsonObject feats = doc["features"].to<JsonObject>();
+  feats["sdLogging"] = AppConfig::Features::kEnableSdLogging;
+  feats["oledUi"] = AppConfig::Features::kEnableOledUi;
+  feats["autotune"] = AppConfig::Features::kEnableAutotune;
 
   JsonObject sys = doc["system"].to<JsonObject>();
   sys["firmware"] = AppConfig::kFirmwareVersion;
@@ -279,6 +343,12 @@ String buildStatusJson() {
   if (t.running && t.durationMin > 0) run["remainingSec"] = t.remainingSec;
   else run["remainingSec"] = nullptr;
   run["durationMin"] = t.durationMin;
+  const int runId = g_sd.currentRunId();
+  if (runId) run["id"] = runId;
+  else run["id"] = nullptr;
+  const char* runName = g_sd.currentRunName();
+  if (runId && runName[0]) run["name"] = runName;
+  else run["name"] = nullptr;
 
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["mode"] = g_wifi.apActive() ? "ap" : "sta";
@@ -292,6 +362,7 @@ String buildStatusJson() {
   storage["sdMounted"] = g_sd.mounted();
   storage["logBytes"] = nullptr;  // accurate size arrives with the SD-mgmt phase
   storage["logging"] = g_sd.mounted();
+  storage["logIntervalSec"] = g_sd.logIntervalSec();
 
   static AlarmTracker s_alarms;
   s_alarms.beginFrame(millis() / 1000UL);
@@ -313,6 +384,27 @@ String buildStatusJson() {
     a["since"] = s_alarms[i].sinceSec;
   }
 
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+// Build the runs-list JSON for GET /api/v1/runs (spec §Runs). current=true marks
+// the in-progress run. startedSec/durationSec are omitted (no per-run RTC); the
+// UI tolerates their absence.
+String buildRunsJson(int& latestOut) {
+  JsonDocument doc;
+  JsonArray arr = doc["runs"].to<JsonArray>();
+  const int curId = g_sd.currentRunId();
+  latestOut = 0;
+  for (const SdLogger::RunInfo& r : g_sd.listRuns()) {  // one enumeration, reused below
+    JsonObject o = arr.add<JsonObject>();
+    o["id"] = r.id;
+    o["label"] = r.label;
+    o["bytes"] = r.bytes;
+    o["current"] = (r.id == curId);
+    if (r.id > latestOut) latestOut = r.id;
+  }
   String out;
   serializeJson(doc, out);
   return out;
@@ -342,15 +434,26 @@ void begin() {
   while (!Serial && millis() - t0 < AppConfig::kSerialStartupDelayMs) {
   }
   Serial.println(F("\n=== Bioreactor Module — fermentation firmware ==="));
+  Serial.printf("[FEAT] SD logging: %s\n", AppConfig::Features::kEnableSdLogging ? "enabled" : "disabled");
+  Serial.printf("[FEAT] OLED UI:    %s\n", AppConfig::Features::kEnableOledUi ? "enabled" : "disabled");
+  Serial.printf("[FEAT] autotune:   %s\n", AppConfig::Features::kEnableAutotune ? "enabled" : "disabled");
 
-  // Power: I2C up, negotiate 12V for the motor/heater rail.
-  Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin,
-             AppConfig::I2c::kClockHz);
+  // Primary I2C bus (Wire, GPIO1/2): HUSB238 and anything else on the board header.
+  Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin, AppConfig::I2c::kClockHz);
+  // The OLED lives on its OWN bus (Wire1, GPIO43/44), brought up inside g_display.begin()
+  // — fully isolated from the HUSB238, so neither can disturb the other.
+  g_input.begin();
+  if (AppConfig::Features::kEnableOledUi) {
+    g_display.begin();
+    Serial.printf("[UI] OLED %s\n", g_display.present() ? "detected" : "absent (headless)");
+  }
   requestPd();
 
   // Storage.
-  g_sd.begin();
-  g_sd.checkAndReport(Serial);
+  if (AppConfig::Features::kEnableSdLogging) {
+    g_sd.begin();
+    g_sd.checkAndReport(Serial);
+  }
 
   // Control hardware: thermistor + heater (PID), then the motor.
   g_thermal.begin();
@@ -377,6 +480,27 @@ void tick() {
   g_thermal.update();   // PID, internally gated to its sample period
   g_reactor.update();   // run timer
 
+  // Finalize a run that ended on its own (duration timeout): the reactor stops
+  // itself, so close+save the open file here. Web-initiated stops already call
+  // endRun() in applyPending.
+  static bool prevRunning = false;
+  const bool nowRunning = g_reactor.running();
+  if (AppConfig::Features::kEnableSdLogging && prevRunning && !nowRunning && g_sd.currentRunId() != 0) {
+    g_sd.endRun(true);  // auto-stop saves
+  }
+  prevRunning = nowRunning;
+
+  {
+    ui::ReactorSnapshot snap = buildUiSnapshot();
+    for (ui::UiEvent e = g_input.poll(); e != ui::UiEvent::None; e = g_input.poll())
+      g_ui.handle(e, snap);
+    static uint32_t lastDrawMs = 0;
+    if (AppConfig::Features::kEnableOledUi && millis() - lastDrawMs >= AppConfig::Ui::kRedrawIntervalMs) {
+      lastDrawMs = millis();
+      g_display.render(g_ui, snap);
+    }
+  }
+
   // Rebuild status/scan JSON at ~10 Hz; apply commands + push WS every loop.
   static uint32_t lastStatusMs = 0;
   static String statusJson = "{}";
@@ -387,12 +511,19 @@ void tick() {
     statusJson = buildStatusJson();
     scanJson = g_wifi.scanJson();
     g_web.cacheCalJson(buildCalJson());
+    static uint32_t lastRunsMs = 0;
+    if (AppConfig::Features::kEnableSdLogging && now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
+      lastRunsMs = now;
+      int latestRun = 0;
+      g_web.cacheRunsJson(buildRunsJson(latestRun));
+      g_web.cacheLatestRunId(latestRun);  // lets GET /log resolve the newest run off-bus
+    }
   }
   g_web.update(statusJson, scanJson);
 
-  // Periodic SD logging.
+  // Periodic SD logging — run-only: rows are written only while a run is open.
   static uint32_t lastLogMs = 0;
-  if (g_sd.mounted() && now - lastLogMs >= AppConfig::Timing::kLogPeriodMs) {
+  if (AppConfig::Features::kEnableSdLogging && g_sd.mounted() && g_sd.currentRunId() != 0 && now - lastLogMs >= g_sd.logIntervalMs()) {
     lastLogMs = now;
     g_sd.appendLine(g_reactor.csvRow());
   }

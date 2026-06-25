@@ -11,8 +11,8 @@
  *   GET  /api/v1/wifi/scan      cached scan results (also triggers a fresh scan)
  *   POST /api/v1/wifi/connect   {ssid, password}
  *   POST /api/v1/wifi/forget
- *   GET  /api/v1/log            download the SD CSV log
- *   POST /api/v1/log/clear      rotate (clear) the SD log
+ *   GET  /api/v1/log            download the latest run's CSV (alias for the newest /runs file)
+ *   POST /api/v1/log/interval   {seconds} set the SD log row interval (1..3600)
  *   GET  /api/v1/calibration          returns cached calibration state (method, calibrated, points)
  *   POST /api/v1/calibration/point    {referenceC}; queues capture of a calibration point (live NTC resistance)
  *   POST /api/v1/calibration/compute  queues fit (offset/Beta/Steinhart by point count); result via GET
@@ -30,9 +30,12 @@
 #include <SD.h>
 #include <SPIFFS.h>
 
-#include "control/Reactor.hpp"
+#include <string.h>
+#include "app_config.hpp"
+#include "features/control/Reactor.hpp"
 #include "net/WifiManager.hpp"
 #include "storage/SdLogger.hpp"
+#include "storage/RunFiles.hpp"
 
 WebInterface::WebInterface(Reactor& reactor, WifiManager& wifi, SdLogger& sd,
                            const Config& config)
@@ -70,6 +73,21 @@ static void sendError(AsyncWebServerRequest* req, int status, const char* code,
   AsyncWebServerResponse* resp = req->beginResponse(status, "application/json", body);
   resp->addHeader("Access-Control-Allow-Origin", "*");
   req->send(resp);
+}
+
+// Returns true (and sends 503 feature_disabled) when the feature is off; the
+// caller then returns. Keeps each gated handler to a single guard line.
+static bool featureGate(AsyncWebServerRequest* req, bool enabled) {
+  if (enabled) return false;
+  sendError(req, 503, "feature_disabled", "feature disabled at build time");
+  return true;
+}
+
+// Copy a sanitized session name into a fixed buffer (firmware is authoritative).
+static void copySanitizedName(char* dst, size_t dstSize, const String& raw) {
+  const std::string s = RunFiles::sanitizeName(std::string(raw.c_str()), dstSize - 1);
+  strncpy(dst, s.c_str(), dstSize - 1);
+  dst[dstSize - 1] = '\0';
 }
 
 void WebInterface::registerRoutes() {
@@ -118,16 +136,24 @@ void WebInterface::registerRoutes() {
             sendError(req, 400, "out_of_range", "targetC must be 0..55");
             return;
           }
+          const String name = o["name"] | "";
           xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStart = true;
           pending_.runTargetC = targetC;
           pending_.runRpm = rpm;
           pending_.runDurMin = o["durationMin"] | 0;
+          copySanitizedName(pending_.runName, sizeof(pending_.runName), name);
           xSemaphoreGive(mutex_);
           sendOk(req);
         } else if (action == "stop") {
+          const String data = o["data"] | "save";
+          if (data != "save" && data != "discard") {
+            sendError(req, 400, "invalid_request", "data must be save|discard");
+            return;
+          }
           xSemaphoreTake(mutex_, portMAX_DELAY);
           pending_.runStop = true;
+          pending_.runStopSave = (data == "save");
           xSemaphoreGive(mutex_);
           sendOk(req);
         } else {
@@ -161,6 +187,16 @@ void WebInterface::registerRoutes() {
       });
   server_->addHandler(setHandler);
 
+  // ── POST disc/test (timed motor jog) ──
+  // Registered BEFORE /api/v1/disc: the JSON handler for "/api/v1/disc" also
+  // prefix-matches "/api/v1/disc/test", so the specific route must come first.
+  server_->on("/api/v1/disc/test", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    pending_.motorTest = true;
+    xSemaphoreGive(mutex_);
+    sendOk(req);
+  });
+
   // ── POST disc (drive params) ──
   auto* discHandler = new AsyncCallbackJsonWebHandler(
       "/api/v1/disc", [this](AsyncWebServerRequest* req, JsonVariant& json) {
@@ -175,6 +211,27 @@ void WebInterface::registerRoutes() {
         sendOk(req);
       });
   server_->addHandler(discHandler);
+
+  // ── POST pid/autotune (start|cancel) ──
+  // Registered BEFORE /api/v1/pid: the plain JSON handler for "/api/v1/pid" also
+  // prefix-matches "/api/v1/pid/..." (no regex support), so the more specific
+  // route must come first or /pid would swallow /pid/autotune. First match wins.
+  auto* autotuneHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/pid/autotune", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        if (featureGate(req, AppConfig::Features::kEnableAutotune)) return;
+        JsonObject o = json.as<JsonObject>();
+        const String action = o["action"] | "";
+        if (action != "start" && action != "cancel") {
+          sendError(req, 400, "invalid_request", "action must be start|cancel");
+          return;
+        }
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        if (action == "start") pending_.autotuneStart = true;
+        else pending_.autotuneCancel = true;
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(autotuneHandler);
 
   // ── POST pid (gains + mode) ──
   auto* pidHandler = new AsyncCallbackJsonWebHandler(
@@ -195,23 +252,6 @@ void WebInterface::registerRoutes() {
         sendOk(req);
       });
   server_->addHandler(pidHandler);
-
-  // ── POST pid/autotune (start|cancel) ──
-  auto* autotuneHandler = new AsyncCallbackJsonWebHandler(
-      "/api/v1/pid/autotune", [this](AsyncWebServerRequest* req, JsonVariant& json) {
-        JsonObject o = json.as<JsonObject>();
-        const String action = o["action"] | "";
-        if (action != "start" && action != "cancel") {
-          sendError(req, 400, "invalid_request", "action must be start|cancel");
-          return;
-        }
-        xSemaphoreTake(mutex_, portMAX_DELAY);
-        if (action == "start") pending_.autotuneStart = true;
-        else pending_.autotuneCancel = true;
-        xSemaphoreGive(mutex_);
-        sendOk(req);
-      });
-  server_->addHandler(autotuneHandler);
 
   // ── GET calibration ──
   server_->on("/api/v1/calibration", HTTP_GET, [this](AsyncWebServerRequest* req) {
@@ -255,16 +295,9 @@ void WebInterface::registerRoutes() {
 
   // ── POST sd/erase ──
   server_->on("/api/v1/sd/erase", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.sdErase = true;
-    xSemaphoreGive(mutex_);
-    sendOk(req);
-  });
-
-  // ── POST disc/test (timed motor jog) ──
-  server_->on("/api/v1/disc/test", HTTP_POST, [this](AsyncWebServerRequest* req) {
-    xSemaphoreTake(mutex_, portMAX_DELAY);
-    pending_.motorTest = true;
     xSemaphoreGive(mutex_);
     sendOk(req);
   });
@@ -294,22 +327,92 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
-  // ── SD log download / clear ──
+  // ── SD log download: alias for the latest run's CSV ──
+  // Resolves the newest run id from the loop-built cache (NOT a live card
+  // enumeration) to keep this async handler off the SD bus; only the single
+  // file send touches the card, same as GET /runs/{id}.
   server_->on("/api/v1/log", HTTP_GET, [this](AsyncWebServerRequest* req) {
-    if (!sd_.mounted() || !SD.exists(sd_.logPath())) {
-      sendError(req, 503, "no_log", "no log file on the SD card");
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+    if (!sd_.mounted()) {
+      sendError(req, 503, "no_log", "no SD card mounted");
       return;
     }
-    AsyncWebServerResponse* resp =
-        req->beginResponse(SD, sd_.logPath(), "text/csv", true);
-    req->send(resp);
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    const int latest = latestRunId_;
+    xSemaphoreGive(mutex_);
+    if (latest <= 0) {
+      sendError(req, 503, "no_log", "no runs recorded yet");
+      return;
+    }
+    const String path = sd_.runCsvPath(latest);
+    if (!SD.exists(path)) {
+      sendError(req, 503, "no_log", "latest run file missing");
+      return;
+    }
+    req->send(SD, path, "text/csv", true);
   });
 
-  server_->on("/api/v1/log/clear", HTTP_POST, [this](AsyncWebServerRequest* req) {
+  // ── POST log interval (seconds between SD log rows) ──
+  auto* logIntervalHandler = new AsyncCallbackJsonWebHandler(
+      "/api/v1/log/interval", [this](AsyncWebServerRequest* req, JsonVariant& json) {
+        if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+        JsonObject o = json.as<JsonObject>();
+        if (o["seconds"].isNull()) {
+          sendError(req, 400, "invalid_request", "seconds required");
+          return;
+        }
+        const long s = o["seconds"].as<long>();
+        if (s < 1 || s > 3600) {
+          sendError(req, 400, "out_of_range", "seconds must be 1..3600");
+          return;
+        }
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        pending_.logInterval = true;
+        pending_.logIntervalSec = (uint32_t)s;
+        xSemaphoreGive(mutex_);
+        sendOk(req);
+      });
+  server_->addHandler(logIntervalHandler);
+
+  // ── Per-run routes ──
+  // IMPORTANT: register the specific /runs/<id> routes BEFORE the /runs list
+  // route. ESPAsyncWebServer's plain on("/api/v1/runs") also matches any URL that
+  // starts with "/api/v1/runs/" (built-in prefix matching), so if the list route
+  // came first it would swallow /api/v1/runs/<id> and return the list JSON instead
+  // of the CSV. First match wins, so the regex routes must be registered first.
+
+  // ── GET one run's CSV (download) ──
+  server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)$", HTTP_GET,
+              [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+    const int id = req->pathArg(0).toInt();
+    const String path = sd_.runCsvPath(id);
+    if (!sd_.mounted() || !SD.exists(path)) {
+      sendError(req, 404, "not_found", "no such run");
+      return;
+    }
+    req->send(SD, path, "text/csv", true);
+  });
+
+  // ── POST delete a run ──
+  server_->on("^\\/api\\/v1\\/runs\\/([0-9]+)\\/delete$", HTTP_POST,
+              [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+    const int id = req->pathArg(0).toInt();
     xSemaphoreTake(mutex_, portMAX_DELAY);
-    pending_.logClear = true;
+    pending_.runDelete = true;
+    pending_.runDeleteId = id;
     xSemaphoreGive(mutex_);
     sendOk(req);
+  });
+
+  // ── GET runs list (served from the loop-built cache) ──
+  server_->on("/api/v1/runs", HTTP_GET, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    const String body = runsJson_;
+    xSemaphoreGive(mutex_);
+    sendJson(req, body);
   });
 
   // ── Static UI + SPA fallback ──
@@ -339,11 +442,20 @@ void WebInterface::applyPending() {
 
   // Log each triggered command to serial ([CMD]) for on-device debugging.
   if (p.runStart) {
-    Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin\n",
-                  p.runTargetC, p.runRpm, (unsigned)p.runDurMin);
+    Serial.printf("[CMD] run start: target=%.1fC rpm=%.1f dur=%umin name='%s'\n",
+                  p.runTargetC, p.runRpm, (unsigned)p.runDurMin, p.runName);
     reactor_.start(p.runTargetC, p.runRpm, p.runDurMin);
+    if (AppConfig::Features::kEnableSdLogging && reactor_.running()) sd_.startRun(p.runName);  // open the per-run file
   }
-  if (p.runStop) { Serial.println("[CMD] run stop"); reactor_.stop(); }
+  if (p.runStop) {
+    Serial.printf("[CMD] run stop (%s)\n", p.runStopSave ? "save" : "discard");
+    reactor_.stop();
+    sd_.endRun(p.runStopSave);
+  }
+  if (p.runDelete) {
+    Serial.printf("[CMD] run delete id=%d\n", p.runDeleteId);
+    sd_.deleteRun(p.runDeleteId);
+  }
   if (p.setTarget) { Serial.printf("[CMD] setpoint target=%.1fC\n", p.setTargetC); reactor_.setTargetC(p.setTargetC); }
   if (p.setRpm) { Serial.printf("[CMD] setpoint rpm=%.1f\n", p.setRpmVal); reactor_.setRpm(p.setRpmVal); }
   if (p.discRpm) { Serial.printf("[CMD] disc rpm=%.1f\n", p.discRpmVal); reactor_.setRpm(p.discRpmVal); }
@@ -361,7 +473,7 @@ void WebInterface::applyPending() {
   if (p.wifiConnect) { Serial.printf("[CMD] wifi connect ssid='%s'\n", p.wifiSsid.c_str()); wifi_.connect(p.wifiSsid, p.wifiPass); }
   if (p.wifiForget) { Serial.println("[CMD] wifi forget"); wifi_.forget(); }
   if (p.wifiScan) { Serial.println("[CMD] wifi scan requested"); wifi_.requestScan(); }
-  if (p.logClear) { Serial.println("[CMD] sd log clear"); sd_.clearLog(); }
+  if (p.logInterval) { Serial.printf("[CMD] log interval=%us\n", (unsigned)p.logIntervalSec); sd_.setLogIntervalSec(p.logIntervalSec); }
   if (p.sdErase) { Serial.println("[CMD] sd ERASE all files"); sd_.eraseAll(); }
   if (p.motorTest) { Serial.println("[CMD] motor test jog"); reactor_.startMotorTest(); }
 }
@@ -369,6 +481,18 @@ void WebInterface::applyPending() {
 void WebInterface::cacheCalJson(const String& calJson) {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   calJson_ = calJson;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cacheRunsJson(const String& runsJson) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  runsJson_ = runsJson;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cacheLatestRunId(int id) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  latestRunId_ = id;
   xSemaphoreGive(mutex_);
 }
 

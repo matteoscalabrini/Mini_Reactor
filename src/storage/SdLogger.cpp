@@ -11,6 +11,8 @@
 
 #include <vector>
 
+#include "storage/RunFiles.hpp"
+
 namespace {
 const char* cardTypeStr(uint8_t type) {
   switch (type) {
@@ -23,9 +25,18 @@ const char* cardTypeStr(uint8_t type) {
 }
 }  // namespace
 
-SdLogger::SdLogger(const Config& config) : cfg_(config) {}
+SdLogger::SdLogger(const Config& config) : cfg_(config), logIntervalMs_(config.logIntervalMs) {}
+
+void SdLogger::setLogIntervalSec(uint32_t seconds) {
+  if (seconds < 1) seconds = 1;
+  if (seconds > 3600) seconds = 3600;
+  logIntervalMs_ = seconds * 1000UL;
+  prefs_.putUInt("intervalMs", logIntervalMs_);
+}
 
 bool SdLogger::begin() {
+  prefs_.begin("sdlog", false);
+  logIntervalMs_ = prefs_.getUInt("intervalMs", logIntervalMs_);
   pinMode(cfg_.pinCardDetect, INPUT_PULLUP);
 
   // SD.begin manages the CS pin; bind it to the SPI bus here.
@@ -41,16 +52,7 @@ bool SdLogger::begin() {
     return false;
   }
   mounted_ = true;
-
-  // Write the CSV header once for a fresh log (don't wipe an existing one).
-  if (cfg_.logHeader[0] != '\0' && !SD.exists(cfg_.logPath)) {
-    File h = SD.open(cfg_.logPath, FILE_WRITE);
-    if (h) {
-      h.println(cfg_.logHeader);
-      h.close();
-    }
-  }
-  return true;
+  return true;  // run-only logging: per-run files are created in startRun()
 }
 
 void SdLogger::checkAndReport(Stream& out) {
@@ -98,27 +100,10 @@ void SdLogger::checkAndReport(Stream& out) {
 }
 
 bool SdLogger::appendLine(const String& line) {
-  if (!mounted_) return false;
-  File f = SD.open(cfg_.logPath, FILE_APPEND);
-  if (!f) {
-    mounted_ = false;
-    return false;
-  }
-  f.println(line);
-  f.close();
-  return true;
-}
-
-bool SdLogger::clearLog() {
-  if (!mounted_) return false;
-  SD.remove(cfg_.logPath);
-  File h = SD.open(cfg_.logPath, FILE_WRITE);
-  if (!h) {
-    mounted_ = false;
-    return false;
-  }
-  if (cfg_.logHeader[0] != '\0') h.println(cfg_.logHeader);
-  h.close();
+  // Run-only logging: rows go to the open run file; no run open -> nothing to write.
+  if (!mounted_ || currentId_ == 0 || !current_) return false;
+  current_.println(line);
+  current_.flush();                         // survive a yanked card mid-run
   return true;
 }
 
@@ -152,7 +137,94 @@ bool SdLogger::removeRecursive(const char* path) {
 
 bool SdLogger::eraseAll() {
   if (!mounted_) return false;
-  const bool cleared = removeRecursive("/");  // best-effort full wipe
-  const bool logOk = clearLog();              // recreate the empty log with its header
-  return cleared && logOk;                    // false if any entry resisted deletion
+  if (currentId_ != 0) endRun(false);   // close+discard the open run before wiping
+  return removeRecursive("/");          // best-effort full wipe (run-only: no log to recreate)
+}
+
+int SdLogger::startRun(const char* name) {
+  if (!mounted_) return 0;
+  if (currentId_ != 0) endRun(true);   // finalize (save) any run already open before starting a new one
+  if (!SD.exists("/runs")) SD.mkdir("/runs");
+
+  // Next id = max existing + 1.
+  std::vector<int> ids;
+  File dir = SD.open("/runs");
+  if (dir && dir.isDirectory()) {
+    for (File e = dir.openNextFile(); e; e = dir.openNextFile()) {
+      const int id = RunFiles::parseId(e.name());
+      if (id > 0) ids.push_back(id);
+      e.close();
+    }
+  }
+  if (dir) dir.close();
+  const int id = RunFiles::nextId(ids);
+
+  File f = SD.open(RunFiles::csvPath(id).c_str(), FILE_WRITE);
+  if (!f) { mounted_ = false; return 0; }
+  if (cfg_.logHeader[0] != '\0') f.println(cfg_.logHeader);
+  f.close();
+
+  currentId_ = id;
+  currentName_[0] = '\0';
+  if (name && name[0] != '\0') {
+    strncpy(currentName_, name, sizeof(currentName_) - 1);
+    File n = SD.open(RunFiles::namePath(id).c_str(), FILE_WRITE);
+    if (n) { n.print(currentName_); n.close(); }
+  }
+  current_ = SD.open(RunFiles::csvPath(id).c_str(), FILE_APPEND);
+  if (!current_) { mounted_ = false; currentId_ = 0; return 0; }
+  return id;
+}
+
+void SdLogger::endRun(bool save) {
+  if (currentId_ == 0) return;
+  if (current_) current_.close();
+  if (!save) {
+    SD.remove(RunFiles::csvPath(currentId_).c_str());
+    const std::string np = RunFiles::namePath(currentId_);
+    if (SD.exists(np.c_str())) SD.remove(np.c_str());  // sidecar is optional (unnamed runs)
+  }
+  currentId_ = 0;
+  currentName_[0] = '\0';
+  current_ = File();   // drop the closed handle object
+}
+
+std::vector<SdLogger::RunInfo> SdLogger::listRuns() {
+  std::vector<RunInfo> out;
+  if (!mounted_) return out;
+  if (!SD.exists("/runs")) return out;  // no runs yet — skip the open (avoids a VFS error log)
+  File dir = SD.open("/runs");
+  if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return out; }
+  for (File e = dir.openNextFile(); e; e = dir.openNextFile()) {
+    const int id = RunFiles::parseId(e.name());
+    if (id > 0) {
+      RunInfo info;
+      info.id = id;
+      info.bytes = (uint32_t)e.size();
+      String nm;
+      File n = SD.open(RunFiles::namePath(id).c_str(), FILE_READ);
+      if (n) { nm = n.readStringUntil('\n'); nm.trim(); n.close(); }
+      info.label = nm.length() ? nm : (String("Run ") + id);
+      out.push_back(info);
+    }
+    e.close();
+  }
+  dir.close();
+  return out;
+}
+
+int SdLogger::latestRunId() {
+  int mx = 0;
+  for (const RunInfo& r : listRuns()) if (r.id > mx) mx = r.id;
+  return mx;
+}
+
+String SdLogger::runCsvPath(int id) { return String(RunFiles::csvPath(id).c_str()); }
+
+bool SdLogger::deleteRun(int id) {
+  if (!mounted_) return false;
+  if (id == currentId_) endRun(false);     // can't delete the open run; discard it
+  const std::string np = RunFiles::namePath(id);
+  if (SD.exists(np.c_str())) SD.remove(np.c_str());  // sidecar is optional (unnamed runs)
+  return SD.remove(RunFiles::csvPath(id).c_str());
 }

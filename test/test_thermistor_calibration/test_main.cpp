@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <cmath>
-#include "sensor/ThermistorCalibration.hpp"
+#include "features/sensor/ThermistorCalibration.hpp"
 
 // Factory 10k NTC, Beta 3950, T0 25C.
 static ThermistorCalibration::BetaParams kBeta{10000.0f, 3950.0f, 25.0f};

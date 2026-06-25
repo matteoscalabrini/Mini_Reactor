@@ -1,7 +1,10 @@
 import * as store from "../core/store.js";
-import { el, toast, flashApplied } from "../core/ui.js";
+import { el, toast, flashApplied, hhmmss, triggerDownload } from "../core/ui.js";
+import { runParams } from "../core/runparams.js";
 import * as api from "../core/api.js";
+import { parseRunList, latestRunId, runFileName } from "../core/runs.js";
 import { pollScan } from "../core/wifiscan.js";
+import { featureEnabled } from "../core/features.js";
 
 const sec = (title, ...body) => el("div", { class: "card set-sec" }, el("h3", {}, title), ...body);
 const field = (label, input) => el("div", { class: "field" }, el("label", {}, label), input);
@@ -47,24 +50,42 @@ export function mount(root) {
         el("div", { class: "btns" }, ok, el("button", { class: "ghost", onclick: () => bg.remove() }, "Cancel"))));
     document.body.append(bg);
   }
+  const logInt = el("input", { type: "number", min: "1", max: "3600", step: "1", placeholder: "seconds" });
   const sd = sec("DATA LOG", sdInfo,
+    field("LOG INTERVAL s", logInt),
     el("div", { class: "btns" },
-      el("a", { class: "btn", href: "/api/v1/log", download: "reactor_log.csv" }, "⬇ Download CSV"),
-      el("button", { class: "ghost", onclick: () => { if (confirm("Clear the SD log?")) api.logClear(); } }, "Clear log"),
+      el("button", { class: "go", onclick: async (e) => {
+        const b = e.currentTarget, s = +logInt.value;
+        if (s < 1 || s > 3600) return toast("interval must be 1–3600 s");
+        const r = await api.setLogInterval(s); flashApplied(b, r.ok);
+      } }, "Apply interval"),
+      el("button", { class: "btn", onclick: async (e) => {
+        const b = e.currentTarget, old = b.textContent;
+        b.disabled = true; b.textContent = "…";
+        try {
+          const r = await api.listRuns().catch(() => null);
+          const runs = parseRunList(r && r.body);
+          const id = latestRunId(runs);
+          if (id == null) return toast("No runs recorded yet");
+          const run = runs.find((x) => x.id === id);
+          triggerDownload(api.runCsvUrl(id), runFileName(run && run.label, id));
+        } finally { b.disabled = false; b.textContent = old; }
+      } }, "⬇ Download latest run"),
       el("button", { class: "stop", onclick: eraseModal }, "Erase all files")));
 
   // PID + autotune
   const kp = el("input", { type: "number", step: "0.001" }), ki = el("input", { type: "number", step: "0.0001" }), kd = el("input", { type: "number", step: "0.01" });
   const modeSel = el("select", {}, el("option", { value: "auto" }, "Auto"), el("option", { value: "manual" }, "Manual"));
   const atInfo = el("span", { class: "v" }, "—");
+  const atStartBtn = el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune");
+  const atCancelBtn = el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel");
   const pid = sec("PID TUNING",
     el("div", { class: "row" }, field("Kp", kp), field("Ki", ki), field("Kd", kd)),
     field("MODE", modeSel),
     el("div", { class: "btns" },
       el("button", { class: "go", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidGains(+kp.value, +ki.value, +kd.value); flashApplied(b, r.ok); } }, "Apply gains"),
       el("button", { class: "ghost", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidMode(modeSel.value); flashApplied(b, r.ok); } }, "Set mode"),
-      el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune"),
-      el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel")),
+      atStartBtn, atCancelBtn),
     el("p", { class: "muted" }, "Autotune: ", atInfo));
 
   // Calibration
@@ -95,22 +116,82 @@ export function mount(root) {
   const sysInfo = el("p", { class: "muted" }, "—");
   const sys = sec("SYSTEM", sysInfo);
 
-  root.append(wifi, sd, pid, cal, motor, sys);
+  // RUN (relocated from the old Run page; Start/Stop live in the global run bar)
+  const p0 = runParams.get();
+  // Optional session name; applied to the run when Start is pressed (shown as the
+  // run's label in History). Persisted via runParams like the other run params.
+  const inName = el("input", { type: "text", maxlength: "32", placeholder: "e.g. Ethanol distillation", value: p0.name || "" });
+  inName.addEventListener("change", () => runParams.set({ name: inName.value.trim() }));
+  const inTarget = el("input", { type: "number", step: "0.5", min: "0", max: "55", value: p0.targetC });
+  const inRpm = el("input", { type: "number", step: "1", min: "0", max: "30", value: p0.rpm });
+  // Duration is split into days · hours · minutes but stored as total minutes.
+  const dhm = (m) => ({ d: Math.floor((m || 0) / 1440), h: Math.floor(((m || 0) % 1440) / 60), m: (m || 0) % 60 });
+  const d0 = dhm(p0.durationMin);
+  const inDays = el("input", { type: "number", min: "0", value: d0.d, placeholder: "days" });
+  const inHours = el("input", { type: "number", min: "0", max: "23", value: d0.h, placeholder: "hrs" });
+  const inMins = el("input", { type: "number", min: "0", max: "59", value: d0.m, placeholder: "min" });
+  const stateV = el("div", { class: "v" }, "IDLE");
+  const elapsedV = el("div", { class: "v" }, "—"), remainV = el("div", { class: "v" }, "—");
+
+  inTarget.addEventListener("change", async () => {
+    runParams.set({ targetC: +inTarget.value });
+    if ((store.getStatus()?.run || {}).active) {
+      const r = await api.setpoint({ targetC: +inTarget.value }); flashApplied(inTarget, r.ok);
+    }
+  });
+  inRpm.addEventListener("change", async () => {
+    runParams.set({ rpm: +inRpm.value });
+    if ((store.getStatus()?.run || {}).active) {
+      const r = await api.setpoint({ rpm: +inRpm.value }); flashApplied(inRpm, r.ok);
+    }
+  });
+  const setDur = () => runParams.set({
+    durationMin: (+inDays.value || 0) * 1440 + (+inHours.value || 0) * 60 + (+inMins.value || 0) });
+  inDays.addEventListener("change", setDur);
+  inHours.addEventListener("change", setDur);
+  inMins.addEventListener("change", setDur);
+
+  const runSec = sec("RUN",
+    field("SESSION NAME", inName),
+    field("TARGET TEMPERATURE °C", inTarget),
+    field("AGITATOR SPEED rpm", inRpm),
+    el("div", { class: "field" },
+      el("label", {}, "DURATION", el("span", {}, "0 = until stopped")),
+      el("div", { class: "row" },
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "DAYS"), inDays),
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "HRS"), inHours),
+        el("div", { style: "flex:1" }, el("div", { class: "lbl", style: "margin-bottom:4px" }, "MIN"), inMins))),
+    el("div", { class: "stat3" },
+      el("div", {}, el("div", { class: "lbl" }, "STATE"), stateV),
+      el("div", {}, el("div", { class: "lbl" }, "ELAPSED"), elapsedV),
+      el("div", {}, el("div", { class: "lbl" }, "REMAINING"), remainV)));
+
+  root.append(runSec, wifi, sd, pid, cal, motor, sys);
   api.getCalibration().then((r) => { if (r.body) calInfo.textContent = `Method ${r.body.method} · ${r.body.calibrated ? "calibrated" : "factory"} · ${(r.body.points || []).length} point(s)`; });
 
   let primed = false;
   const unsub = store.subscribe((d) => {
     const w = d.wifi || {}, st = d.storage || {}, p = (d.thermal || {}).pid || {}, at = p.autotune || {}, disc = d.disc || {}, s = d.system || {}, drv = disc.driver || {};
+    sd.hidden = !featureEnabled(d, "sdLogging");
+    atStartBtn.hidden = atCancelBtn.hidden = !featureEnabled(d, "autotune");
     wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
-    sdInfo.textContent = st.sdMounted ? "Card mounted · logging" : "No card";
+    sdInfo.textContent = st.sdMounted
+      ? `Card mounted · logging every ${st.logIntervalSec ?? "—"}s` : "No card";
     atInfo.textContent = at.active ? `running ${at.progress || 0}%` : (at.result || "idle");
     sysInfo.textContent = `Firmware ${s.firmware || "—"} · heap ${s.freeHeap || "—"} · VBUS ${s.vbus || "—"} · driver ${drv.version || "—"} (${drv.connected ? "ok" : "—"})`;
     if (!testBtn.disabled || testBtn.textContent === "Test") testBtn.disabled = (d.run || {}).active === true;
     if (!primed) {
       primed = true;
       kp.value = p.kp ?? ""; ki.value = p.ki ?? ""; kd.value = p.kd ?? ""; if (p.mode) modeSel.value = p.mode;
+      if (st.logIntervalSec != null) logInt.value = st.logIntervalSec;
       curMa.value = disc.currentMa ?? ""; micro.value = disc.microsteps ?? ""; if (disc.direction) dirSel.value = disc.direction;
     }
+    const run = d.run || {};
+    const paused = run.pause && (run.pause.motor || run.pause.heater);
+    stateV.textContent = run.active ? (paused ? "PAUSED" : "RUNNING") : "IDLE";
+    elapsedV.textContent = hhmmss(run.elapsedSec || 0);
+    remainV.textContent = run.remainingSec == null
+      ? (run.active ? "∞" : "—") : hhmmss(run.remainingSec);
   });
   return unsub;
 }

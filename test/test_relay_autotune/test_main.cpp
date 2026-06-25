@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <cmath>
-#include "control/RelayAutotune.hpp"
+#include "features/control/RelayAutotune.hpp"
 
 void setUp() {}
 void tearDown() {}

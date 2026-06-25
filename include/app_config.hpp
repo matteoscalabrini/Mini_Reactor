@@ -30,7 +30,7 @@ static constexpr uint16_t kSerialStartupDelayMs = 3000;  // USB-CDC enumerate
 namespace I2c {
 static constexpr int      kSdaPin  = 1;       // GPIO1
 static constexpr int      kSclPin  = 2;       // GPIO2
-static constexpr uint32_t kClockHz = 100000;  // 100 kHz standard mode
+static constexpr uint32_t kClockHz = 100000;  // 100 kHz standard mode (HUSB238 etc.)
 }  // namespace I2c
 
 // ── USB-PD sink (HUSB238) ────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ static constexpr int kCsPin   = 10;  // GPIO10 -> SD CS (DAT3/CD)
 namespace Sd {
 static constexpr int      kCardDetectPin = 14;        // GPIO14 -> SD DET
 static constexpr uint32_t kFreqHz        = 10000000;  // 10 MHz bring-up speed
-static constexpr const char* kLogPath    = "/reactor_log.csv";
+// CSV header written at the top of each per-run file (/runs/NNNNN.csv).
 static constexpr const char* kLogHeader  =
     "t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety";
 }  // namespace Sd
@@ -99,6 +99,30 @@ static constexpr int kLiquidOneWirePin = 42;  // GPIO42 (IO42, J6) -> DS18B20 da
 static constexpr int kHeaterNtcAdcPin  = 6;   // GPIO6 -> heater NTC divider
 static constexpr int kHeatIsnsPin      = 5;   // GPIO5 -> heater current sense (0.05R)
 }  // namespace Sense
+
+// ── Front-panel UI (OLED + encoder + 3 buttons) ──────────────────────────────
+namespace Ui {
+static constexpr uint8_t kDisplayI2cAddr = 0x3C;   // SH1107 address
+// The OLED gets its OWN hardware I2C bus (Wire1) on GPIO43/44 (UART0 pins, free
+// because the console runs over USB-CDC). This isolates it from the HUSB238 on
+// the primary bus (GPIO1/2) — no shared-bus contention or pull-up fighting.
+static constexpr int kDisplaySdaPin = 43;   // GPIO43 (U0TXD) -> OLED SDA, Wire1
+static constexpr int kDisplaySclPin = 44;   // GPIO44 (U0RXD) -> OLED SCL, Wire1
+static constexpr uint32_t kDisplayBusClockHz = 400000;  // SW-I2C bit-bang speed (240 MHz S3)
+static constexpr int kEncAPin  = 8;    // GPIO8
+static constexpr int kEncBPin  = 9;    // GPIO9
+static constexpr int kEncSwPin = 41;   // GPIO41 (push)
+static constexpr int kBtn1Pin  = 47;   // GPIO47 — motor pause
+static constexpr int kBtn2Pin  = 48;   // GPIO48 — motor + heater hold
+static constexpr int kBtn3Pin  = 4;    // GPIO4  — info
+static constexpr float kTargetStepC = 0.5f;
+static constexpr float kRpmStep     = 0.5f;
+static constexpr float kTargetMinC  = 0.0f;
+static constexpr float kTargetMaxC  = 55.0f;   // matches Thermal::kProcessMaxC
+static constexpr uint32_t kRedrawIntervalMs = 250;  // idle live-data refresh (~4 Hz)
+static constexpr uint32_t kMinRedrawMs = 40;        // floor between input-driven redraws (keeps the
+                                                    // blocking SW-I2C blit from starving input polling)
+}  // namespace Ui
 
 // ── Thermal: liquid-temp PID + heater NTC safety high-limit ──────────────────
 // The PID controls the heater duty to the DS18B20 LIQUID temperature. The heater
@@ -167,5 +191,14 @@ namespace Timing {
 static constexpr uint32_t kControlPeriodMs = 100;    // reactor/PID update
 static constexpr uint32_t kLogPeriodMs     = 10000;  // SD log row interval
 }  // namespace Timing
+
+// ── Feature toggles (compile-time) ───────────────────────────────────────────
+// false => skip init + runtime, control endpoints return 503 feature_disabled,
+// and the SPA hides the section. Defaults true (shipped behavior unchanged).
+namespace Features {
+static constexpr bool kEnableSdLogging = true;
+static constexpr bool kEnableOledUi    = false;  // OLED blit only; encoder/buttons stay live
+static constexpr bool kEnableAutotune  = true;
+}  // namespace Features
 
 }  // namespace AppConfig
