@@ -197,7 +197,7 @@ static constexpr uint32_t kLogPeriodMs     = 10000;  // SD log row interval
 // and the SPA hides the section. Defaults true (shipped behavior unchanged).
 namespace Features {
 static constexpr bool kEnableSdLogging = true;
-static constexpr bool kEnableOledUi    = true;  // OLED blit only; encoder/buttons stay live
+static constexpr bool kEnableOledUi    = false;  // OLED blit only; encoder/buttons stay live
 static constexpr bool kEnableAutotune  = true;
 }  // namespace Features
 
