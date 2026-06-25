@@ -81,6 +81,7 @@ Pure logic (`RpmKinematics`, `PidController`, `RelayAutotune`, `ThermistorCalibr
 ```
 platformio.ini          PlatformIO project (esp32-s3-devkitc-1 + native test env)
 partitions.csv          flash partition table
+API.md                  canonical HTTP + WebSocket API reference (/api/v1)
 include/                headers
   app_config.hpp        single source of truth for pins, buses, and defaults
   features/             product features: control/ heater/ motor/ sensor/ ui/
@@ -89,7 +90,7 @@ src/                    implementations mirroring include/ (incl. src/features/*
 data/                   web UI served from SPIFFS (index.html, app.js, app.css, core/, screens/)
 test/                   Unity unit tests (run on the native env)
 tools/mock_server.py    aiohttp mock of the /api/v1 REST + WebSocket contract for UI dev
-docs/                   API.md, PINOUT.md, openapi.yaml, design specs & plans
+docs/                   PINOUT.md, openapi.yaml, design specs & plans (API.md → ../API.md)
 Resources/              board schematic
 ```
 
@@ -137,7 +138,7 @@ WebSocket at `ws://<device-ip>/ws` that pushes the full status object ~4 Hz.
 | `GET`  | `/api/v1/wifi/scan`, `POST .../connect`, `.../forget` | WiFi |
 | `GET`  | `/api/v1/log`, `POST .../log/clear`, `POST /api/v1/sd/erase` | SD log |
 
-Full reference: [`docs/API.md`](docs/API.md) · OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml).
+Full reference: [`API.md`](API.md) · OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml).
 
 ## Local UI development (no hardware)
 
