@@ -40,7 +40,7 @@ the specs/plans under `docs/superpowers/`.
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)
 
 - [ ] **IDF 5.5.x port** — currently on `espressif32@6.9.0` → Arduino 2.0.17 → IDF 4.4.7. Port on `feature/idf55-port` (pioarduino platform, Arduino 3.x). See `docs/superpowers/plans/` port plan.
-- [ ] **Feature-toggle scaffold** — add `AppConfig::Features::kEnable*` flags; gate init in `AppRuntime::begin()`; `503 + feature_disabled` on disabled control APIs; explicit enabled/disabled startup logs. Targets: SD logging, OLED UI, autotune, (later) OTA/MQTT/ESP-NOW.
+- [x] **Feature-toggle scaffold** — add `AppConfig::Features::kEnable*` flags; gate init in `AppRuntime::begin()`; `503 + feature_disabled` on disabled control APIs; explicit enabled/disabled startup logs. Targets: SD logging, OLED UI, autotune, (later) OTA/MQTT/ESP-NOW.
 - [ ] **`features/` module layout** — move product features under `include/features/*` and `src/features/*`, keeping platform services separate. Sequence after the toggle scaffold to avoid churn.
 - [x] `main.cpp` orchestration-only (delegates to `AppRuntime`)
 - [x] `API.md` matches exposed endpoints; mock-only affordances flagged

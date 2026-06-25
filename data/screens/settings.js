@@ -4,6 +4,7 @@ import { runParams } from "../core/runparams.js";
 import * as api from "../core/api.js";
 import { parseRunList, latestRunId, runFileName } from "../core/runs.js";
 import { pollScan } from "../core/wifiscan.js";
+import { featureEnabled } from "../core/features.js";
 
 const sec = (title, ...body) => el("div", { class: "card set-sec" }, el("h3", {}, title), ...body);
 const field = (label, input) => el("div", { class: "field" }, el("label", {}, label), input);
@@ -76,14 +77,15 @@ export function mount(root) {
   const kp = el("input", { type: "number", step: "0.001" }), ki = el("input", { type: "number", step: "0.0001" }), kd = el("input", { type: "number", step: "0.01" });
   const modeSel = el("select", {}, el("option", { value: "auto" }, "Auto"), el("option", { value: "manual" }, "Manual"));
   const atInfo = el("span", { class: "v" }, "—");
+  const atStartBtn = el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune");
+  const atCancelBtn = el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel");
   const pid = sec("PID TUNING",
     el("div", { class: "row" }, field("Kp", kp), field("Ki", ki), field("Kd", kd)),
     field("MODE", modeSel),
     el("div", { class: "btns" },
       el("button", { class: "go", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidGains(+kp.value, +ki.value, +kd.value); flashApplied(b, r.ok); } }, "Apply gains"),
       el("button", { class: "ghost", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidMode(modeSel.value); flashApplied(b, r.ok); } }, "Set mode"),
-      el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune"),
-      el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel")),
+      atStartBtn, atCancelBtn),
     el("p", { class: "muted" }, "Autotune: ", atInfo));
 
   // Calibration
@@ -170,6 +172,8 @@ export function mount(root) {
   let primed = false;
   const unsub = store.subscribe((d) => {
     const w = d.wifi || {}, st = d.storage || {}, p = (d.thermal || {}).pid || {}, at = p.autotune || {}, disc = d.disc || {}, s = d.system || {}, drv = disc.driver || {};
+    sd.hidden = !featureEnabled(d, "sdLogging");
+    atStartBtn.hidden = atCancelBtn.hidden = !featureEnabled(d, "autotune");
     wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
     sdInfo.textContent = st.sdMounted
       ? `Card mounted · logging every ${st.logIntervalSec ?? "—"}s` : "No card";

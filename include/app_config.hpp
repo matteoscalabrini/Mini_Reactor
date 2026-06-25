@@ -192,4 +192,13 @@ static constexpr uint32_t kControlPeriodMs = 100;    // reactor/PID update
 static constexpr uint32_t kLogPeriodMs     = 10000;  // SD log row interval
 }  // namespace Timing
 
+// ── Feature toggles (compile-time) ───────────────────────────────────────────
+// false => skip init + runtime, control endpoints return 503 feature_disabled,
+// and the SPA hides the section. Defaults true (shipped behavior unchanged).
+namespace Features {
+static constexpr bool kEnableSdLogging = true;
+static constexpr bool kEnableOledUi    = true;  // OLED blit only; encoder/buttons stay live
+static constexpr bool kEnableAutotune  = true;
+}  // namespace Features
+
 }  // namespace AppConfig
