@@ -8,7 +8,7 @@ This firmware must stay modular and feature-toggle driven.
 - The firmware must rely on Idf 5.5.x and relative arduino version. If firmware is not compliant, start a new branch and attempt a port.
 - The user is primarly a visual type. He will understand better with visual examples, if needed spin up the brainstorming web server feature to make yourself clear.
 - Keep the Roadmap.md always up to date. All entries must have next to them checkboxes, if a feature has been implemented, mark the checkbox as active. If the roadmap does not exist, start a session with the user to tacle it. 
-- When you exceed 50% context utilization you will prompt the user to /compact or start a new sesssion /clear.
+- When you exceed 50% context utilization you will prompt the user to /compact or start a new sesssion /clear. - when doing this you provide the user a comprehensive prompt to continue the session.
 
 ## Modularity Requirements
 - Keep reusable platform services always separable from product logic:
