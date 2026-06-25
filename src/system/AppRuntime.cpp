@@ -256,6 +256,11 @@ String buildStatusJson() {
   doc["apiVersion"] = "1.0";
   doc["uptimeSec"] = millis() / 1000UL;
 
+  JsonObject feats = doc["features"].to<JsonObject>();
+  feats["sdLogging"] = AppConfig::Features::kEnableSdLogging;
+  feats["oledUi"] = AppConfig::Features::kEnableOledUi;
+  feats["autotune"] = AppConfig::Features::kEnableAutotune;
+
   JsonObject sys = doc["system"].to<JsonObject>();
   sys["firmware"] = AppConfig::kFirmwareVersion;
   sys["freeHeap"] = ESP.getFreeHeap();
