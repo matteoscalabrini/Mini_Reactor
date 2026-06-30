@@ -57,15 +57,9 @@
 #define LV_USE_THEME_MONO 0
 
 #define LV_USE_ARC 0
-#if defined(DIYR_CONSOLE)
-#  define LV_USE_BAR 1
-#  define LV_USE_BTN 1
-#  define LV_USE_SLIDER 1
-#else
-#  define LV_USE_BAR 0
-#  define LV_USE_BTN 0
-#  define LV_USE_SLIDER 0
-#endif
+#define LV_USE_BAR 0
+#define LV_USE_BTN 0
+#define LV_USE_SLIDER 0
 #define LV_USE_BTNMATRIX 0
 #define LV_USE_CANVAS 1
 #define LV_USE_CHECKBOX 0

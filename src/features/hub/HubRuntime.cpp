@@ -17,7 +17,6 @@
 namespace HubRuntime {
 
 static Qmi8658::Status g_lastImuStatus = {};
-static bool            g_imuReady      = false;
 
 static Axp2101    g_axp{Wire, AppConfig::Hub::kAxp2101Address};
 static HubDisplay g_display;
@@ -46,14 +45,14 @@ static void enterDeepSleep() {
   uint64_t mask = 0;
   if (AppConfig::HubSleep::kWakeOnTouchInt)
     mask |= (1ULL << AppConfig::PinoutHub::kHubTouchInt);
-  if (AppConfig::HubSleep::kWakeOnImuInt2)
+  if (AppConfig::HubFeatures::kEnableImu && AppConfig::HubSleep::kWakeOnImuInt2)
     mask |= (1ULL << AppConfig::PinoutHub::kImuInt2);
   // Task 9 M5: guard against zero wake mask — skip deep sleep if no source configured
   if (mask == 0) {
     Serial.println("[HUB] deep sleep skipped — no wake source configured");
     return;
   }
-  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_LOW);
   esp_deep_sleep_start();
 }
 
@@ -74,7 +73,6 @@ void begin() {
   // Step 1: AXP2101 first — brings all power rails up; always initializes
   if (g_axp.begin(AppConfig::PinoutHub::kI2cSda, AppConfig::PinoutHub::kI2cScl,
                   AppConfig::Hub::kI2cClockHz)) {
-    g_axp.configureCharging();
     Serial.println("[HUB] axp2101: enabled");
   } else {
     Serial.printf("[HUB] axp2101: FAULT (%s)\n", g_axp.lastErrorString());
@@ -160,6 +158,8 @@ void begin() {
     bool c = g_codec.begin(), m = g_mic.begin();
     if (c) g_codec.powerDown();
     if (m) g_mic.powerDown();
+    pinMode(AppConfig::PinoutHub::kHubAudioAmpEnable, OUTPUT);
+    digitalWrite(AppConfig::PinoutHub::kHubAudioAmpEnable, LOW);
     Serial.printf("[HUB] es8311: %s, es7210: %s (powered down)\n",
                   c ? "present" : "absent", m ? "present" : "absent");
   }
@@ -201,7 +201,6 @@ void tick() {
       Qmi8658::Status st;
       if (g_imu.poll(st)) {
         g_lastImuStatus = st;
-        g_imuReady      = true;
         Serial.printf("[HUB] imu ax=%.3f ay=%.3f az=%.3f gx=%.1f gy=%.1f gz=%.1f\n",
                       st.accelXg, st.accelYg, st.accelZg,
                       st.gyroXdps, st.gyroYdps, st.gyroZdps);
