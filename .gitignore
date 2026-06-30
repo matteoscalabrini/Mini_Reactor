@@ -10,3 +10,4 @@
 __pycache__/
 managed_components/
 sdkconfig.*
+src/idf_component.yml
