@@ -20,7 +20,7 @@ the specs/plans under `docs/superpowers/`.
 - [x] Identity / firmware-version reporting in telemetry
 - [ ] OTA update service
 - [ ] MQTT publish/subscribe bridge
-- [ ] ESP-NOW peer sync / binding
+- [x] ESP-NOW peer sync / binding
 
 ## Product Features
 
@@ -48,7 +48,7 @@ Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup
   - [x] TCA9554 IO expander
   - [x] ES8311/ES7210 probe + power-down
   - [x] HubSleepLogic deep-sleep FSM
-- [ ] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares). Design: docs/superpowers/specs/2026-06-30-hub-espnow-link-design.md (telemetry+control, 1 reactor; WiFi-less HUB; shared `src/sync` transport)
+- [x] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares). Design: docs/superpowers/specs/2026-06-30-hub-espnow-link-design.md (telemetry+control, 1 reactor; WiFi-less HUB; shared `src/sync` transport)
 - [ ] Phase 3 — redesigned fermentation monitoring/control UI (LVGL)
 
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)
@@ -63,5 +63,5 @@ Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup
 
 - [ ] OTA firmware update (pairs with partition-change reflash rule)
 - [ ] MQTT telemetry/control bridge
-- [ ] ESP-NOW multi-reactor sync + binding
+- [ ] ESP-NOW multi-reactor sync + binding (single-reactor link shipped Phase 2)
 - [ ] Authentication on the web control surface

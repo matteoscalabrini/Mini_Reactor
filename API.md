@@ -231,15 +231,50 @@ No body. Reverts to factory Beta.
 
 ---
 
-## Feature toggles
+## ESP-NOW link
 
-Three compile-time flags in [`include/app_config.hpp`](include/app_config.hpp)
-(`AppConfig::Features::kEnableSdLogging`, `kEnableOledUi`, `kEnableAutotune`,
-all default `true`) gate optional features. `GET /api/v1/status` advertises their
-state so the UI can react:
+The reactor can be paired with a WiFi-less HUB companion device over ESP-NOW.
+The binary wire protocol is documented in [`docs/PROTOCOL_ESPNOW.md`](docs/PROTOCOL_ESPNOW.md).
+ESP-NOW telemetry is a compact binary projection of the `GET /api/v1/status` document,
+pushed to the HUB at ~4 Hz.
+
+### `POST /api/v1/espnow/pair`
+
+Opens a 60-second pairing window. The reactor will accept the next `PairRequest`
+from a HUB that is simultaneously scanning. Trigger this at the same time as
+tapping PAIR on the HUB screen.
+
+**Response:** `{ "ok": true }` — window is now open.
+**503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
+
+### `POST /api/v1/espnow/forget`
+
+Clears the stored HUB binding (MAC + channel). The HUB will detect the link loss
+and re-sweep channels to re-pair.
+
+**Response:** `{ "ok": true }`
+**503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
+
+### `status.features.espnow`
+
+`GET /api/v1/status` includes `"espnow"` in the `features` object to advertise
+the compile-time flag:
 
 ```jsonc
-"features": { "sdLogging": true, "oledUi": true, "autotune": true }
+"features": { "sdLogging": true, "oledUi": true, "autotune": true, "espnow": true }
+```
+
+---
+
+## Feature toggles
+
+Four compile-time flags in [`include/app_config.hpp`](include/app_config.hpp)
+(`AppConfig::Features::kEnableSdLogging`, `kEnableOledUi`, `kEnableAutotune`,
+`kEnableEspNow`, all default `true`) gate optional features. `GET /api/v1/status`
+advertises their state so the UI can react:
+
+```jsonc
+"features": { "sdLogging": true, "oledUi": true, "autotune": true, "espnow": true }
 ```
 
 When a flag is `false`, that feature's control endpoints return **HTTP 503**
@@ -250,6 +285,7 @@ with `code: "feature_disabled"`:
 | `kEnableSdLogging` | `GET /log`, `POST /log/interval`, `POST /sd/erase`, `GET /runs`, `GET /runs/{id}`, `POST /runs/{id}/delete` |
 | `kEnableAutotune` | `POST /pid/autotune` |
 | `kEnableOledUi` | none (front-panel display only; no HTTP surface) |
+| `kEnableEspNow` | `POST /espnow/pair`, `POST /espnow/forget` |
 
 `POST /api/v1/run` is never gated — running the reactor is core control; SD
 logging only records the run.
@@ -342,6 +378,8 @@ Mock = [`tools/mock_server.py`](tools/mock_server.py).
 | `POST /wifi/connect` | ✅ | ✅ | ✅ | OK |
 | `POST /wifi/forget` | ✅ | ✅ | ✅ | OK |
 | `POST /debug/probe-fault` | ❌ | ❌ | ✅ | Mock-only test affordance |
+| `POST /espnow/pair` | ❌ (HUB) | ✅ | ❌ | ESP-NOW pairing window |
+| `POST /espnow/forget` | ❌ (HUB) | ✅ | ❌ | Clears HUB binding |
 
 **Only gap: run pause/resume** (the deferred "Plan B"). The UI ships Pause ▾ /
 Resume controls and derives a `paused` state from `status.run.pause`, but the

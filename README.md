@@ -134,6 +134,9 @@ the fermentation monitoring UI (Phase 3) and ESP-NOW link to the reactor (Phase 
 > sequence. Skipping erase after a partition change is not acceptable (Partition Change Rule).
 
 Phase 1 = board bring-up (all IC drivers online, diagnostics screen, deep-sleep FSM).
+Phase 2 = ESP-NOW peer link (shipped). The HUB is WiFi-less — it communicates with
+the reactor exclusively over ESP-NOW. A shared transport (`src/sync/`, `include/sync/`)
+is compiled into both products. Binary wire protocol: [`docs/PROTOCOL_ESPNOW.md`](docs/PROTOCOL_ESPNOW.md).
 GPIO map: [`docs/PINOUT_HUB.md`](docs/PINOUT_HUB.md).
 Design spec: [`docs/superpowers/specs/2026-06-30-hub-board-bringup-design.md`](docs/superpowers/specs/2026-06-30-hub-board-bringup-design.md).
 
