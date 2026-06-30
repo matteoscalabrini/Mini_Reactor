@@ -126,6 +126,7 @@ the fermentation monitoring UI (Phase 3) and ESP-NOW link to the reactor (Phase 
 ~/.platformio/penv/bin/pio run -e hub
 
 # Flash HUB firmware (first flash — new board, new partition table partitions_hub_16mb.csv)
+~/.platformio/penv/bin/pio run -e hub -t erase     # full chip erase (required after a partition change)
 ~/.platformio/penv/bin/pio run -e hub -t upload
 ```
 

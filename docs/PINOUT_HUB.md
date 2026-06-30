@@ -59,7 +59,7 @@ Panel resolution: **466 × 466 px**.
 
 | Signal | GPIO | Notes |
 |--------|------|-------|
-| INT2 | GPIO21 | wake-on-motion interrupt; also EXT0 wake source |
+| INT2 | GPIO21 | wake-on-motion interrupt; EXT1 wake source (with the touch INT) |
 
 ### SD card (SDIO 1-bit)
 
