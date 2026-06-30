@@ -198,7 +198,15 @@ namespace Features {
 static constexpr bool kEnableSdLogging = true;
 static constexpr bool kEnableOledUi    = false;  // OLED blit only; encoder/buttons stay live
 static constexpr bool kEnableAutotune  = true;
+static constexpr bool kEnableEspNow    = true;   // ESP-NOW responder (HUB link)
 }  // namespace Features
+
+namespace EspNow {
+static constexpr const char* kNvsNamespace = "espnow";
+static constexpr uint32_t kTelemetryPeriodMs = 250;  // ~4 Hz, mirrors WS push
+static constexpr uint32_t kPairWindowMs = 60000;     // 60 s allow-pairing window
+static constexpr const char* kDeviceName = "reactor";
+}  // namespace EspNow
 
 // ── HUB companion device (Waveshare ESP32-S3-Touch-AMOLED-1.75) ───────────────
 namespace PinoutHub {

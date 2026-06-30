@@ -21,6 +21,7 @@
 #include "features/motor/DrvStatus.hpp"
 #include "features/motor/Tmc2209Motor.hpp"
 #include "system/AlarmTracker.hpp"
+#include "net/EspNowResponder.hpp"
 #include "net/WebInterface.hpp"
 #include "net/WifiManager.hpp"
 #include "power/Husb238.hpp"
@@ -159,6 +160,7 @@ Reactor g_reactor(g_thermal, g_motor, makeReactorConfig());
 SdLogger g_sd(makeSdLoggerConfig());
 WifiManager g_wifi(makeWifiConfig());
 WebInterface g_web(g_reactor, g_wifi, g_sd, makeWebConfig());
+EspNowResponder g_espnow(g_reactor, g_web);
 
 struct ReactorControlAdapter : ui::ReactorControl {
   Reactor& r;
@@ -259,6 +261,7 @@ String buildStatusJson() {
   feats["sdLogging"] = AppConfig::Features::kEnableSdLogging;
   feats["oledUi"] = AppConfig::Features::kEnableOledUi;
   feats["autotune"] = AppConfig::Features::kEnableAutotune;
+  feats["espnow"] = AppConfig::Features::kEnableEspNow;
 
   JsonObject sys = doc["system"].to<JsonObject>();
   sys["firmware"] = AppConfig::kFirmwareVersion;
@@ -471,6 +474,7 @@ void begin() {
   // Networking + web UI.
   g_wifi.begin();
   g_web.begin();
+  g_espnow.begin();
 
   Serial.println(F("\n[RUN] reactor idle — control via browser."));
 }
@@ -520,6 +524,7 @@ void tick() {
     }
   }
   g_web.update(statusJson, scanJson);
+  g_espnow.poll();
 
   // Periodic SD logging — run-only: rows are written only while a run is open.
   static uint32_t lastLogMs = 0;
