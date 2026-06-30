@@ -140,7 +140,42 @@ void EspNowResponder::poll() {
   }
 }
 
-// Pairing — implemented in Task 5.
-void EspNowResponder::handlePairRequest(const uint8_t*, const uint8_t*, int) {}
-void EspNowResponder::openPairWindow() {}
-void EspNowResponder::forget() {}
+void EspNowResponder::openPairWindow() {
+  if (!AppConfig::Features::kEnableEspNow || !link_.ready()) return;
+  pairUntilMs_ = millis() + AppConfig::EspNow::kPairWindowMs;
+  Serial.printf("[ESPNOW] pairing window open for %lus\n",
+                (unsigned long)(AppConfig::EspNow::kPairWindowMs / 1000));
+}
+
+void EspNowResponder::forget() {
+  link_.clearBinding(AppConfig::EspNow::kNvsNamespace);
+  if (bound_) link_.removePeer(peerMac_);
+  bound_ = false;
+  std::memset(peerMac_, 0, 6);
+  Serial.println("[ESPNOW] binding cleared");
+}
+
+void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data, int len) {
+  if (millis() > pairUntilMs_) return;                // window closed
+  PairRequest req;
+  if (!decodePairRequest(data, len, req)) return;
+  if ((DeviceRole)req.role != DeviceRole::Hub) return;  // only bind a HUB
+
+  std::memcpy(peerMac_, req.mac, 6);
+  link_.addPeer(peerMac_, 0);
+  const uint8_t ch = (uint8_t)WiFi.channel();
+  link_.saveBinding(AppConfig::EspNow::kNvsNamespace, peerMac_, ch);
+  bound_ = true;
+  pairUntilMs_ = 0;
+
+  PairAck ack = {};
+  ack.hdr = {kProtocolVersion, (uint8_t)MsgType::PairAck, link_.nextSeq()};
+  ack.role = (uint8_t)DeviceRole::Reactor;
+  std::memcpy(ack.mac, peerMac_, 6);                  // echo so HUB confirms target
+  ack.channel = ch;
+  std::strncpy(ack.name, AppConfig::EspNow::kDeviceName, kNameLen - 1);
+  uint8_t buf[sizeof(PairAck)];
+  link_.send(mac, buf, encode(ack, buf, sizeof(buf)));
+  Serial.printf("[ESPNOW] paired with HUB %02X:%02X:%02X:%02X:%02X:%02X on ch %u\n",
+                peerMac_[0], peerMac_[1], peerMac_[2], peerMac_[3], peerMac_[4], peerMac_[5], ch);
+}

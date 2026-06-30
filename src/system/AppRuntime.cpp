@@ -475,6 +475,7 @@ void begin() {
   g_wifi.begin();
   g_web.begin();
   g_espnow.begin();
+  g_web.setEspNow(&g_espnow);
 
   Serial.println(F("\n[RUN] reactor idle — control via browser."));
 }

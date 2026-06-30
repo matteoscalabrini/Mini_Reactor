@@ -17,6 +17,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
+class EspNowResponder;
 class Reactor;
 class WifiManager;
 class SdLogger;
@@ -35,6 +36,9 @@ class WebInterface {
 
   /* begin() — Mount SPIFFS, register routes + WebSocket, start the server. */
   void begin();
+
+  /* setEspNow() — Wire in the ESP-NOW responder so pair/forget endpoints work. */
+  void setEspNow(EspNowResponder* r) { espnow_ = r; }
 
   /* update() — Called every main-loop iteration:
    *   - caches statusJson + scanJson for handlers to read,
@@ -73,8 +77,9 @@ class WebInterface {
   SdLogger& sd_;
   Config cfg_;
 
-  AsyncWebServer* server_ = nullptr;
-  AsyncWebSocket* ws_ = nullptr;
+  AsyncWebServer*  server_ = nullptr;
+  AsyncWebSocket*  ws_ = nullptr;
+  EspNowResponder* espnow_ = nullptr;
 
   SemaphoreHandle_t mutex_ = nullptr;
   String statusJson_ = "{}";

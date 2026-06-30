@@ -25,6 +25,7 @@
 #include "net/WebInterface.hpp"
 
 #include <AsyncJson.h>
+#include "net/EspNowResponder.hpp"
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <SD.h>
@@ -413,6 +414,20 @@ void WebInterface::registerRoutes() {
     const String body = runsJson_;
     xSemaphoreGive(mutex_);
     sendJson(req, body);
+  });
+
+  // ── POST espnow/pair (open the 60s allow-pairing window) ──
+  server_->on("/api/v1/espnow/pair", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableEspNow)) return;
+    if (espnow_) espnow_->openPairWindow();
+    sendOk(req);
+  });
+
+  // ── POST espnow/forget (clear binding) ──
+  server_->on("/api/v1/espnow/forget", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableEspNow)) return;
+    if (espnow_) espnow_->forget();
+    sendOk(req);
   });
 
   // ── Static UI + SPA fallback ──
