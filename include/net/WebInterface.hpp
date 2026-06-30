@@ -52,6 +52,18 @@ class WebInterface {
    * latest run without enumerating the card from an async handler. 0 = none. */
   void cacheLatestRunId(int id);
 
+  // Command intake for non-HTTP transports (e.g. ESP-NOW responder). Each
+  // takes the same mutex and sets the same Pending queue drained by
+  // applyPending(), so ESP-NOW and REST share one validate+apply path.
+  void cmdRunStart(float targetC, float rpm, uint16_t durMin, const char* name);
+  void cmdRunStop(bool save);
+  void cmdSetpoint(bool hasT, float targetC, bool hasR, float rpm);
+  void cmdDisc(bool hasRpm, float rpm, bool hasCur, uint16_t mA,
+               bool hasMicro, uint16_t micro, bool hasDir, bool reverse,
+               bool hasEn, bool en);
+  void cmdDiscTest();
+  void cmdPause(uint8_t mode);   // 0=resume, 1=motor B1, 2=all B2
+
  private:
   void registerRoutes();
   void applyPending();
@@ -105,6 +117,8 @@ class WebInterface {
     bool calReset = false;
     bool sdErase = false;
     bool motorTest = false;
+    bool pauseCmd = false;   // a pause/resume command is queued
+    uint8_t pauseMode = 0;   // 0 = resume (clear both), 1 = motor B1, 2 = all B2
 
     bool wifiConnect = false;
     String wifiSsid;

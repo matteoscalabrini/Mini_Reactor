@@ -476,6 +476,11 @@ void WebInterface::applyPending() {
   if (p.logInterval) { Serial.printf("[CMD] log interval=%us\n", (unsigned)p.logIntervalSec); sd_.setLogIntervalSec(p.logIntervalSec); }
   if (p.sdErase) { Serial.println("[CMD] sd ERASE all files"); sd_.eraseAll(); }
   if (p.motorTest) { Serial.println("[CMD] motor test jog"); reactor_.startMotorTest(); }
+  if (p.pauseCmd) {
+    if (p.pauseMode == 1) { Serial.println("[CMD] pause motor (B1)"); reactor_.setMotorPaused(true); }
+    else if (p.pauseMode == 2) { Serial.println("[CMD] pause all (B2)"); reactor_.setFullHold(true); }
+    else { Serial.println("[CMD] resume"); reactor_.setMotorPaused(false); reactor_.setFullHold(false); }
+  }
 }
 
 void WebInterface::cacheCalJson(const String& calJson) {
@@ -493,6 +498,55 @@ void WebInterface::cacheRunsJson(const String& runsJson) {
 void WebInterface::cacheLatestRunId(int id) {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   latestRunId_ = id;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdRunStart(float targetC, float rpm, uint16_t durMin, const char* name) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  pending_.runStart = true;
+  pending_.runTargetC = targetC;
+  pending_.runRpm = rpm;
+  pending_.runDurMin = durMin;
+  copySanitizedName(pending_.runName, sizeof(pending_.runName), String(name ? name : ""));
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdRunStop(bool save) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  pending_.runStop = true;
+  pending_.runStopSave = save;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdSetpoint(bool hasT, float targetC, bool hasR, float rpm) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  if (hasT) { pending_.setTarget = true; pending_.setTargetC = targetC; }
+  if (hasR) { pending_.setRpm = true; pending_.setRpmVal = rpm; }
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdDisc(bool hasRpm, float rpm, bool hasCur, uint16_t mA,
+                           bool hasMicro, uint16_t micro, bool hasDir, bool reverse,
+                           bool hasEn, bool en) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  if (hasRpm)   { pending_.discRpm = true;     pending_.discRpmVal = rpm; }
+  if (hasCur)   { pending_.discCurrent = true; pending_.discCurrentMa = mA; }
+  if (hasMicro) { pending_.discMicro = true;   pending_.discMicrosteps = micro; }
+  if (hasDir)   { pending_.discDir = true;     pending_.discReverse = reverse; }
+  if (hasEn)    { pending_.discEnable = true;  pending_.discEnableVal = en; }
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdDiscTest() {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  pending_.motorTest = true;
+  xSemaphoreGive(mutex_);
+}
+
+void WebInterface::cmdPause(uint8_t mode) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  pending_.pauseCmd = true;
+  pending_.pauseMode = mode;
   xSemaphoreGive(mutex_);
 }
 
