@@ -6,6 +6,7 @@
 #include "features/hub/touch/Cst9217.hpp"
 #include "features/hub/sensor/Qmi8658.hpp"
 #include "features/hub/rtc/Pcf85063.hpp"
+#include "features/hub/io/Tca9554.hpp"
 #include <lvgl.h>
 
 namespace HubRuntime {
@@ -15,6 +16,7 @@ static HubDisplay g_display;
 static Cst9217    g_touch{Wire, AppConfig::Hub::kCst9217Address};
 static Qmi8658    g_imu{Wire, AppConfig::Hub::kQmi8658Address};
 static Pcf85063   g_rtc{Wire, AppConfig::Hub::kPcf85063Address};
+static Tca9554    g_io{Wire, AppConfig::Hub::kTca9554Address};
 
 static void hubTouchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
   int16_t x, y; bool pressed;
@@ -85,6 +87,13 @@ void begin() {
   } else {
     Serial.println("[HUB] rtc: disabled");
   }
+
+  if (AppConfig::HubFeatures::kEnableIoExpander) {
+    const bool ioOk = g_io.begin();
+    Serial.printf("[HUB] ioexp: %s\n", ioOk ? "enabled" : "enabled (hardware absent)");
+  } else {
+    Serial.println("[HUB] ioexp: disabled");
+  }
 }
 
 void tick() {
@@ -131,6 +140,12 @@ void tick() {
       Pcf85063::DateTime dt;
       if (g_rtc.refresh(dt)) {
         Serial.printf("[HUB] rtc %02u:%02u:%02u\n", dt.hours, dt.minutes, dt.seconds);
+      }
+    }
+    if (AppConfig::HubFeatures::kEnableIoExpander) {
+      Tca9554::State s;
+      if (g_io.refresh(s)) {
+        Serial.printf("[HUB] ioexp input=0x%02X\n", s.input);
       }
     }
   }
