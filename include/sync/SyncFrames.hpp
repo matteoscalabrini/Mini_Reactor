@@ -60,7 +60,7 @@ struct Header {
   uint16_t seq;
 };
 
-struct Telemetry {            // ~62 B
+struct Telemetry {            // ~74 B
   Header   hdr;
   uint32_t uptimeSec;
   uint16_t flags;
@@ -103,14 +103,14 @@ struct Ack {                  // 9 B
   uint8_t  errorCode;         // AckError
 };
 
-struct PairRequest {          // ~43 B
+struct PairRequest {          // ~44 B
   Header  hdr;
   uint8_t role;               // DeviceRole (Hub)
   uint8_t mac[kMacLen];
   char    name[kNameLen];
 };
 
-struct PairAck {              // ~44 B
+struct PairAck {              // ~45 B
   Header  hdr;
   uint8_t role;               // DeviceRole (Reactor)
   uint8_t mac[kMacLen];

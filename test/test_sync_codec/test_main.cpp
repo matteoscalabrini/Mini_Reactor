@@ -74,6 +74,10 @@ void test_validate_command_bounds() {
   TEST_ASSERT_EQUAL_INT((int)AckError::InvalidRequest, (int)validateCommand(p));
   p.flags = kPauseTargetAll;
   TEST_ASSERT_EQUAL_INT((int)AckError::None, (int)validateCommand(p));
+
+  Command u = {};
+  u.opcode = 99;                                       // unknown opcode
+  TEST_ASSERT_EQUAL_INT((int)AckError::InvalidRequest, (int)validateCommand(u));
 }
 
 int main(int, char**) {

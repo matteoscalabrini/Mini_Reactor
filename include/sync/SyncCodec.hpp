@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include "sync/SyncFrames.hpp"
 
@@ -20,15 +21,15 @@ inline bool headerOk(const uint8_t* buf, size_t len, MsgType type, size_t need) 
 }
 
 inline size_t encode(const Telemetry& f, uint8_t* out, size_t cap) {
-  if (cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
+  if (!out || cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
 inline size_t encode(const Command& f, uint8_t* out, size_t cap) {
-  if (cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
+  if (!out || cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
 inline size_t encode(const Ack& f, uint8_t* out, size_t cap) {
-  if (cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
+  if (!out || cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
 inline size_t encode(const PairRequest& f, uint8_t* out, size_t cap) {
-  if (cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
+  if (!out || cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
 inline size_t encode(const PairAck& f, uint8_t* out, size_t cap) {
-  if (cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
+  if (!out || cap < sizeof(f)) return 0; std::memcpy(out, &f, sizeof(f)); return sizeof(f); }
 
 inline bool decodeTelemetry(const uint8_t* in, size_t len, Telemetry& out) {
   if (!headerOk(in, len, MsgType::Telemetry, sizeof(out))) return false; std::memcpy(&out, in, sizeof(out)); return true; }
