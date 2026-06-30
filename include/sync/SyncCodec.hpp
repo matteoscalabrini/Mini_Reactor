@@ -8,7 +8,7 @@
 // no Arduino deps. encode() copies a packed struct to a buffer; decode*()
 // validates length + version + msgType before copying back.
 
-namespace sync {
+namespace synclink {
 
 inline int16_t encFixed(float v, float scale) { return (int16_t)lroundf(v * scale); }
 inline float   decFixed(int16_t v, float scale) { return (float)v / scale; }
@@ -85,4 +85,4 @@ inline AckError validateCommand(const Command& c) {
   }
 }
 
-}  // namespace sync
+}  // namespace synclink

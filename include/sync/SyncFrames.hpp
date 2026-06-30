@@ -5,7 +5,7 @@
 // no Arduino/ESP/app_config deps so the native host test links with no extra
 // source. All frames are packed little-endian and fit one 250-byte ESP-NOW packet.
 
-namespace sync {
+namespace synclink {
 
 constexpr uint8_t kProtocolVersion = 1;
 constexpr uint8_t kMacLen  = 6;
@@ -119,4 +119,4 @@ struct PairAck {              // ~45 B
 };
 #pragma pack(pop)
 
-}  // namespace sync
+}  // namespace synclink

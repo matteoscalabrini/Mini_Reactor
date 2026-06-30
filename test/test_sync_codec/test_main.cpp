@@ -1,7 +1,7 @@
 #include <unity.h>
 #include "sync/SyncCodec.hpp"
 
-using namespace sync;
+using namespace synclink;
 
 void setUp() {}
 void tearDown() {}
