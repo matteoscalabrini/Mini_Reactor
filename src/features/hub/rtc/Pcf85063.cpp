@@ -46,11 +46,16 @@ bool Pcf85063::begin() {
   wire_.beginTransmission(address_);
   if (wire_.endTransmission() != 0) return false;
 
-  // RAM r/w sanity check at reg 0x03 (verbatim).
+  // RAM r/w sanity check at reg 0x03: write XOR'd value, read back to verify, then restore.
   uint8_t ramBefore = 0;
   if (!readReg(kRegRam, &ramBefore, 1)) return false;
   uint8_t ramFlip = static_cast<uint8_t>(ramBefore ^ 0x5A);
   if (!writeReg(kRegRam, &ramFlip, 1)) return false;
+  uint8_t verify = 0;
+  if (!readReg(kRegRam, &verify, 1) || verify != ramFlip) {
+    writeReg(kRegRam, &ramBefore, 1);  // restore before bailing
+    return false;
+  }
   writeReg(kRegRam, &ramBefore, 1);  // restore (best-effort)
 
   // Clear CTRL1 bit 0x02 (24-hour mode) + 0x20 (start clock) (verbatim).
@@ -85,6 +90,10 @@ bool Pcf85063::refresh(DateTime& out) {
 }
 
 // Ported from HubFeature::setRtcDateTime() (lines 887-948, I2C write portion).
+// NOTE: PCF85063 datasheet recommends bracketing time-register writes with STOP=1 / STOP=0.
+// Barebone setRtcDateTime() (HubFeature.cpp:887-948) does not apply this sequence — it clears
+// STOP in CTRL1 then writes time in one pass. Inherited verbatim; known limitation. Not invoked
+// in Phase-1 bring-up.
 bool Pcf85063::setDateTime(const DateTime& dt) {
   if (dt.year < 2000 || dt.year > 2099 || dt.month < 1 || dt.month > 12 ||
       dt.day < 1 || dt.day > 31 || dt.weekday > 6 ||
