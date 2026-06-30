@@ -5,6 +5,7 @@
 #include "features/hub/display/HubDisplay.hpp"
 #include "features/hub/touch/Cst9217.hpp"
 #include "features/hub/sensor/Qmi8658.hpp"
+#include "features/hub/rtc/Pcf85063.hpp"
 #include <lvgl.h>
 
 namespace HubRuntime {
@@ -13,6 +14,7 @@ static Axp2101    g_axp{Wire, AppConfig::Hub::kAxp2101Address};
 static HubDisplay g_display;
 static Cst9217    g_touch{Wire, AppConfig::Hub::kCst9217Address};
 static Qmi8658    g_imu{Wire, AppConfig::Hub::kQmi8658Address};
+static Pcf85063   g_rtc{Wire, AppConfig::Hub::kPcf85063Address};
 
 static void hubTouchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
   int16_t x, y; bool pressed;
@@ -76,6 +78,13 @@ void begin() {
   } else {
     Serial.println("[HUB] imu: disabled");
   }
+
+  if (AppConfig::HubFeatures::kEnableRtc) {
+    const bool rtcOk = g_rtc.begin();
+    Serial.printf("[HUB] rtc: %s\n", rtcOk ? "enabled" : "enabled (hardware absent)");
+  } else {
+    Serial.println("[HUB] rtc: disabled");
+  }
 }
 
 void tick() {
@@ -107,7 +116,7 @@ void tick() {
     }
   }
 
-  // PMIC telemetry at kPollMs cadence
+  // PMIC telemetry + RTC at kPollMs cadence
   static uint32_t lastPoll = 0;
   if (now - lastPoll >= AppConfig::Hub::kPollMs) {
     lastPoll = now;
@@ -116,6 +125,12 @@ void tick() {
       if (g_axp.refreshStatus(s)) {
         Serial.printf("[HUB] batt %d%% %umV vbus=%d\n",
                       s.batteryPercent, s.batteryVoltageMv, (int)s.vbusPresent);
+      }
+    }
+    if (AppConfig::HubFeatures::kEnableRtc) {
+      Pcf85063::DateTime dt;
+      if (g_rtc.refresh(dt)) {
+        Serial.printf("[HUB] rtc %02u:%02u:%02u\n", dt.hours, dt.minutes, dt.seconds);
       }
     }
   }
