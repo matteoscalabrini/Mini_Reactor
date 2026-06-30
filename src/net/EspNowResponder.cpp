@@ -161,6 +161,7 @@ void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data,
   if (!decodePairRequest(data, len, req)) return;
   if ((DeviceRole)req.role != DeviceRole::Hub) return;  // only bind a HUB
 
+  if (bound_) link_.removePeer(peerMac_);   // evict previously-bound HUB before rebinding
   std::memcpy(peerMac_, req.mac, 6);
   link_.addPeer(peerMac_, 0);
   const uint8_t ch = (uint8_t)WiFi.channel();
@@ -171,7 +172,7 @@ void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data,
   PairAck ack = {};
   ack.hdr = {kProtocolVersion, (uint8_t)MsgType::PairAck, link_.nextSeq()};
   ack.role = (uint8_t)DeviceRole::Reactor;
-  std::memcpy(ack.mac, peerMac_, 6);                  // echo so HUB confirms target
+  WiFi.macAddress(ack.mac);            // reactor's own MAC, per PROTOCOL_ESPNOW.md
   ack.channel = ch;
   std::strncpy(ack.name, AppConfig::EspNow::kDeviceName, kNameLen - 1);
   uint8_t buf[sizeof(PairAck)];
