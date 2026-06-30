@@ -43,7 +43,7 @@ Pure, host-testable foundation. No Arduino/ESP includes anywhere in this task.
 
 **Interfaces:**
 - Produces (used by Tasks 2–6):
-  - `namespace sync` with `kProtocolVersion`, `kMacLen=6`, `kNameLen=33`, `kBroadcastMac[6]`, `kNullI16`.
+  - `namespace synclink` with `kProtocolVersion`, `kMacLen=6`, `kNameLen=33`, `kBroadcastMac[6]`, `kNullI16`.
   - `enum class MsgType : uint8_t { Telemetry=1, Command=2, Ack=3, PairRequest=4, PairAck=5 }`
   - `enum class DeviceRole : uint8_t { Reactor=1, Hub=2 }`
   - `enum class Opcode : uint8_t { RunStart=1, RunStop=2, Setpoint=3, Disc=4, DiscTest=5, Pause=6, Resume=7 }`
@@ -63,7 +63,7 @@ Pure, host-testable foundation. No Arduino/ESP includes anywhere in this task.
 // no Arduino/ESP/app_config deps so the native host test links with no extra
 // source. All frames are packed little-endian and fit one 250-byte ESP-NOW packet.
 
-namespace sync {
+namespace synclink {
 
 constexpr uint8_t kProtocolVersion = 1;
 constexpr uint8_t kMacLen  = 6;
@@ -177,7 +177,7 @@ struct PairAck {              // ~44 B
 };
 #pragma pack(pop)
 
-}  // namespace sync
+}  // namespace synclink
 ```
 
 - [ ] **Step 2: Write `include/sync/SyncCodec.hpp`**
@@ -192,7 +192,7 @@ struct PairAck {              // ~44 B
 // no Arduino deps. encode() copies a packed struct to a buffer; decode*()
 // validates length + version + msgType before copying back.
 
-namespace sync {
+namespace synclink {
 
 inline int16_t encFixed(float v, float scale) { return (int16_t)lroundf(v * scale); }
 inline float   decFixed(int16_t v, float scale) { return (float)v / scale; }
@@ -269,7 +269,7 @@ inline AckError validateCommand(const Command& c) {
   }
 }
 
-}  // namespace sync
+}  // namespace synclink
 ```
 
 - [ ] **Step 3: Write the failing test `test/test_sync_codec/test_main.cpp`**
@@ -278,7 +278,7 @@ inline AckError validateCommand(const Command& c) {
 #include <unity.h>
 #include "sync/SyncCodec.hpp"
 
-using namespace sync;
+using namespace synclink;
 
 void setUp() {}
 void tearDown() {}
@@ -394,7 +394,7 @@ ESP-NOW init, peer/channel mgmt, 3× best-effort send, ISR→queue→drain recei
 - Create: `src/sync/EspNowLink.cpp`
 
 **Interfaces:**
-- Consumes: `sync::*` from Task 1; ESP-IDF `esp_now.h`, `esp_wifi.h`; Arduino `Preferences`.
+- Consumes: `synclink::*` from Task 1; ESP-IDF `esp_now.h`, `esp_wifi.h`; Arduino `Preferences`.
 - Produces (used by Tasks 4–6):
   - `class EspNowLink` with:
     - `using RecvFn = void (*)(const uint8_t* mac, const uint8_t* data, int len);`
@@ -501,7 +501,7 @@ bool EspNowLink::begin(RecvFn onRecv) {
     return false;
   }
   esp_now_register_recv_cb(onDataRecv);
-  addPeer(sync::kBroadcastMac, 0);
+  addPeer(synclink::kBroadcastMac, 0);
   ready_ = true;
   return true;
 }
@@ -519,8 +519,8 @@ void EspNowLink::poll() {
   if (!s_rxQueue) return;
   RxItem item;
   while (xQueueReceive(s_rxQueue, &item, 0) == pdTRUE) {
-    if (item.len >= sizeof(sync::Header)) {
-      sync::Header h;
+    if (item.len >= sizeof(synclink::Header)) {
+      synclink::Header h;
       std::memcpy(&h, item.data, sizeof(h));
       if (seenBefore(h.seq)) continue;  // drop 3x resend duplicates
     }
@@ -537,7 +537,7 @@ bool EspNowLink::send(const uint8_t* mac, const uint8_t* data, size_t len) {
 }
 
 bool EspNowLink::sendBroadcast(const uint8_t* data, size_t len) {
-  return send(sync::kBroadcastMac, data, len);
+  return send(synclink::kBroadcastMac, data, len);
 }
 
 bool EspNowLink::addPeer(const uint8_t* mac, uint8_t channel) {
@@ -748,7 +748,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Modify: `src/system/AppRuntime.cpp` (construct + `begin()` + `tick()` hooks; advertise feature)
 
 **Interfaces:**
-- Consumes: `EspNowLink` (Task 2), `sync::*` + codec (Task 1), `WebInterface::cmd*` (Task 3), `Reactor::telemetry()`.
+- Consumes: `EspNowLink` (Task 2), `synclink::*` + codec (Task 1), `WebInterface::cmd*` (Task 3), `Reactor::telemetry()`.
 - Produces (used by Task 5): `class EspNowResponder` with `void begin();`, `void poll();`, `void openPairWindow();`, `void forget();`, `bool bound() const;`.
 
 - [ ] **Step 1: Add reactor config to `include/app_config.hpp`**
@@ -801,7 +801,7 @@ class EspNowResponder {
   void handlePairRequest(const uint8_t* mac, const uint8_t* data, int len);  // Task 5
   void sendTelemetry();
   void sendAck(const uint8_t* mac, uint16_t ackSeq, uint8_t opcode,
-               sync::AckResult result, sync::AckError err);
+               synclink::AckResult result, synclink::AckError err);
 
   Reactor& reactor_;
   WebInterface& web_;
@@ -826,7 +826,7 @@ class EspNowResponder {
 #include "net/WebInterface.hpp"
 #include "sync/SyncCodec.hpp"
 
-using namespace sync;
+using namespace synclink;
 
 namespace { EspNowResponder* s_self = nullptr; }
 
@@ -1139,8 +1139,8 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Modify: `src/features/hub/HubRuntime.cpp` (own + pump `HubLink`; show `EspNowScreen`)
 
 **Interfaces:**
-- Consumes: `EspNowLink` (Task 2), `sync::*`/codec (Task 1), LVGL (label + lv_obj only), `WiFi`.
-- Produces: `class HubLink { void begin(); void tick(); void startPairing(); void sendStop(); void sendPause(uint8_t mode); enum class State{Unpaired,Searching,Paired}; State state(); const sync::Telemetry& latest(); bool linkAlive(); };`
+- Consumes: `EspNowLink` (Task 2), `synclink::*`/codec (Task 1), LVGL (label + lv_obj only), `WiFi`.
+- Produces: `class HubLink { void begin(); void tick(); void startPairing(); void sendStop(); void sendPause(uint8_t mode); enum class State{Unpaired,Searching,Paired}; State state(); const synclink::Telemetry& latest(); bool linkAlive(); };`
   `namespace EspNowScreen { struct View{...}; void create(); void update(const View&); bool pairPressed(); }`
 
 - [ ] **Step 1: Add HUB config to `include/app_config.hpp`**
@@ -1189,14 +1189,14 @@ class HubLink {
   void sendPause(uint8_t mode); // 1=motor B1, 2=all B2, 0=resume
 
   State state() const { return state_; }
-  const sync::Telemetry& latest() const { return latest_; }
+  const synclink::Telemetry& latest() const { return latest_; }
   bool linkAlive() const { return linkAlive_; }
   uint8_t sweepChannel() const { return sweepCh_; }
 
  private:
   static void onRecvStatic(const uint8_t* mac, const uint8_t* data, int len);
   void handleRecv(const uint8_t* mac, const uint8_t* data, int len);
-  void send(const sync::Command& c);
+  void send(const synclink::Command& c);
 
   EspNowLink link_;
   State    state_ = State::Unpaired;
@@ -1206,7 +1206,7 @@ class HubLink {
   uint8_t  sweepCh_ = 1;
   uint32_t sweepStepMs_ = 0;
   // telemetry / link-loss
-  sync::Telemetry latest_ = {};
+  synclink::Telemetry latest_ = {};
   uint32_t lastTelemetryMs_ = 0;
   bool     linkAlive_ = false;
 };
@@ -1223,7 +1223,7 @@ class HubLink {
 #include "app_config.hpp"
 #include "sync/SyncCodec.hpp"
 
-using namespace sync;
+using namespace synclink;
 
 namespace { HubLink* s_self = nullptr; }
 
@@ -1532,22 +1532,22 @@ Then replace the bring-up screen refresh block (the `if (AppConfig::HubFeatures:
     if (now - lastUi >= 250) {
       lastUi = now;
       if (AppConfig::HubFeatures::kEnableEspNow) {
-        const sync::Telemetry& t = g_link.latest();
+        const synclink::Telemetry& t = g_link.latest();
         EspNowScreen::View v = {};
         v.mode = g_link.state() == HubLink::State::Paired   ? EspNowScreen::Mode::Paired
                : g_link.state() == HubLink::State::Searching ? EspNowScreen::Mode::Searching
                                                              : EspNowScreen::Mode::Unpaired;
         v.sweepChannel  = g_link.sweepChannel();
         v.linkAlive     = g_link.linkAlive();
-        v.tempValid     = (t.tempC_c != sync::kNullI16);
-        v.tempC         = sync::decFixed(t.tempC_c, sync::kScaleTempC);
-        v.setpointC     = sync::decFixed(t.setpointC_c, sync::kScaleTempC);
-        v.heaterPct     = t.heaterPct_h / sync::kScaleHeaterPct;
-        v.rpm           = sync::decFixed((int16_t)t.rpm_c, sync::kScaleRpm);
-        v.runActive     = (t.flags & sync::kFlagRunActive);
-        v.motorPaused   = (t.flags & sync::kFlagMotorPaused);
-        v.fullHold      = (t.flags & sync::kFlagFullHold);
-        v.safetyTripped = (t.flags & sync::kFlagSafetyTripped);
+        v.tempValid     = (t.tempC_c != synclink::kNullI16);
+        v.tempC         = synclink::decFixed(t.tempC_c, synclink::kScaleTempC);
+        v.setpointC     = synclink::decFixed(t.setpointC_c, synclink::kScaleTempC);
+        v.heaterPct     = t.heaterPct_h / synclink::kScaleHeaterPct;
+        v.rpm           = synclink::decFixed((int16_t)t.rpm_c, synclink::kScaleRpm);
+        v.runActive     = (t.flags & synclink::kFlagRunActive);
+        v.motorPaused   = (t.flags & synclink::kFlagMotorPaused);
+        v.fullHold      = (t.flags & synclink::kFlagFullHold);
+        v.safetyTripped = (t.flags & synclink::kFlagSafetyTripped);
         v.elapsedSec    = t.elapsedSec;
         EspNowScreen::update(v);
       } else {
@@ -1658,5 +1658,5 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - **Spec coverage:** shared transport (T1–T2), reactor responder (T4), HUB client (T6), pairing/binding + channel sweep + NVS (T2 binding, T5 reactor, T6 HUB), telemetry frame + 4 Hz cadence (T1, T4), command set incl. pause/resume (T1 opcodes, T3 apply, T4 decode, T6 send), Ack model (T1, T4, T6), toggle gating both products (T4, T6), `/espnow/pair`+`/espnow/forget` (T5), link-loss + re-sweep (T6), docs (T7), native tests (T1), toggle-off builds (T4/T6/T7). All spec sections map to a task.
 - **Placeholders:** none — every code step has complete code; device/UI tasks state explicitly that verification is build + on-device (repo convention: only pure logic is host-tested).
-- **Type consistency:** `sync::` enums/structs/scales and `decFixed/encFixed/encFixedN` names match across T1→T6; `WebInterface::cmd*` signatures defined in T3 are consumed verbatim in T4; `EspNowLink` API defined in T2 is used verbatim in T4/T5/T6; `HubLink`/`EspNowScreen` interfaces match their T6 callers.
+- **Type consistency:** `synclink::` enums/structs/scales and `decFixed/encFixed/encFixedN` names match across T1→T6; `WebInterface::cmd*` signatures defined in T3 are consumed verbatim in T4; `EspNowLink` API defined in T2 is used verbatim in T4/T5/T6; `HubLink`/`EspNowScreen` interfaces match their T6 callers.
 - **Known v1 simplifications (documented in T7):** telemetry `load`, `runId`, and session `name` are reserved-but-blank (not in `ReactorTelemetry`); REST pause/resume gap (`action:"pause"`) is left open — the underlying apply path now exists (T3), so closing it later is ~10 lines.
