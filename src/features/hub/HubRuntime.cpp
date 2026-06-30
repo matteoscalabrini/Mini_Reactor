@@ -1,5 +1,6 @@
 #include "features/hub/HubRuntime.hpp"
 #include <Arduino.h>
+#include <esp_sleep.h>
 #include "app_config.hpp"
 #include "features/hub/power/Axp2101.hpp"
 #include "features/hub/display/HubDisplay.hpp"
@@ -9,6 +10,7 @@
 #include "features/hub/io/Tca9554.hpp"
 #include "features/hub/audio/Es8311.hpp"
 #include "features/hub/audio/Es7210.hpp"
+#include "features/hub/sleep/HubSleepLogic.hpp"
 #include <lvgl.h>
 
 namespace HubRuntime {
@@ -21,6 +23,29 @@ static Pcf85063   g_rtc{Wire, AppConfig::Hub::kPcf85063Address};
 static Tca9554    g_io{Wire, AppConfig::Hub::kTca9554Address};
 static Es8311     g_codec{Wire, AppConfig::Hub::kEs8311Address};
 static Es7210     g_mic{Wire, AppConfig::Hub::kEs7210Address};
+
+static uint32_t g_lastActivityMs = 0;  // updated on every touch event; used by sleep FSM
+
+static void enterDeepSleep() {
+  Serial.println("[HUB] entering deep sleep");
+  g_display.enterSleep();
+  if (AppConfig::HubFeatures::kEnableImu) {
+    Qmi8658::WakeOnMotionConfig wom;
+    wom.thresholdMg     = AppConfig::HubMotionWake::kThresholdMg;
+    wom.blankingSamples = AppConfig::HubMotionWake::kBlankingSamples;
+    wom.accelOdrMilliHz = AppConfig::HubMotionWake::kAccelOdrMilliHz;
+    wom.accelRangeG     = AppConfig::HubMotionWake::kAccelRangeG;
+    g_imu.enterWakeOnMotionMode(wom);
+  }
+  g_axp.disableAdcForSleep();
+  uint64_t mask = 0;
+  if (AppConfig::HubSleep::kWakeOnTouchInt)
+    mask |= (1ULL << AppConfig::PinoutHub::kHubTouchInt);
+  if (AppConfig::HubSleep::kWakeOnImuInt2)
+    mask |= (1ULL << AppConfig::PinoutHub::kImuInt2);
+  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_deep_sleep_start();
+}
 
 static void hubTouchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
   int16_t x, y; bool pressed;
@@ -36,6 +61,13 @@ void begin() {
   Serial.printf("[HUB] boot — firmware %s\n", AppConfig::kFirmwareVersion);
   Serial.printf("[HUB] free heap %u, PSRAM %u\n",
                 (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
+  if (AppConfig::HubFeatures::kEnableSleep) {
+    g_lastActivityMs = millis();
+    const esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    Serial.printf("[HUB] sleep: enabled — wakeup cause %d\n", (int)cause);
+  } else {
+    Serial.println("[HUB] sleep: disabled");
+  }
 
   if (g_axp.begin(AppConfig::PinoutHub::kI2cSda, AppConfig::PinoutHub::kI2cScl,
                   AppConfig::Hub::kI2cClockHz)) {
@@ -123,7 +155,18 @@ void tick() {
       lastTouch = now;
       Cst9217::State ts;
       g_touch.refresh(ts);
+      if (ts.pointCount > 0) g_lastActivityMs = now;  // activity detected
     }
+  }
+
+  // Deep-sleep FSM (gated on kEnableSleep)
+  if (AppConfig::HubFeatures::kEnableSleep) {
+    hubsleep::SleepInputs si;
+    si.externalPowerPresent = g_axp.state().vbusPresent;
+    si.touchActive          = g_touch.state().pointCount > 0;
+    si.idleMs               = now - g_lastActivityMs;
+    si.idleThresholdMs      = AppConfig::HubSleep::kDeepSleepAfterMs;
+    if (hubsleep::shouldEnterDeepSleep(si)) enterDeepSleep();
   }
 
   // IMU polling at kMotionPollMs cadence
