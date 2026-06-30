@@ -8,3 +8,5 @@
 .DS_Store
 .superpowers/
 __pycache__/
+managed_components/
+sdkconfig.*
