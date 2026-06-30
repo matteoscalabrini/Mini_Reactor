@@ -11,9 +11,13 @@
 #include "features/hub/audio/Es8311.hpp"
 #include "features/hub/audio/Es7210.hpp"
 #include "features/hub/sleep/HubSleepLogic.hpp"
+#include "features/hub/ui/BringupScreen.hpp"
 #include <lvgl.h>
 
 namespace HubRuntime {
+
+static Qmi8658::Status g_lastImuStatus = {};
+static bool            g_imuReady      = false;
 
 static Axp2101    g_axp{Wire, AppConfig::Hub::kAxp2101Address};
 static HubDisplay g_display;
@@ -79,9 +83,7 @@ void begin() {
   // Step 2: Display
   if (AppConfig::HubFeatures::kEnableDisplay) {
     if (g_display.begin()) {
-      lv_obj_t* label = lv_label_create(lv_scr_act());
-      lv_label_set_text(label, "MINI-REACTOR HUB");
-      lv_obj_center(label);
+      BringupScreen::create();
       Serial.println("[HUB] display: enabled");
     } else {
       Serial.println("[HUB] display: enabled (hardware absent)");
@@ -198,6 +200,8 @@ void tick() {
       lastMotion = now;
       Qmi8658::Status st;
       if (g_imu.poll(st)) {
+        g_lastImuStatus = st;
+        g_imuReady      = true;
         Serial.printf("[HUB] imu ax=%.3f ay=%.3f az=%.3f gx=%.1f gy=%.1f gz=%.1f\n",
                       st.accelXg, st.accelYg, st.accelZg,
                       st.gyroXdps, st.gyroYdps, st.gyroZdps);
@@ -228,6 +232,47 @@ void tick() {
       if (g_io.refresh(ioState)) {
         Serial.printf("[HUB] ioexp input=0x%02X\n", ioState.input);
       }
+    }
+  }
+
+  // Bringup screen refresh at 250 ms cadence (display must be enabled)
+  if (AppConfig::HubFeatures::kEnableDisplay) {
+    static uint32_t lastUi = 0;
+    if (now - lastUi >= 250) {
+      lastUi = now;
+      BringupScreen::Snapshot snap = {};
+      const auto& axp = g_axp.state();
+      snap.ics[0] = {"AXP2101",  axp.present ? 1u : 2u};
+      snap.ics[1] = {"QMI8658",  !AppConfig::HubFeatures::kEnableImu
+                                  ? 0u : g_imu.isReady()           ? 1u : 2u};
+      snap.ics[2] = {"PCF85063", !AppConfig::HubFeatures::kEnableRtc
+                                  ? 0u : g_rtc.state().running      ? 1u : 2u};
+      const auto& ts = g_touch.state();
+      snap.ics[3] = {"CST9217",  !AppConfig::HubFeatures::kEnableTouch
+                                  ? 0u : ts.present                 ? 1u : 2u};
+      snap.ics[4] = {"TCA9554",  !AppConfig::HubFeatures::kEnableIoExpander
+                                  ? 0u : g_io.state().present       ? 1u : 2u};
+      snap.ics[5] = {"ES8311",   !AppConfig::HubFeatures::kEnableAudio
+                                  ? 0u : g_codec.present()          ? 1u : 2u};
+      snap.ics[6] = {"ES7210",   !AppConfig::HubFeatures::kEnableAudio
+                                  ? 0u : g_mic.present()            ? 1u : 2u};
+      snap.batteryPercent = axp.batteryPercent;
+      snap.batteryMv      = axp.batteryVoltageMv;
+      snap.charging       = axp.charging;
+      snap.vbus           = axp.vbusPresent;
+      snap.touchPressed   = ts.pointCount > 0;
+      if (snap.touchPressed) { snap.touchX = ts.points[0].x; snap.touchY = ts.points[0].y; }
+      snap.accelX         = g_lastImuStatus.accelXg;
+      snap.accelY         = g_lastImuStatus.accelYg;
+      snap.accelZ         = g_lastImuStatus.accelZg;
+      const auto& dt      = g_rtc.state();
+      snap.rtcHours       = dt.hours;
+      snap.rtcMinutes     = dt.minutes;
+      snap.rtcSeconds     = dt.seconds;
+      snap.freeHeap       = ESP.getFreeHeap();
+      snap.freePsram      = ESP.getFreePsram();
+      snap.firmware       = AppConfig::kFirmwareVersion;
+      BringupScreen::update(snap);
     }
   }
 
