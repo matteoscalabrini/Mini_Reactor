@@ -322,6 +322,17 @@ static constexpr bool kEnableIoExpander = true;
 static constexpr bool kEnableAudio = false;       // codecs probed then powered down
 static constexpr bool kEnableSleep = true;
 static constexpr bool kEnablePmicTelemetry = true;
+static constexpr bool kEnableEspNow = true;       // ESP-NOW client (reactor link)
 }  // namespace HubFeatures
+
+namespace HubEspNow {
+static constexpr const char* kNvsNamespace = "espnow";
+static constexpr const char* kDeviceName = "hub";
+static constexpr uint8_t  kChannelMin = 1;
+static constexpr uint8_t  kChannelMax = 13;        // sweep range (region max)
+static constexpr uint32_t kSweepDwellMs = 120;     // listen per channel before hopping
+static constexpr uint32_t kPairBeaconMs = 60;      // re-broadcast PairRequest cadence within a channel
+static constexpr uint32_t kLinkLostMs = 3000;      // no telemetry => disconnected + re-sweep
+}  // namespace HubEspNow
 
 }  // namespace AppConfig
