@@ -67,14 +67,6 @@ void begin() {
   Serial.printf("[HUB] boot — firmware %s\n", AppConfig::kFirmwareVersion);
   Serial.printf("[HUB] free heap %u, PSRAM %u\n",
                 (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
-  if (AppConfig::HubFeatures::kEnableSleep) {
-    g_lastActivityMs = millis();
-    const esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
-    Serial.printf("[HUB] sleep: enabled — wakeup cause %d\n", (int)cause);
-  } else {
-    Serial.println("[HUB] sleep: disabled");
-  }
-
   // Step 1: AXP2101 first — brings all power rails up; always initializes
   if (g_axp.begin(AppConfig::PinoutHub::kI2cSda, AppConfig::PinoutHub::kI2cScl,
                   AppConfig::Hub::kI2cClockHz)) {
@@ -102,12 +94,18 @@ void begin() {
   // Step 3: Touch
   if (AppConfig::HubFeatures::kEnableTouch) {
     const bool touchOk = g_touch.begin();
-    static lv_indev_drv_t d;
-    lv_indev_drv_init(&d);
-    d.type     = LV_INDEV_TYPE_POINTER;
-    d.read_cb  = hubTouchRead;
-    lv_indev_drv_register(&d);
-    Serial.printf("[HUB] touch: %s\n", touchOk ? "enabled" : "enabled (hardware absent)");
+    const bool indevReady = AppConfig::HubFeatures::kEnableDisplay && g_display.isReady();
+    if (indevReady) {
+      static lv_indev_drv_t d;
+      lv_indev_drv_init(&d);
+      d.type    = LV_INDEV_TYPE_POINTER;
+      d.read_cb = hubTouchRead;
+      lv_indev_drv_register(&d);
+      Serial.printf("[HUB] touch: %s\n", touchOk ? "enabled" : "enabled (hardware absent)");
+    } else {
+      Serial.printf("[HUB] touch: %s (no indev — display disabled)\n",
+                    touchOk ? "enabled" : "enabled (hardware absent)");
+    }
   } else {
     g_touch.begin();       // reset + enter cmd mode so enterSleep is well-defined
     g_touch.enterSleep();  // power down the controller
@@ -162,6 +160,15 @@ void begin() {
     if (m) g_mic.powerDown();
     Serial.printf("[HUB] es8311: %s, es7210: %s (powered down)\n",
                   c ? "present" : "absent", m ? "present" : "absent");
+  }
+
+  // Step 8: Sleep — armed last so idle timer starts after all hardware is up
+  if (AppConfig::HubFeatures::kEnableSleep) {
+    g_lastActivityMs = millis();
+    const esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    Serial.printf("[HUB] sleep: enabled — wakeup cause %d\n", (int)cause);
+  } else {
+    Serial.println("[HUB] sleep: disabled");
   }
 }
 
