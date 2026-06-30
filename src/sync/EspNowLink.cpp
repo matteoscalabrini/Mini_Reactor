@@ -34,12 +34,13 @@ bool EspNowLink::begin(RecvFn onRecv) {
   if (ready_) return true;
   s_onRecv = onRecv;
   if (!s_rxQueue) s_rxQueue = xQueueCreate(8, sizeof(RxItem));
+  if (!s_rxQueue) { Serial.println("[ESPNOW] queue alloc failed"); return false; }
   if (esp_now_init() != ESP_OK) {
     Serial.println("[ESPNOW] esp_now_init failed");
     return false;
   }
   esp_now_register_recv_cb(onDataRecv);
-  addPeer(synclink::kBroadcastMac, 0);
+  if (!addPeer(synclink::kBroadcastMac, 0)) Serial.println("[ESPNOW] broadcast peer add failed");
   ready_ = true;
   return true;
 }
@@ -68,6 +69,7 @@ void EspNowLink::poll() {
 
 bool EspNowLink::send(const uint8_t* mac, const uint8_t* data, size_t len) {
   if (!ready_) return false;
+  if (len > 250) { Serial.println("[ESPNOW] send: oversized frame"); return false; }
   bool ok = false;
   for (int i = 0; i < 3; ++i)                          // 3x best-effort resend
     ok = (esp_now_send(mac, data, len) == ESP_OK) || ok;
