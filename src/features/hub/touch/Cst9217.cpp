@@ -8,6 +8,8 @@ static constexpr uint16_t kCst92xxReadCommand   = 0xD000;
 static constexpr uint8_t  kCst92xxAck           = 0xAB;
 static constexpr uint16_t kCst92xxRegDebugMode  = 0xD101;
 static constexpr uint16_t kCst92xxRegSleepMode  = 0xD105;
+static constexpr uint16_t kCst92xxRegResolution = 0xD1F8;
+static constexpr uint16_t kCst92xxRegChipId     = 0xD204;
 static constexpr uint16_t kCst9217ChipId        = 0x9217;
 static constexpr uint16_t kCst9220ChipId        = 0x9220;
 static constexpr uint8_t  kMaxTouchPoints       = 2;
@@ -62,7 +64,7 @@ bool Cst9217::begin() {
 
   // Read resolution
   uint8_t buffer[8] = {};
-  if (!readReg16(0xD1F8, buffer, 4)) {
+  if (!readReg16(kCst92xxRegResolution, buffer, 4)) {
     Serial.println("[CST9217] resolution read failed");
     return false;
   }
@@ -71,7 +73,7 @@ bool Cst9217::begin() {
   const uint16_t resY = static_cast<uint16_t>((buffer[3] << 8) | buffer[2]);
 
   // Read chip ID
-  if (!readReg16(0xD204, buffer, 4)) {
+  if (!readReg16(kCst92xxRegChipId, buffer, 4)) {
     Serial.println("[CST9217] chip id read failed");
     return false;
   }

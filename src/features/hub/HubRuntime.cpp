@@ -44,13 +44,13 @@ void begin() {
   }
 
   if (AppConfig::HubFeatures::kEnableTouch) {
-    g_touch.begin();
+    const bool touchOk = g_touch.begin();
     static lv_indev_drv_t d;
     lv_indev_drv_init(&d);
     d.type     = LV_INDEV_TYPE_POINTER;
     d.read_cb  = hubTouchRead;
     lv_indev_drv_register(&d);
-    Serial.println("[HUB] touch: enabled");
+    Serial.printf("[HUB] touch: %s\n", touchOk ? "enabled" : "enabled (hardware absent)");
   } else {
     Serial.println("[HUB] touch: disabled");
   }
