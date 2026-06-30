@@ -8,3 +8,6 @@
 .DS_Store
 .superpowers/
 __pycache__/
+managed_components/
+sdkconfig.*
+src/idf_component.yml

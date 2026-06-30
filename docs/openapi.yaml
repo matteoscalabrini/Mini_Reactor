@@ -13,9 +13,9 @@ info:
     `Telemetry` schema as the message payload.
 
 
-    Access is open on the LAN (no auth; `Access-Control-Allow-Origin: *`). Endpoints under
-    "Planned" in docs/API.md (e.g. /pid, /calibration, /sd, /system) are NOT yet implemented and
-    return 404.
+    Access is open on the LAN (no auth; `Access-Control-Allow-Origin: *`). See `API.md`
+    (repo root) for the full as-built reference, the async-ack command model, and the
+    connection audit.
 servers:
   - url: http://{host}/api/v1
     variables:

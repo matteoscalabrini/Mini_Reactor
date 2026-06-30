@@ -200,4 +200,120 @@ static constexpr bool kEnableOledUi    = false;  // OLED blit only; encoder/butt
 static constexpr bool kEnableAutotune  = true;
 }  // namespace Features
 
+// ── HUB companion device (Waveshare ESP32-S3-Touch-AMOLED-1.75) ───────────────
+namespace PinoutHub {
+static constexpr uint8_t kI2cSda = 15;
+static constexpr uint8_t kI2cScl = 14;
+static constexpr uint8_t kBootButton = 0;
+static constexpr uint8_t kImuInt2 = 21;            // QMI8658 wake-on-motion
+static constexpr uint8_t kHubDisplayCs = 12;
+static constexpr uint8_t kHubDisplaySclk = 38;
+static constexpr uint8_t kHubDisplayData0 = 4;
+static constexpr uint8_t kHubDisplayData1 = 5;
+static constexpr uint8_t kHubDisplayData2 = 6;
+static constexpr uint8_t kHubDisplayData3 = 7;
+static constexpr uint8_t kHubDisplayReset = 39;
+static constexpr uint8_t kHubTouchReset = 40;
+static constexpr uint8_t kHubTouchInt = 11;        // active-low, EXT1 wake
+static constexpr uint8_t kHubI2sMclk = 42;
+static constexpr uint8_t kHubI2sBclk = 9;
+static constexpr uint8_t kHubI2sWs = 45;
+static constexpr uint8_t kHubI2sDout = 8;
+static constexpr uint8_t kHubI2sDin = 10;
+static constexpr uint8_t kHubAudioAmpEnable = 46;
+static constexpr uint8_t kHubSdCmd = 1;
+static constexpr uint8_t kHubSdClk = 2;
+static constexpr uint8_t kHubSdData0 = 3;
+}  // namespace PinoutHub
+
+namespace Hub {
+static constexpr uint32_t kI2cClockHz = 400000;
+static constexpr uint32_t kPollMs = 200;
+static constexpr uint32_t kTouchPollMs = 20;
+static constexpr uint32_t kMotionPollMs = 125;
+static constexpr uint32_t kProbeRetryMs = 5000;
+static constexpr uint8_t kAxp2101Address = 0x34;
+static constexpr uint8_t kQmi8658Address = 0x6B;
+static constexpr uint8_t kQmi8658AltAddress = 0x6A;
+static constexpr uint8_t kPcf85063Address = 0x51;
+static constexpr uint8_t kCst9217Address = 0x5A;
+static constexpr uint8_t kTca9554Address = 0x20;
+static constexpr uint8_t kEs8311Address = 0x18;
+static constexpr uint8_t kEs7210Address = 0x40;
+static constexpr uint16_t kTouchWidth = 466;
+static constexpr uint16_t kTouchHeight = 466;
+}  // namespace Hub
+
+namespace HubPower {
+static constexpr bool     kChargingEnabled = true;
+static constexpr uint16_t kChargeCurrentMa = 1000;
+static constexpr uint16_t kChargeVoltageMv = 4200;
+static constexpr uint16_t kInputCurrentLimitMa = 1500;
+static constexpr uint16_t kInputVoltageLimitMv = 4360;
+static constexpr uint16_t kPrechargeCurrentMa = 50;
+static constexpr uint16_t kTerminationCurrentMa = 25;
+}  // namespace HubPower
+
+namespace HubImu {
+static constexpr uint8_t  kAccelRangeG = 4;
+static constexpr uint32_t kAccelOdrMilliHz = 250000;
+static constexpr uint16_t kGyroRangeDps = 512;
+static constexpr uint32_t kGyroOdrMilliHz = 235000;
+static constexpr bool     kEnableAccelLpf = false;
+static constexpr bool     kEnableGyroLpf = true;
+}  // namespace HubImu
+
+namespace HubTouch {
+static constexpr bool kSwapXY = true;
+static constexpr bool kMirrorX = true;
+static constexpr bool kMirrorY = true;
+}  // namespace HubTouch
+
+namespace HubDisplay {
+static constexpr uint16_t kWidth = 466;
+static constexpr uint16_t kHeight = 466;
+static constexpr uint8_t  kBrightness = 255;
+static constexpr uint8_t  kRotation = 0;
+static constexpr uint8_t  kPanelColOffset1 = 6;
+static constexpr uint8_t  kPanelRowOffset1 = 0;
+static constexpr uint8_t  kDrawBufferDivisor = 8;
+static constexpr uint32_t kLvglTickPeriodMs = 10;
+static constexpr uint32_t kFramePeriodMs = 33;     // ~30 fps
+}  // namespace HubDisplay
+
+namespace HubMotionWake {
+static constexpr uint8_t  kThresholdMg = 220;
+static constexpr uint8_t  kBlankingSamples = 32;
+static constexpr uint8_t  kAccelRangeG = 4;
+static constexpr uint32_t kAccelOdrMilliHz = 128000;
+}  // namespace HubMotionWake
+
+namespace HubCodec {
+static constexpr uint8_t kVolumePercent = 90;
+static constexpr uint8_t kMicGainLevel = 3;
+static constexpr bool    kMuted = false;
+static constexpr bool    kAmpEnabled = false;
+}  // namespace HubCodec
+
+namespace HubSleep {
+static constexpr uint32_t kIdleArmedAfterMs = 5000;
+static constexpr uint32_t kDeepSleepAfterMs = 15000;
+static constexpr uint32_t kShortWakeMs = 5000;
+static constexpr uint8_t  kStormThreshold = 3;
+static constexpr bool     kWakeOnTouchInt = true;
+static constexpr bool     kWakeOnImuInt2 = true;
+}  // namespace HubSleep
+
+// HUB feature toggles. false => power the IC DOWN at boot, then skip polling.
+namespace HubFeatures {
+static constexpr bool kEnableDisplay = true;
+static constexpr bool kEnableTouch = true;
+static constexpr bool kEnableImu = true;          // also gates wake-on-motion
+static constexpr bool kEnableRtc = true;
+static constexpr bool kEnableIoExpander = true;
+static constexpr bool kEnableAudio = false;       // codecs probed then powered down
+static constexpr bool kEnableSleep = true;
+static constexpr bool kEnablePmicTelemetry = true;
+}  // namespace HubFeatures
+
 }  // namespace AppConfig
