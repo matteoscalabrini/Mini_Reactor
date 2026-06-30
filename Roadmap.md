@@ -48,7 +48,7 @@ Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup
   - [x] TCA9554 IO expander
   - [x] ES8311/ES7210 probe + power-down
   - [x] HubSleepLogic deep-sleep FSM
-- [ ] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares)
+- [ ] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares). Design: docs/superpowers/specs/2026-06-30-hub-espnow-link-design.md (telemetry+control, 1 reactor; WiFi-less HUB; shared `src/sync` transport)
 - [ ] Phase 3 — redesigned fermentation monitoring/control UI (LVGL)
 
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)
