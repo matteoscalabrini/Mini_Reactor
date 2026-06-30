@@ -28,6 +28,7 @@ static uint32_t g_lastActivityMs = 0;  // updated on every touch event; used by 
 
 static void enterDeepSleep() {
   Serial.println("[HUB] entering deep sleep");
+  Serial.flush();  // Task 9 M2: flush before I2C/sleep calls
   g_display.enterSleep();
   if (AppConfig::HubFeatures::kEnableImu) {
     Qmi8658::WakeOnMotionConfig wom;
@@ -43,6 +44,11 @@ static void enterDeepSleep() {
     mask |= (1ULL << AppConfig::PinoutHub::kHubTouchInt);
   if (AppConfig::HubSleep::kWakeOnImuInt2)
     mask |= (1ULL << AppConfig::PinoutHub::kImuInt2);
+  // Task 9 M5: guard against zero wake mask — skip deep sleep if no source configured
+  if (mask == 0) {
+    Serial.println("[HUB] deep sleep skipped — no wake source configured");
+    return;
+  }
   esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ALL_LOW);
   esp_deep_sleep_start();
 }
@@ -69,22 +75,31 @@ void begin() {
     Serial.println("[HUB] sleep: disabled");
   }
 
+  // Step 1: AXP2101 first — brings all power rails up; always initializes
   if (g_axp.begin(AppConfig::PinoutHub::kI2cSda, AppConfig::PinoutHub::kI2cScl,
                   AppConfig::Hub::kI2cClockHz)) {
+    g_axp.configureCharging();
     Serial.println("[HUB] axp2101: enabled");
   } else {
     Serial.printf("[HUB] axp2101: FAULT (%s)\n", g_axp.lastErrorString());
   }
 
-  if (AppConfig::HubFeatures::kEnableDisplay && g_display.begin()) {
-    lv_obj_t* label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "MINI-REACTOR HUB");
-    lv_obj_center(label);
-    Serial.println("[HUB] display: enabled");
+  // Step 2: Display
+  if (AppConfig::HubFeatures::kEnableDisplay) {
+    if (g_display.begin()) {
+      lv_obj_t* label = lv_label_create(lv_scr_act());
+      lv_label_set_text(label, "MINI-REACTOR HUB");
+      lv_obj_center(label);
+      Serial.println("[HUB] display: enabled");
+    } else {
+      Serial.println("[HUB] display: enabled (hardware absent)");
+    }
   } else {
+    if (g_display.isReady()) g_display.enterSleep();  // power down panel if it came up
     Serial.println("[HUB] display: disabled");
   }
 
+  // Step 3: Touch
   if (AppConfig::HubFeatures::kEnableTouch) {
     const bool touchOk = g_touch.begin();
     static lv_indev_drv_t d;
@@ -94,29 +109,34 @@ void begin() {
     lv_indev_drv_register(&d);
     Serial.printf("[HUB] touch: %s\n", touchOk ? "enabled" : "enabled (hardware absent)");
   } else {
-    Serial.println("[HUB] touch: disabled");
+    g_touch.begin();       // reset + enter cmd mode so enterSleep is well-defined
+    g_touch.enterSleep();  // power down the controller
+    Serial.println("[HUB] touch: disabled (powered down)");
   }
 
+  // Step 4: IMU
   if (AppConfig::HubFeatures::kEnableImu) {
     Qmi8658::Config imuCfg;
-    imuCfg.featureEnabled          = true;
-    imuCfg.pinI2cSda               = AppConfig::PinoutHub::kI2cSda;
-    imuCfg.pinI2cScl               = AppConfig::PinoutHub::kI2cScl;
-    imuCfg.i2cClockHz              = AppConfig::Hub::kI2cClockHz;
-    imuCfg.address                 = AppConfig::Hub::kQmi8658Address;
+    imuCfg.featureEnabled             = true;
+    imuCfg.pinI2cSda                  = AppConfig::PinoutHub::kI2cSda;
+    imuCfg.pinI2cScl                  = AppConfig::PinoutHub::kI2cScl;
+    imuCfg.i2cClockHz                 = AppConfig::Hub::kI2cClockHz;
+    imuCfg.address                    = AppConfig::Hub::kQmi8658Address;
     imuCfg.enableAddressFallbackProbe = true;
-    imuCfg.accelRangeG             = AppConfig::HubImu::kAccelRangeG;
-    imuCfg.accelOdrMilliHz         = AppConfig::HubImu::kAccelOdrMilliHz;
-    imuCfg.gyroRangeDps            = AppConfig::HubImu::kGyroRangeDps;
-    imuCfg.gyroOdrMilliHz          = AppConfig::HubImu::kGyroOdrMilliHz;
-    imuCfg.enableAccelLpf          = AppConfig::HubImu::kEnableAccelLpf;
-    imuCfg.enableGyroLpf           = AppConfig::HubImu::kEnableGyroLpf;
+    imuCfg.accelRangeG                = AppConfig::HubImu::kAccelRangeG;
+    imuCfg.accelOdrMilliHz            = AppConfig::HubImu::kAccelOdrMilliHz;
+    imuCfg.gyroRangeDps               = AppConfig::HubImu::kGyroRangeDps;
+    imuCfg.gyroOdrMilliHz             = AppConfig::HubImu::kGyroOdrMilliHz;
+    imuCfg.enableAccelLpf             = AppConfig::HubImu::kEnableAccelLpf;
+    imuCfg.enableGyroLpf              = AppConfig::HubImu::kEnableGyroLpf;
+    imuCfg.enableTapDetection         = false;  // Task 5 M2: tap engine not used
     const bool imuOk = g_imu.begin(imuCfg);
     Serial.printf("[HUB] imu: %s\n", imuOk ? "enabled" : "enabled (hardware absent)");
   } else {
-    Serial.println("[HUB] imu: disabled");
+    Serial.println("[HUB] imu: disabled");  // left in default low-power; no high-ODR config
   }
 
+  // Step 5: RTC (self-powered; only polling is skipped when disabled)
   if (AppConfig::HubFeatures::kEnableRtc) {
     const bool rtcOk = g_rtc.begin();
     Serial.printf("[HUB] rtc: %s\n", rtcOk ? "enabled" : "enabled (hardware absent)");
@@ -124,6 +144,7 @@ void begin() {
     Serial.println("[HUB] rtc: disabled");
   }
 
+  // Step 6: IO expander
   if (AppConfig::HubFeatures::kEnableIoExpander) {
     const bool ioOk = g_io.begin();
     Serial.printf("[HUB] ioexp: %s\n", ioOk ? "enabled" : "enabled (hardware absent)");
@@ -131,9 +152,10 @@ void begin() {
     Serial.println("[HUB] ioexp: disabled");
   }
 
+  // Step 7: Audio (always probed; powered down when disabled)
   if (AppConfig::HubFeatures::kEnableAudio) {
     g_codec.begin(); g_mic.begin();
-    Serial.println("[HUB] audio: enabled");   // Phase 1 doesn't stream; placeholder for Phase 2
+    Serial.println("[HUB] audio: enabled");
   } else {
     bool c = g_codec.begin(), m = g_mic.begin();
     if (c) g_codec.powerDown();
@@ -144,9 +166,12 @@ void begin() {
 }
 
 void tick() {
-  g_display.tick();
-
   const uint32_t now = millis();
+
+  // Display pump every loop (LVGL; esp_timer drives lv_tick_inc)
+  if (AppConfig::HubFeatures::kEnableDisplay) {
+    g_display.tick();
+  }
 
   // Touch polling at kTouchPollMs cadence
   if (AppConfig::HubFeatures::kEnableTouch) {
@@ -157,16 +182,6 @@ void tick() {
       g_touch.refresh(ts);
       if (ts.pointCount > 0) g_lastActivityMs = now;  // activity detected
     }
-  }
-
-  // Deep-sleep FSM (gated on kEnableSleep)
-  if (AppConfig::HubFeatures::kEnableSleep) {
-    hubsleep::SleepInputs si;
-    si.externalPowerPresent = g_axp.state().vbusPresent;
-    si.touchActive          = g_touch.state().pointCount > 0;
-    si.idleMs               = now - g_lastActivityMs;
-    si.idleThresholdMs      = AppConfig::HubSleep::kDeepSleepAfterMs;
-    if (hubsleep::shouldEnterDeepSleep(si)) enterDeepSleep();
   }
 
   // IMU polling at kMotionPollMs cadence
@@ -183,7 +198,8 @@ void tick() {
     }
   }
 
-  // PMIC telemetry + RTC at kPollMs cadence
+  // Task 9 M3: PMIC telemetry + RTC + IO at kPollMs cadence — BEFORE sleep FSM
+  // so shouldEnterDeepSleep reads fresh vbusPresent from g_axp.state()
   static uint32_t lastPoll = 0;
   if (now - lastPoll >= AppConfig::Hub::kPollMs) {
     lastPoll = now;
@@ -201,11 +217,21 @@ void tick() {
       }
     }
     if (AppConfig::HubFeatures::kEnableIoExpander) {
-      Tca9554::State s;
-      if (g_io.refresh(s)) {
-        Serial.printf("[HUB] ioexp input=0x%02X\n", s.input);
+      Tca9554::State ioState;  // Task 7 Minor: named ioState to avoid shadowing Axp2101::State s
+      if (g_io.refresh(ioState)) {
+        Serial.printf("[HUB] ioexp input=0x%02X\n", ioState.input);
       }
     }
+  }
+
+  // Deep-sleep FSM (gated on kEnableSleep) — runs after PMIC telemetry for fresh vbusPresent
+  if (AppConfig::HubFeatures::kEnableSleep) {
+    hubsleep::SleepInputs si;
+    si.externalPowerPresent = g_axp.state().vbusPresent;
+    si.touchActive          = g_touch.state().pointCount > 0;
+    si.idleMs               = now - g_lastActivityMs;
+    si.idleThresholdMs      = AppConfig::HubSleep::kDeepSleepAfterMs;
+    if (hubsleep::shouldEnterDeepSleep(si)) enterDeepSleep();
   }
 }
 
