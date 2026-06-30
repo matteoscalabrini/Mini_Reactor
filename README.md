@@ -116,6 +116,26 @@ There is no mDNS responder — read the device IP from the boot log and open
 `http://<device-ip>/`. If WiFi can't join a saved network it falls back to the
 `MiniReactor-Setup` AP at `192.168.4.1` for onboarding.
 
+### HUB companion device (Waveshare ESP32-S3-Touch-AMOLED-1.75)
+
+A second firmware target runs on the HUB — an AMOLED touch controller board that will provide
+the fermentation monitoring UI (Phase 3) and ESP-NOW link to the reactor (Phase 2).
+
+```bash
+# Build HUB firmware
+~/.platformio/penv/bin/pio run -e hub
+
+# Flash HUB firmware (first flash — new board, new partition table partitions_hub_16mb.csv)
+~/.platformio/penv/bin/pio run -e hub -t upload
+```
+
+> **First flash:** `partitions_hub_16mb.csv` is a new partition table — use a full erase + flash
+> sequence. Skipping erase after a partition change is not acceptable (Partition Change Rule).
+
+Phase 1 = board bring-up (all IC drivers online, diagnostics screen, deep-sleep FSM).
+GPIO map: [`docs/PINOUT_HUB.md`](docs/PINOUT_HUB.md).
+Design spec: [`docs/superpowers/specs/2026-06-30-hub-board-bringup-design.md`](docs/superpowers/specs/2026-06-30-hub-board-bringup-design.md).
+
 ## Web UI & API
 
 The UI is a vanilla ES-module SPA (no build step) with four tabs: **Monitor** (live reading +

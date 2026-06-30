@@ -37,6 +37,20 @@ the specs/plans under `docs/superpowers/`.
 - [x] Front-panel OLED UI: SH1107 on dedicated Wire1 bus, encoder + 3 buttons (`ui/*`)
 - [x] Web SPA: Monitor / Run / History / Settings, persistent run-control bar
 
+## HUB (companion device — Waveshare ESP32-S3-Touch-AMOLED-1.75)
+Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup-design.md.
+- [x] Phase 1 — board bring-up: `[env:hub]`, all IC drivers, power-aware toggles, sleep, diagnostics screen
+  - [x] AXP2101 PMIC (power authority + battery telemetry)
+  - [x] CO5300 AMOLED + slim LVGL runtime
+  - [x] CST9217 touch + transform
+  - [x] QMI8658 IMU + wake-on-motion
+  - [x] PCF85063 RTC
+  - [x] TCA9554 IO expander
+  - [x] ES8311/ES7210 probe + power-down
+  - [x] HubSleepLogic deep-sleep FSM
+- [ ] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares)
+- [ ] Phase 3 — redesigned fermentation monitoring/control UI (LVGL)
+
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)
 
 - [x] **IDF 5.5.x port** — `feature/idf55-port` now on pioarduino `55.03.39` → Arduino-ESP32 **3.3.9** → ESP-IDF **5.5.4** (was `espressif32@6.9.0`/2.0.17/4.4.7). Heater LEDC migrated to pin-based API; ADC attenuation set as global default for the 3.x one-shot driver. Clean build green; verified on hardware (boot banner `ESP-IDF v5.5.4`, `GET /api/v1/status` 200). See `docs/superpowers/plans/2026-06-25-idf55-port.md`.
