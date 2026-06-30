@@ -5,7 +5,7 @@
 
 namespace HubRuntime {
 
-static Axp2101 g_axp;
+static Axp2101 g_axp{Wire, AppConfig::Hub::kAxp2101Address};
 
 void begin() {
   Serial.begin(AppConfig::kSerialBaud);
@@ -16,7 +16,6 @@ void begin() {
 
   if (g_axp.begin(AppConfig::PinoutHub::kI2cSda, AppConfig::PinoutHub::kI2cScl,
                   AppConfig::Hub::kI2cClockHz)) {
-    g_axp.configureCharging();
     Serial.println("[HUB] axp2101: enabled");
   } else {
     Serial.printf("[HUB] axp2101: FAULT (%s)\n", g_axp.lastErrorString());

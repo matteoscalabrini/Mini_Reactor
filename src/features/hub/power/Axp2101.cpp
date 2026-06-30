@@ -139,10 +139,8 @@ bool Axp2101::configureCharging() {
     return false;
   }
 
-  const uint16_t inputVoltageMv = AppConfig::HubPower::kInputVoltageLimitMv;
-  uint8_t inputVoltageReg =
-      static_cast<uint8_t>((inputVoltageMv < 3880 ? 3880 :
-                            inputVoltageMv > 5080 ? 5080 : inputVoltageMv) - 3880) / 80;
+  const uint8_t inputVoltageReg =
+      axp::encodeInputVoltageReg(AppConfig::HubPower::kInputVoltageLimitMv);
 
   uint8_t inputCurrentReg = 0;
   for (size_t i = 0;

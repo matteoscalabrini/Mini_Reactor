@@ -36,15 +36,7 @@ class Axp2101 {
   const char* lastErrorString() const { return lastError_; }
 
  private:
-  static constexpr uint8_t kRegStatus1 = 0x00;
-  static constexpr uint8_t kRegStatus2 = 0x01;
-  static constexpr uint8_t kRegChipId  = 0x03;
-  static constexpr uint8_t kRegAdcCtrl = 0x30;
-  static constexpr uint8_t kRegAdcBatt = 0x34;
-  static constexpr uint8_t kRegAdcVbus = 0x38;
-  static constexpr uint8_t kRegAdcSys  = 0x3A;
-  static constexpr uint8_t kRegAdcTemp = 0x3C;
-  static constexpr uint8_t kRegBattPct = 0xA4;
+  // Register map lives in Axp2101.cpp (file-scope constexpr block).
   bool readReg(uint8_t reg, uint8_t& v);
   bool writeReg(uint8_t reg, uint8_t v);
   bool readRegs(uint8_t reg, uint8_t* buf, size_t n);
