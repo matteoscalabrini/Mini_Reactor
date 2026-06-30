@@ -26,6 +26,7 @@ void HubLink::begin() {
     link_.setChannel(channel_);
     link_.addPeer(peerMac_, 0);
     state_ = State::Paired;
+    lastTelemetryMs_ = millis();
     Serial.printf("[HUB] espnow: enabled — bound, ch %u\n", channel_);
   } else {
     state_ = State::Unpaired;
@@ -37,7 +38,8 @@ void HubLink::startPairing() {
   if (!link_.ready()) return;
   state_ = State::Searching;
   sweepCh_ = AppConfig::HubEspNow::kChannelMin;
-  sweepStepMs_ = 0;
+  sweepStepMs_ = millis();
+  lastBeaconMs_ = 0;
   Serial.println("[HUB] espnow: pairing — sweeping channels");
 }
 
@@ -93,13 +95,16 @@ void HubLink::tick() {
       if (sweepCh_ > AppConfig::HubEspNow::kChannelMax) sweepCh_ = AppConfig::HubEspNow::kChannelMin;
       link_.setChannel(sweepCh_);
     }
-    PairRequest req = {};
-    req.hdr = {kProtocolVersion, (uint8_t)MsgType::PairRequest, link_.nextSeq()};
-    req.role = (uint8_t)DeviceRole::Hub;
-    WiFi.macAddress(req.mac);
-    std::strncpy(req.name, AppConfig::HubEspNow::kDeviceName, kNameLen - 1);
-    uint8_t buf[sizeof(PairRequest)];
-    link_.sendBroadcast(buf, encode(req, buf, sizeof(buf)));
+    if (now - lastBeaconMs_ >= AppConfig::HubEspNow::kPairBeaconMs) {
+      lastBeaconMs_ = now;
+      PairRequest req = {};
+      req.hdr = {kProtocolVersion, (uint8_t)MsgType::PairRequest, link_.nextSeq()};
+      req.role = (uint8_t)DeviceRole::Hub;
+      WiFi.macAddress(req.mac);
+      std::strncpy(req.name, AppConfig::HubEspNow::kDeviceName, kNameLen - 1);
+      uint8_t buf[sizeof(PairRequest)];
+      link_.sendBroadcast(buf, encode(req, buf, sizeof(buf)));
+    }
     return;
   }
 

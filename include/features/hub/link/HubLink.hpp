@@ -35,6 +35,7 @@ class HubLink {
   // sweep
   uint8_t  sweepCh_ = 1;
   uint32_t sweepStepMs_ = 0;
+  uint32_t lastBeaconMs_ = 0;
   // telemetry / link-loss
   synclink::Telemetry latest_ = {};
   uint32_t lastTelemetryMs_ = 0;
