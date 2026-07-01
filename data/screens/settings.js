@@ -37,19 +37,30 @@ export function mount(root) {
       el("button", { class: "ghost", onclick: () => { if (confirm("Forget WiFi and return to setup AP?")) api.wifiForget(); } }, "Forget")));
 
   // HUB link (ESP-NOW pairing). Hidden unless features.espnow is on.
-  const hubInfo = el("p", { class: "muted" }, "Pair a HUB companion over ESP-NOW.");
-  const hub = sec("HUB LINK", hubInfo,
+  // Lists the paired HUB(s) with a per-row Forget; Pair opens a 60 s window
+  // (press PAIR on the HUB at the same time). Peers come from status.espnow.
+  const hubList = el("div", {});
+  const renderHubPeers = (peers) => {
+    hubList.innerHTML = "";
+    if (!peers.length) { hubList.append(el("p", { class: "muted" }, "No HUB paired.")); return; }
+    peers.forEach((p) => {
+      const label = `${p.name ? p.name + " · " : ""}${p.mac}${p.channel != null ? " · ch " + p.channel : ""}`;
+      hubList.append(el("div", { class: "row", style: "align-items:center;justify-content:space-between;margin-bottom:6px" },
+        el("span", {}, label),
+        el("button", { class: "ghost", onclick: async () => {
+          if (!confirm(`Forget HUB ${p.mac}?`)) return;
+          const r = await api.espnowForget();
+          toast(r.ok ? "HUB forgotten" : "Failed to forget", r.ok ? "ok" : "err");
+        } }, "Forget")));
+    });
+  };
+  const hub = sec("HUB LINK", hubList,
     el("div", { class: "btns" },
       el("button", { class: "go", onclick: async (e) => {
         const b = e.currentTarget; const r = await api.espnowPair();
-        toast(r.ok ? "Pairing open 60s — press Pair on the HUB" : "Pairing unavailable", r.ok ? "ok" : "err");
+        toast(r.ok ? "Pairing open 60s — press PAIR on the HUB" : "Pairing unavailable", r.ok ? "ok" : "err");
         flashApplied(b, r.ok);
-      } }, "Pair HUB"),
-      el("button", { class: "ghost", onclick: async () => {
-        if (!confirm("Forget the bound HUB?")) return;
-        const r = await api.espnowForget();
-        toast(r.ok ? "HUB binding cleared" : "Failed to clear binding", r.ok ? "ok" : "err");
-      } }, "Forget HUB")));
+      } }, "Pair HUB")));
 
   // SD / log
   const sdInfo = el("p", { class: "muted" }, "—");
@@ -189,6 +200,7 @@ export function mount(root) {
     const w = d.wifi || {}, st = d.storage || {}, p = (d.thermal || {}).pid || {}, at = p.autotune || {}, disc = d.disc || {}, s = d.system || {}, drv = disc.driver || {};
     sd.hidden = !featureEnabled(d, "sdLogging");
     hub.hidden = !featureEnabled(d, "espnow");
+    renderHubPeers((d.espnow || {}).peers || []);
     atStartBtn.hidden = atCancelBtn.hidden = !featureEnabled(d, "autotune");
     wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
     sdInfo.textContent = st.sdMounted

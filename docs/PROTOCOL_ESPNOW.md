@@ -22,6 +22,18 @@ C++ namespace: `synclink`.
 | 3 | `Ack` | Reactor → HUB | Command acknowledgement |
 | 4 | `PairRequest` | HUB → Reactor | Pairing handshake initiation |
 | 5 | `PairAck` | Reactor → HUB | Pairing handshake response |
+| 6 | `Unpair` | Reactor → HUB | Reactor dropped the binding (HUB clears its own + returns to PAIR) |
+
+### Unpair (header-only)
+
+When the reactor forgets a HUB (`POST /api/v1/espnow/forget` or the Settings
+**Forget** button), it sends a header-only `Unpair` frame to the bound HUB
+**before** removing the peer. On receipt (verified as coming from its bound
+reactor), the HUB clears its NVS binding, removes the peer, and returns to the
+**Unpaired** state (showing the PAIR tile). This is best-effort: if the HUB is
+out of range it misses the frame and instead falls back on its own recovery —
+telemetry silence keeps the binding and auto-reconnects, but a search that finds
+no reactor within `HubEspNow::kSearchGiveUpMs` (30 s) also returns to PAIR.
 
 ---
 

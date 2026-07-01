@@ -266,6 +266,21 @@ the compile-time flag:
 "features": { "sdLogging": true, "oledUi": true, "autotune": true, "espnow": true }
 ```
 
+### `status.espnow`
+
+`GET /api/v1/status` also includes a top-level `espnow` object describing the
+current binding, so the web UI can list paired HUB(s) with a per-row Forget
+(Settings → **HUB LINK**). `peers` is empty when no HUB is bound (Phase 2 binds
+one HUB, so it holds 0 or 1 entry):
+
+```jsonc
+"espnow": {
+  "enabled": true,
+  "bound": true,
+  "peers": [ { "mac": "A4:CF:12:34:56:78", "channel": 6, "name": "hub" } ]
+}
+```
+
 ---
 
 ## Feature toggles

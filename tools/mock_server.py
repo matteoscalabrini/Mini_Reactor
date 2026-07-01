@@ -30,6 +30,7 @@ state = {
     "durationMin": 0, "tempC": 36.0, "heaterPct": 47.0, "startMs": 0.0,
     "fault": False, "heaterProbeFault": False, "heaterTempC": 44.0, "safetyTripped": False,
     "currentMa": 600, "microsteps": 16, "reverse": False, "enabled": True,
+    "espnowBound": True,
     "load": 330, "loadBias": 50.0,
     "drvOt": False, "drvOtpw": False, "drvStall": False,
     "drvOpenLoadA": False, "drvOpenLoadB": False, "drvShortA": False, "drvShortB": False,
@@ -136,6 +137,12 @@ def status():
     return {
         "apiVersion": "1.0", "uptimeSec": int(now),
         "features": MOCK_FEATURES,
+        "espnow": {
+            "enabled": MOCK_FEATURES.get("espnow", True),
+            "bound": state["espnowBound"],
+            "peers": ([{"mac": "A4:CF:12:34:56:78", "channel": 6, "name": "hub"}]
+                      if state["espnowBound"] else []),
+        },
         "system": {"firmware": "1.0.0-mock", "freeHeap": 142000,
                    "vbus": "12V", "sdMounted": True},
         "thermal": {
@@ -502,10 +509,12 @@ async def api_cal_reset(req):
 
 
 async def api_espnow_pair(req):
+    state["espnowBound"] = True   # mock binds a demo HUB immediately
     return web.json_response({"ok": True})
 
 
 async def api_espnow_forget(req):
+    state["espnowBound"] = False
     return web.json_response({"ok": True})
 
 
