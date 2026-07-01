@@ -16,8 +16,11 @@ class EspNowResponder {
   void begin();                 // gated init: esp_now + load binding
   void poll();                  // drain link + push telemetry at cadence
   void openPairWindow();        // POST /espnow/pair
-  void forget();                // POST /espnow/forget
+  void forget();                // POST /espnow/forget — notifies the HUB (Unpair) then drops it
   bool bound() const { return bound_; }
+  const uint8_t* peerMac() const { return peerMac_; }   // 6 bytes; valid when bound()
+  const char* peerName() const { return peerName_; }    // HUB name from pairing ("" if unknown)
+  uint8_t channel() const { return channel_; }
 
  private:
   static void onRecvStatic(const uint8_t* mac, const uint8_t* data, int len);
@@ -33,6 +36,8 @@ class EspNowResponder {
   EspNowLink link_;
   bool      bound_ = false;
   uint8_t   peerMac_[6] = {0};
+  uint8_t   channel_ = 0;                      // WiFi channel at bind time
+  char      peerName_[synclink::kNameLen] = {0};
   uint32_t  lastTelemetryMs_ = 0;
   uint32_t  pairUntilMs_ = 0;   // millis() deadline; 0 = closed
 };

@@ -39,6 +39,7 @@ void HubLink::startPairing() {
   state_ = State::Searching;
   sweepCh_ = AppConfig::HubEspNow::kChannelMin;
   sweepStepMs_ = millis();
+  searchStartMs_ = millis();
   lastBeaconMs_ = 0;
   Serial.println("[HUB] espnow: pairing — sweeping channels");
 }
@@ -71,12 +72,31 @@ void HubLink::handleRecv(const uint8_t* mac, const uint8_t* data, int len) {
       latest_ = t;
       lastTelemetryMs_ = millis();
       linkAlive_ = true;
+      // Reconnect: telemetry only comes from our bound reactor. If we were
+      // searching after a silence/channel change, lock this channel + resume.
+      if (state_ == State::Searching && std::memcmp(mac, peerMac_, 6) == 0) {
+        channel_ = (uint8_t)WiFi.channel();
+        link_.saveBinding(AppConfig::HubEspNow::kNvsNamespace, peerMac_, channel_);
+        state_ = State::Paired;
+        Serial.printf("[HUB] espnow: reconnected on ch %u\n", channel_);
+      }
       break;
     }
     case MsgType::Ack: {
       Ack a;
       if (decodeAck(data, len, a))
         Serial.printf("[HUB] ack op=%u result=%u err=%u\n", a.opcode, a.result, a.errorCode);
+      break;
+    }
+    case MsgType::Unpair: {
+      if (std::memcmp(mac, peerMac_, 6) != 0) break;   // only our bound reactor
+      link_.clearBinding(AppConfig::HubEspNow::kNvsNamespace);
+      link_.removePeer(peerMac_);
+      std::memset(peerMac_, 0, 6);
+      channel_ = 0;
+      linkAlive_ = false;
+      state_ = State::Unpaired;
+      Serial.println("[HUB] espnow: reactor unpaired us — back to PAIR");
       break;
     }
     default: break;
@@ -89,6 +109,12 @@ void HubLink::tick() {
   const uint32_t now = millis();
 
   if (state_ == State::Searching) {
+    if (now - searchStartMs_ >= AppConfig::HubEspNow::kSearchGiveUpMs) {
+      state_ = State::Unpaired;   // no reactor found -> let the user re-initiate from PAIR
+      linkAlive_ = false;
+      Serial.println("[HUB] espnow: search timed out — back to PAIR");
+      return;
+    }
     if (now - sweepStepMs_ >= AppConfig::HubEspNow::kSweepDwellMs) {
       sweepStepMs_ = now;
       sweepCh_++;

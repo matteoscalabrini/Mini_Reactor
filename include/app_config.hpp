@@ -333,6 +333,7 @@ static constexpr uint8_t  kChannelMax = 13;        // sweep range (region max)
 static constexpr uint32_t kSweepDwellMs = 120;     // listen per channel before hopping
 static constexpr uint32_t kPairBeaconMs = 60;      // re-broadcast PairRequest cadence within a channel
 static constexpr uint32_t kLinkLostMs = 3000;      // no telemetry => disconnected + re-sweep
+static constexpr uint32_t kSearchGiveUpMs = 30000; // searching this long with no reactor => back to Unpaired (show PAIR)
 }  // namespace HubEspNow
 
 }  // namespace AppConfig

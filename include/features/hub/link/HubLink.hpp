@@ -36,6 +36,7 @@ class HubLink {
   uint8_t  sweepCh_ = 1;
   uint32_t sweepStepMs_ = 0;
   uint32_t lastBeaconMs_ = 0;
+  uint32_t searchStartMs_ = 0;   // when the current Searching phase began (give-up timer)
   // telemetry / link-loss
   synclink::Telemetry latest_ = {};
   uint32_t lastTelemetryMs_ = 0;

@@ -263,6 +263,22 @@ String buildStatusJson() {
   feats["autotune"] = AppConfig::Features::kEnableAutotune;
   feats["espnow"] = AppConfig::Features::kEnableEspNow;
 
+  // ESP-NOW binding state so the web UI can list the paired HUB(s) + Forget.
+  JsonObject en = doc["espnow"].to<JsonObject>();
+  en["enabled"] = AppConfig::Features::kEnableEspNow;
+  en["bound"] = g_espnow.bound();
+  JsonArray peers = en["peers"].to<JsonArray>();
+  if (g_espnow.bound()) {
+    const uint8_t* m = g_espnow.peerMac();
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+             m[0], m[1], m[2], m[3], m[4], m[5]);
+    JsonObject p = peers.add<JsonObject>();
+    p["mac"] = macStr;
+    p["channel"] = g_espnow.channel();
+    if (g_espnow.peerName()[0]) p["name"] = g_espnow.peerName();
+  }
+
   JsonObject sys = doc["system"].to<JsonObject>();
   sys["firmware"] = AppConfig::kFirmwareVersion;
   sys["freeHeap"] = ESP.getFreeHeap();

@@ -26,6 +26,7 @@ void EspNowResponder::begin() {
   if (link_.loadBinding(AppConfig::EspNow::kNvsNamespace, peerMac_, ch)) {
     link_.addPeer(peerMac_, 0);   // 0 = follow our WiFi channel
     bound_ = true;
+    channel_ = ch;
     Serial.printf("[ESPNOW] enabled — bound to %02X:%02X:%02X:%02X:%02X:%02X\n",
                   peerMac_[0], peerMac_[1], peerMac_[2], peerMac_[3], peerMac_[4], peerMac_[5]);
   } else {
@@ -148,11 +149,22 @@ void EspNowResponder::openPairWindow() {
 }
 
 void EspNowResponder::forget() {
+  if (bound_) {
+    // Tell the HUB to drop us so it returns to its PAIR screen (Unpair), then
+    // evict the peer. Best-effort: if the HUB is out of range it falls back to
+    // its own disconnect handling.
+    Header h = {kProtocolVersion, (uint8_t)MsgType::Unpair, link_.nextSeq()};
+    uint8_t buf[sizeof(Header)];
+    std::memcpy(buf, &h, sizeof(h));
+    link_.send(peerMac_, buf, sizeof(h));
+    link_.removePeer(peerMac_);
+  }
   link_.clearBinding(AppConfig::EspNow::kNvsNamespace);
-  if (bound_) link_.removePeer(peerMac_);
   bound_ = false;
+  channel_ = 0;
+  peerName_[0] = '\0';
   std::memset(peerMac_, 0, 6);
-  Serial.println("[ESPNOW] binding cleared");
+  Serial.println("[ESPNOW] binding cleared (HUB notified)");
 }
 
 void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data, int len) {
@@ -167,6 +179,9 @@ void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data,
   const uint8_t ch = (uint8_t)WiFi.channel();
   link_.saveBinding(AppConfig::EspNow::kNvsNamespace, peerMac_, ch);
   bound_ = true;
+  channel_ = ch;
+  std::strncpy(peerName_, req.name, kNameLen - 1);
+  peerName_[kNameLen - 1] = '\0';
   pairUntilMs_ = 0;
 
   PairAck ack = {};
