@@ -18,9 +18,15 @@ volatile bool s_pairLatch = false;
 
 void onPairClicked(lv_event_t*) { s_pairLatch = true; }
 
-lv_obj_t* makeLbl(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, const char* txt) {
+// Round 466x466 panel: fixed-width, centre-aligned labels aligned to the screen
+// centre keep text off the clipped corners and stay centred as the text width
+// changes.
+lv_obj_t* makeLine(lv_obj_t* parent, lv_coord_t dy, const char* txt) {
   lv_obj_t* l = lv_label_create(parent);
-  lv_obj_set_pos(l, x, y);
+  lv_obj_set_width(l, 320);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+  lv_obj_align(l, LV_ALIGN_CENTER, 0, dy);
   lv_label_set_text(l, txt);
   return l;
 }
@@ -32,11 +38,15 @@ void create() {
   lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-  s_title = makeLbl(scr, 12, 8, "REACTOR LINK");
+  // Everything centred — the circular panel clips the corners.
+  s_title = makeLine(scr, -150, "REACTOR LINK");
+  s_line1 = makeLine(scr, -40, "");
+  s_line2 = makeLine(scr, -8, "");
+  s_line3 = makeLine(scr, 24, "");
 
   s_pairTile = lv_obj_create(scr);
-  lv_obj_set_size(s_pairTile, 180, 60);
-  lv_obj_set_pos(s_pairTile, 140, 200);
+  lv_obj_set_size(s_pairTile, 170, 58);
+  lv_obj_align(s_pairTile, LV_ALIGN_CENTER, 0, 120);
   lv_obj_set_style_radius(s_pairTile, 10, LV_PART_MAIN);
   lv_obj_set_style_bg_color(s_pairTile, LV_COLOR_MAKE(0x0a, 0x84, 0xff), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(s_pairTile, LV_OPA_COVER, LV_PART_MAIN);
@@ -46,10 +56,6 @@ void create() {
   s_pairLbl = lv_label_create(s_pairTile);
   lv_label_set_text(s_pairLbl, "PAIR");
   lv_obj_center(s_pairLbl);
-
-  s_line1 = makeLbl(scr, 12, 60,  "");
-  s_line2 = makeLbl(scr, 12, 92,  "");
-  s_line3 = makeLbl(scr, 12, 124, "");
 }
 
 void update(const View& v) {
