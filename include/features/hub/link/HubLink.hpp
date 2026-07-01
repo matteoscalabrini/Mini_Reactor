@@ -16,6 +16,7 @@ class HubLink {
 
   void startPairing();          // Pair button -> begin channel sweep
   void sendStop();              // RUN_STOP (save)
+  void sendStart();             // RUN_START using the reactor's current settings
   void sendPause(uint8_t mode); // 1=motor B1, 2=all B2, 0=resume
 
   State state() const { return state_; }

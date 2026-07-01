@@ -162,6 +162,14 @@ void HubLink::sendStop() {
   send(c);
 }
 
+void HubLink::sendStart() {
+  Command c = {};
+  c.hdr = {kProtocolVersion, (uint8_t)MsgType::Command, link_.nextSeq()};
+  c.opcode = (uint8_t)Opcode::RunStart;
+  c.flags = kCmdFlagUseCurrent;   // reactor starts with its live setpoint/rpm, run-until-stopped
+  send(c);
+}
+
 void HubLink::sendPause(uint8_t mode) {
   Command c = {};
   c.hdr = {kProtocolVersion, (uint8_t)MsgType::Command, link_.nextSeq()};

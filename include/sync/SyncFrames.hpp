@@ -43,6 +43,7 @@ constexpr uint8_t kDiscHasEnabled= 1u << 4;
 constexpr uint8_t kCmdFlagDiscReverse = 1u << 0;
 constexpr uint8_t kCmdFlagDiscEnabled = 1u << 1;
 constexpr uint8_t kCmdFlagRunStopSave = 1u << 2;
+constexpr uint8_t kCmdFlagUseCurrent  = 1u << 3;  // RunStart: ignore payload params, start with reactor's live config
 // Pause targets (Command.flags low nibble when Opcode::Pause)
 constexpr uint8_t kPauseTargetMotor = 1;
 constexpr uint8_t kPauseTargetAll   = 2;

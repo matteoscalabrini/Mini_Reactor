@@ -80,6 +80,30 @@ void test_validate_command_bounds() {
   TEST_ASSERT_EQUAL_INT((int)AckError::InvalidRequest, (int)validateCommand(u));
 }
 
+void test_use_current_flag_is_distinct() {
+  // New RunStart "use reactor's current settings" flag must not collide with existing bits.
+  TEST_ASSERT_EQUAL_UINT8(1u << 3, kCmdFlagUseCurrent);
+  TEST_ASSERT_TRUE((kCmdFlagUseCurrent & kCmdFlagDiscReverse) == 0);
+  TEST_ASSERT_TRUE((kCmdFlagUseCurrent & kCmdFlagDiscEnabled) == 0);
+  TEST_ASSERT_TRUE((kCmdFlagUseCurrent & kCmdFlagRunStopSave) == 0);
+}
+
+void test_command_use_current_round_trip() {
+  Command c = {};
+  c.hdr = {kProtocolVersion, (uint8_t)MsgType::Command, 5};
+  c.opcode = (uint8_t)Opcode::RunStart;
+  c.flags = kCmdFlagUseCurrent;                        // zero target/rpm; reactor supplies live config
+  uint8_t buf[250];
+  const size_t n = encode(c, buf, sizeof(buf));
+  Command got = {};
+  TEST_ASSERT_TRUE(decodeCommand(buf, n, got));
+  TEST_ASSERT_EQUAL_UINT8((uint8_t)Opcode::RunStart, got.opcode);
+  TEST_ASSERT_TRUE((got.flags & kCmdFlagUseCurrent) != 0);
+  // A use-current RunStart carries zero params — validation must still accept it (0 is in range),
+  // so it reaches the responder's "use current settings" branch instead of being rejected.
+  TEST_ASSERT_EQUAL_INT((int)AckError::None, (int)validateCommand(got));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_fixed_point_round_trip);
@@ -87,5 +111,7 @@ int main(int, char**) {
   RUN_TEST(test_decode_rejects_bad_version);
   RUN_TEST(test_decode_rejects_wrong_type_and_short);
   RUN_TEST(test_validate_command_bounds);
+  RUN_TEST(test_use_current_flag_is_distinct);
+  RUN_TEST(test_command_use_current_round_trip);
   return UNITY_END();
 }

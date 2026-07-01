@@ -62,8 +62,14 @@ void EspNowResponder::handleCommand(const uint8_t* mac, const uint8_t* data, int
   }
   switch ((Opcode)c.opcode) {
     case Opcode::RunStart:
-      web_.cmdRunStart(decFixed(c.targetC_c, kScaleTempC),
-                       decFixed((int16_t)c.rpm_c, kScaleRpm), c.durationMin, c.name);
+      if (c.flags & kCmdFlagUseCurrent) {
+        // HUB-initiated start: no params on the hub — use the reactor's live config.
+        const ReactorTelemetry t = reactor_.telemetry();
+        web_.cmdRunStart(t.setpointC, reactor_.rpmSetpoint(), 0, "");  // 0 = run until stopped
+      } else {
+        web_.cmdRunStart(decFixed(c.targetC_c, kScaleTempC),
+                         decFixed((int16_t)c.rpm_c, kScaleRpm), c.durationMin, c.name);
+      }
       break;
     case Opcode::RunStop:
       web_.cmdRunStop((c.flags & kCmdFlagRunStopSave) != 0);
