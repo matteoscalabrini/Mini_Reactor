@@ -140,7 +140,11 @@ bool Cst9217::refresh(State& out) {
 
 // ── readPoint() — convenience for LVGL indev callback ──
 bool Cst9217::readPoint(int16_t& x, int16_t& y, bool& pressed) {
-  if (state_.pointCount > 0 && state_.points[0].valid) {
+  // Report "pressed" whenever the controller reports a finger (pointCount > 0) —
+  // the same signal the Phase-1 bring-up touch test validated. Do NOT additionally
+  // require points[0].valid (event == 0x06): that event gate is not asserted for a
+  // normal press, so gating on it starves the LVGL indev of clicks (PAIR tile etc.).
+  if (state_.pointCount > 0) {
     x = state_.points[0].x;
     y = state_.points[0].y;
     pressed = true;
