@@ -17,6 +17,7 @@ class EspNowResponder {
   void poll();                  // drain link + push telemetry at cadence
   void openPairWindow();        // POST /espnow/pair
   void forget();                // POST /espnow/forget — notifies the HUB (Unpair) then drops it
+  void recalibrateHub();        // POST /espnow/recalibrate — asks the bound HUB to re-run its touch wizard
   bool bound() const { return bound_; }
   const uint8_t* peerMac() const { return peerMac_; }   // 6 bytes; valid when bound()
   const char* peerName() const { return peerName_; }    // HUB name from pairing ("" if unknown)

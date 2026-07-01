@@ -167,6 +167,17 @@ void EspNowResponder::forget() {
   Serial.println("[ESPNOW] binding cleared (HUB notified)");
 }
 
+void EspNowResponder::recalibrateHub() {
+  if (!bound_) return;   // nothing paired to command; binding is preserved
+  // Ask the bound HUB to re-run its first-boot touch calibration wizard. Bare
+  // Header, best-effort (same pattern as forget's Unpair) — the binding stays.
+  Header h = {kProtocolVersion, (uint8_t)MsgType::RecalibrateTouch, link_.nextSeq()};
+  uint8_t buf[sizeof(Header)];
+  std::memcpy(buf, &h, sizeof(h));
+  link_.send(peerMac_, buf, sizeof(h));
+  Serial.println("[ESPNOW] recalibrate sent to HUB");
+}
+
 void EspNowResponder::handlePairRequest(const uint8_t* mac, const uint8_t* data, int len) {
   if (millis() > pairUntilMs_) return;                // window closed
   PairRequest req;

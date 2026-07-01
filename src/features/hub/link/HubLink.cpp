@@ -99,6 +99,12 @@ void HubLink::handleRecv(const uint8_t* mac, const uint8_t* data, int len) {
       Serial.println("[HUB] espnow: reactor unpaired us — back to PAIR");
       break;
     }
+    case MsgType::RecalibrateTouch: {
+      if (std::memcmp(mac, peerMac_, 6) != 0) break;   // only our bound reactor
+      recalRequested_ = true;                          // HubRuntime re-runs the touch wizard
+      Serial.println("[HUB] espnow: reactor requested touch recalibration");
+      break;
+    }
     default: break;
   }
 }

@@ -13,7 +13,7 @@ constexpr uint8_t kNameLen = 33;                 // 32 chars + NUL
 constexpr uint8_t kBroadcastMac[kMacLen] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 constexpr int16_t kNullI16 = INT16_MIN;          // "no value" sentinel for scaled fields
 
-enum class MsgType   : uint8_t { Telemetry = 1, Command = 2, Ack = 3, PairRequest = 4, PairAck = 5, Unpair = 6 };
+enum class MsgType   : uint8_t { Telemetry = 1, Command = 2, Ack = 3, PairRequest = 4, PairAck = 5, Unpair = 6, RecalibrateTouch = 7 };
 enum class DeviceRole: uint8_t { Reactor = 1, Hub = 2 };
 enum class Opcode    : uint8_t { RunStart = 1, RunStop = 2, Setpoint = 3, Disc = 4, DiscTest = 5, Pause = 6, Resume = 7 };
 enum class AckResult : uint8_t { Accepted = 0, Rejected = 1, FeatureDisabled = 2 };

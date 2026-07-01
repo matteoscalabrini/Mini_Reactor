@@ -19,6 +19,7 @@ class Cst9217 {
   // factory flags); overwritten + persisted by the boot calibration wizard.
   void loadCalibration();               // NVS -> runtime flags (+ calibrated_)
   bool applyMapping(bool swapXY, bool mirrorX, bool mirrorY, bool persist);
+  bool forgetCalibration();             // clear calibrated_ (+ persist) so the wizard re-runs
   bool calibrated() const { return calibrated_; }
   HubTouchTransform::Mapping mapping() const;
  private:

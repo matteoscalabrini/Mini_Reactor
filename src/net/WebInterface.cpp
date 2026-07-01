@@ -430,6 +430,13 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
+  // ── POST espnow/recalibrate (ask the bound HUB to re-run its touch wizard) ──
+  server_->on("/api/v1/espnow/recalibrate", HTTP_POST, [this](AsyncWebServerRequest* req) {
+    if (featureGate(req, AppConfig::Features::kEnableEspNow)) return;
+    if (espnow_) espnow_->recalibrateHub();
+    sendOk(req);
+  });
+
   // ── Static UI + SPA fallback ──
   server_->serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 

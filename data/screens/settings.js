@@ -47,11 +47,17 @@ export function mount(root) {
       const label = `${p.name ? p.name + " · " : ""}${p.mac}${p.channel != null ? " · ch " + p.channel : ""}`;
       hubList.append(el("div", { class: "row", style: "align-items:center;justify-content:space-between;margin-bottom:6px" },
         el("span", {}, label),
-        el("button", { class: "ghost", onclick: async () => {
-          if (!confirm(`Forget HUB ${p.mac}?`)) return;
-          const r = await api.espnowForget();
-          toast(r.ok ? "HUB forgotten" : "Failed to forget", r.ok ? "ok" : "err");
-        } }, "Forget")));
+        el("div", { class: "btns" },
+          el("button", { class: "ghost", onclick: async () => {
+            if (!confirm(`Re-run touch calibration on HUB ${p.mac}?`)) return;
+            const r = await api.espnowRecalibrate();
+            toast(r.ok ? "Recalibrate sent — tap the dots on the HUB" : "Failed to send", r.ok ? "ok" : "err");
+          } }, "Recalibrate"),
+          el("button", { class: "ghost", onclick: async () => {
+            if (!confirm(`Forget HUB ${p.mac}?`)) return;
+            const r = await api.espnowForget();
+            toast(r.ok ? "HUB forgotten" : "Failed to forget", r.ok ? "ok" : "err");
+          } }, "Forget"))));
     });
   };
   const hub = sec("HUB LINK", hubList,

@@ -257,6 +257,16 @@ LINK → Forget HUB**.
 **Response:** `{ "ok": true }`
 **503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
 
+### `POST /api/v1/espnow/recalibrate`
+
+Asks the bound HUB to re-run its first-boot touch-calibration wizard (tap 4
+targets; the HUB re-solves and persists its swap/mirror transform). The binding
+is **kept**. Exposed in the web UI as **Settings → HUB LINK → Recalibrate**
+(per-row, next to Forget). No-op if no HUB is bound.
+
+**Response:** `{ "ok": true }` — request sent (best-effort over ESP-NOW).
+**503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
+
 ### `status.features.espnow`
 
 `GET /api/v1/status` includes `"espnow"` in the `features` object to advertise
@@ -269,8 +279,8 @@ the compile-time flag:
 ### `status.espnow`
 
 `GET /api/v1/status` also includes a top-level `espnow` object describing the
-current binding, so the web UI can list paired HUB(s) with a per-row Forget
-(Settings → **HUB LINK**). `peers` is empty when no HUB is bound (Phase 2 binds
+current binding, so the web UI can list paired HUB(s) with per-row Recalibrate +
+Forget (Settings → **HUB LINK**). `peers` is empty when no HUB is bound (Phase 2 binds
 one HUB, so it holds 0 or 1 entry):
 
 ```jsonc
@@ -302,7 +312,7 @@ with `code: "feature_disabled"`:
 | `kEnableSdLogging` | `GET /log`, `POST /log/interval`, `POST /sd/erase`, `GET /runs`, `GET /runs/{id}`, `POST /runs/{id}/delete` |
 | `kEnableAutotune` | `POST /pid/autotune` |
 | `kEnableOledUi` | none (front-panel display only; no HTTP surface) |
-| `kEnableEspNow` | `POST /espnow/pair`, `POST /espnow/forget` |
+| `kEnableEspNow` | `POST /espnow/pair`, `POST /espnow/forget`, `POST /espnow/recalibrate` |
 
 `POST /api/v1/run` is never gated — running the reactor is core control; SD
 logging only records the run.

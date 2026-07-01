@@ -35,14 +35,19 @@ static HubLink g_link;
 
 static TouchCalibration g_cal;
 static bool g_calActive = false;       // wizard running -> normal screen deferred
+static bool g_normalScreenUp = false;  // EspNow/Bringup screen created (survives recalibration)
 
 static uint32_t g_lastActivityMs = 0;  // updated on every touch event; used by sleep FSM
 
-// Create the normal boot screen (deferred until after any calibration wizard).
+// Create the normal boot screen once (deferred until after the first-boot wizard).
+// Idempotent: a later recalibration restores the existing screen via
+// CalibrationScreen::close(), so this must not build a second copy.
 static void createNormalScreen() {
+  if (g_normalScreenUp) return;
   if (!AppConfig::HubFeatures::kEnableDisplay || !g_display.isReady()) return;
   if (AppConfig::HubFeatures::kEnableEspNow) EspNowScreen::create();
   else                                       BringupScreen::create();
+  g_normalScreenUp = true;
 }
 
 static void enterDeepSleep() {
@@ -213,6 +218,15 @@ void tick() {
   if (AppConfig::HubFeatures::kEnableEspNow) {
     g_link.tick();
     if (EspNowScreen::pairPressed()) g_link.startPairing();
+    // Reactor "Recalibrate HUB" command -> re-run the touch wizard (drain the
+    // latch even when the feature is off). close() restores the current screen.
+    if (g_link.consumeRecalibrate() &&
+        AppConfig::HubFeatures::kEnableTouchCalibration && !g_calActive &&
+        g_touch.state().ready) {
+      g_touch.forgetCalibration();
+      g_cal.begin(g_touch);
+      g_calActive = true;
+    }
   }
 
   // Touch polling at kTouchPollMs cadence

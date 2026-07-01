@@ -211,3 +211,10 @@ bool Cst9217::applyMapping(bool swapXY, bool mirrorX, bool mirrorY, bool persist
   swapXY_ = swapXY; mirrorX_ = mirrorX; mirrorY_ = mirrorY; calibrated_ = true;
   return persist ? saveCalibration() : true;
 }
+
+bool Cst9217::forgetCalibration() {
+  // Keep the last-good swap/mirror (usable UI meanwhile); persist calibrated=false
+  // so a reboot mid-recalibration also re-runs the wizard.
+  calibrated_ = false;
+  return saveCalibration();
+}

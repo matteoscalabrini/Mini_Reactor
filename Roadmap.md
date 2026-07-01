@@ -49,6 +49,8 @@ Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup
   - [x] ES8311/ES7210 probe + power-down
   - [x] HubSleepLogic deep-sleep FSM
 - [x] Phase 2 — ESP-NOW peer link + reactor binding (both firmwares). Design: docs/superpowers/specs/2026-06-30-hub-espnow-link-design.md (telemetry+control, 1 reactor; WiFi-less HUB; shared `src/sync` transport)
+- [x] First-boot touch calibration wizard (ported from ../Barebone): tap 4 orbit targets, brute-force the 8 swap/mirror permutations, persist to NVS (`touchcal`). Fixes CST9217 release detection (event==0x06 gate) + off-target taps. Re-triggerable from the reactor (**Settings → HUB LINK → Recalibrate**, `POST /espnow/recalibrate`, `MsgType::RecalibrateTouch`).
+  - [ ] Gravity-aligned UI rotation (IMU) — deferred follow-up; barebone rotates a rendered scene, which the lean HUB UI lacks
 - [ ] Phase 3 — redesigned fermentation monitoring/control UI (LVGL)
 
 ## Conformity & Tech Debt (from Claude.md audit — 2026-06-25)

@@ -22,6 +22,11 @@ class HubLink {
   const synclink::Telemetry& latest() const { return latest_; }
   bool linkAlive() const { return linkAlive_; }
   uint8_t sweepChannel() const { return sweepCh_; }
+  bool consumeRecalibrate() {           // reactor asked us to re-run the touch wizard (one-shot)
+    if (!recalRequested_) return false;
+    recalRequested_ = false;
+    return true;
+  }
 
  private:
   static void onRecvStatic(const uint8_t* mac, const uint8_t* data, int len);
@@ -41,4 +46,5 @@ class HubLink {
   synclink::Telemetry latest_ = {};
   uint32_t lastTelemetryMs_ = 0;
   bool     linkAlive_ = false;
+  bool     recalRequested_ = false;   // set by RecalibrateTouch from the bound reactor
 };
