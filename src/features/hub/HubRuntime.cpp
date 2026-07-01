@@ -14,6 +14,7 @@
 #include "features/hub/ui/BringupScreen.hpp"
 #include "features/hub/link/HubLink.hpp"
 #include "features/hub/ui/EspNowScreen.hpp"
+#include "features/hub/touch/TouchCalibration.hpp"
 #include "sync/SyncCodec.hpp"
 #include <lvgl.h>
 
@@ -32,7 +33,17 @@ static Es7210     g_mic{Wire, AppConfig::Hub::kEs7210Address};
 
 static HubLink g_link;
 
+static TouchCalibration g_cal;
+static bool g_calActive = false;       // wizard running -> normal screen deferred
+
 static uint32_t g_lastActivityMs = 0;  // updated on every touch event; used by sleep FSM
+
+// Create the normal boot screen (deferred until after any calibration wizard).
+static void createNormalScreen() {
+  if (!AppConfig::HubFeatures::kEnableDisplay || !g_display.isReady()) return;
+  if (AppConfig::HubFeatures::kEnableEspNow) EspNowScreen::create();
+  else                                       BringupScreen::create();
+}
 
 static void enterDeepSleep() {
   Serial.println("[HUB] entering deep sleep");
@@ -83,11 +94,10 @@ void begin() {
     Serial.printf("[HUB] axp2101: FAULT (%s)\n", g_axp.lastErrorString());
   }
 
-  // Step 2: Display
+  // Step 2: Display — the boot screen is created after touch init (Step 3) so the
+  // first-boot calibration wizard can take the screen before EspNow/Bringup.
   if (AppConfig::HubFeatures::kEnableDisplay) {
     if (g_display.begin()) {
-      if (AppConfig::HubFeatures::kEnableEspNow) EspNowScreen::create();
-      else                                       BringupScreen::create();
       Serial.println("[HUB] display: enabled");
     } else {
       Serial.println("[HUB] display: enabled (hardware absent)");
@@ -116,6 +126,17 @@ void begin() {
     g_touch.begin();       // reset + enter cmd mode so enterSleep is well-defined
     g_touch.enterSleep();  // power down the controller
     Serial.println("[HUB] touch: disabled (powered down)");
+  }
+
+  // Boot screen decision: load the persisted touch transform, then run the
+  // first-boot calibration wizard (uncalibrated) or show the normal UI.
+  if (AppConfig::HubFeatures::kEnableTouch) g_touch.loadCalibration();
+  if (AppConfig::HubFeatures::kEnableDisplay && g_display.isReady()) {
+    const bool needCal = AppConfig::HubFeatures::kEnableTouchCalibration &&
+                         AppConfig::HubFeatures::kEnableTouch &&
+                         g_touch.state().ready && !g_touch.calibrated();
+    if (needCal) { g_cal.begin(g_touch); g_calActive = true; }
+    else         { createNormalScreen(); }
   }
 
   // Step 4: IMU
@@ -201,7 +222,13 @@ void tick() {
       lastTouch = now;
       Cst9217::State ts;
       g_touch.refresh(ts);
-      if (ts.pointCount > 0) g_lastActivityMs = now;  // activity detected
+      const bool pressed = ts.pointCount > 0;
+      if (pressed) g_lastActivityMs = now;  // activity detected
+      if (g_calActive) {
+        g_cal.tick(pressed, pressed ? ts.points[0].rawX : 0,
+                            pressed ? ts.points[0].rawY : 0);
+        if (!g_cal.active()) { g_calActive = false; createNormalScreen(); }
+      }
     }
   }
 
@@ -236,8 +263,9 @@ void tick() {
     }
   }
 
-  // Screen refresh at 250 ms cadence (display must be enabled)
-  if (AppConfig::HubFeatures::kEnableDisplay) {
+  // Screen refresh at 250 ms cadence (display must be enabled; skipped while the
+  // calibration wizard owns the screen)
+  if (AppConfig::HubFeatures::kEnableDisplay && !g_calActive) {
     static uint32_t lastUi = 0;
     if (now - lastUi >= 250) {
       lastUi = now;
@@ -298,8 +326,9 @@ void tick() {
     }
   }
 
-  // Deep-sleep FSM (gated on kEnableSleep) — runs after PMIC telemetry for fresh vbusPresent
-  if (AppConfig::HubFeatures::kEnableSleep) {
+  // Deep-sleep FSM (gated on kEnableSleep) — runs after PMIC telemetry for fresh
+  // vbusPresent; suppressed while the calibration wizard is active
+  if (AppConfig::HubFeatures::kEnableSleep && !g_calActive) {
     hubsleep::SleepInputs si;
     si.externalPowerPresent = g_axp.state().vbusPresent;
     si.touchActive          = g_touch.state().pointCount > 0;

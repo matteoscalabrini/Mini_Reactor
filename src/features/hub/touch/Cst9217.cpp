@@ -1,5 +1,6 @@
 #include "features/hub/touch/Cst9217.hpp"
 #include <Arduino.h>
+#include <Preferences.h>
 #include <algorithm>
 #include "app_config.hpp"
 
@@ -15,7 +16,10 @@ static constexpr uint16_t kCst9220ChipId        = 0x9220;
 static constexpr uint8_t  kMaxTouchPoints       = 2;
 
 Cst9217::Cst9217(TwoWire& wire, uint8_t address)
-    : wire_(wire), address_(address) {}
+    : wire_(wire), address_(address),
+      swapXY_(AppConfig::HubTouch::kSwapXY),
+      mirrorX_(AppConfig::HubTouch::kMirrorX),
+      mirrorY_(AppConfig::HubTouch::kMirrorY) {}
 
 // ── I2C helpers (ported verbatim from HubFeature::readRegister16/writeRegister16) ──
 bool Cst9217::readReg16(uint16_t reg, uint8_t* buf, size_t n) {
@@ -110,28 +114,35 @@ bool Cst9217::refresh(State& out) {
   writeReg16(kCst92xxReadCommand, &ackPayload, 1);  // best-effort ACK
 
   if (readBuffer[6] == kCst92xxAck) {
-    const uint8_t rawCount = readBuffer[5] & 0x7F;
-    state_.pointCount = std::min<uint8_t>(rawCount, kMaxTouchPoints);
-    for (uint8_t i = 0; i < state_.pointCount; ++i) {
-      uint8_t* data = readBuffer + (i * 5) + (i == 0 ? 0 : 2);
-      const uint8_t event  = static_cast<uint8_t>(data[0] & 0x0F);
-      const uint16_t rawX  = static_cast<uint16_t>((data[1] << 4) | (data[3] >> 4));
-      const uint16_t rawY  = static_cast<uint16_t>((data[2] << 4) | (data[3] & 0x0F));
-      TouchPoint& pt = state_.points[i];
-      pt.valid = (event == 0x06);
-      int16_t mx = static_cast<int16_t>(rawX);
-      int16_t my = static_cast<int16_t>(rawY);
-      HubTouchTransform::Mapping mapping;
-      mapping.swapXY  = AppConfig::HubTouch::kSwapXY;
-      mapping.mirrorX = AppConfig::HubTouch::kMirrorX;
-      mapping.mirrorY = AppConfig::HubTouch::kMirrorY;
+    const uint8_t rawCount = std::min<uint8_t>(readBuffer[5] & 0x7F, kMaxTouchPoints);
+    // Keep only live-contact points (event == 0x06). After a finger lifts this
+    // controller returns a STALE frame whose point data is the 0xAB ACK marker
+    // (parses as event 0x0B) with a non-zero count — so gating on pointCount alone
+    // never releases. Filtering on event == 0x06 here makes release register for
+    // every consumer (LVGL clicks, calibration, sleep). This is the same "valid"
+    // contact signal the barebone hub relies on.
+    uint8_t live = 0;
+    for (uint8_t i = 0; i < rawCount; ++i) {
+      const uint8_t* data = readBuffer + (i * 5) + (i == 0 ? 0 : 2);
+      const uint8_t event = static_cast<uint8_t>(data[0] & 0x0F);
+      if (event != 0x06) continue;  // stale/released frame -> not a live touch
+      const uint16_t rawX = static_cast<uint16_t>((data[1] << 4) | (data[3] >> 4));
+      const uint16_t rawY = static_cast<uint16_t>((data[2] << 4) | (data[3] & 0x0F));
+      TouchPoint& pt = state_.points[live];
+      pt.valid = true;
+      pt.rawX = static_cast<int16_t>(rawX);
+      pt.rawY = static_cast<int16_t>(rawY);
+      int16_t mx = pt.rawX;
+      int16_t my = pt.rawY;
       HubTouchTransform::apply(mx, my,
                                AppConfig::Hub::kTouchWidth,
                                AppConfig::Hub::kTouchHeight,
-                               mapping);
+                               mapping());
       pt.x = mx;
       pt.y = my;
+      ++live;
     }
+    state_.pointCount = live;
   }
 
   out = state_;
@@ -140,10 +151,9 @@ bool Cst9217::refresh(State& out) {
 
 // ── readPoint() — convenience for LVGL indev callback ──
 bool Cst9217::readPoint(int16_t& x, int16_t& y, bool& pressed) {
-  // Report "pressed" whenever the controller reports a finger (pointCount > 0) —
-  // the same signal the Phase-1 bring-up touch test validated. Do NOT additionally
-  // require points[0].valid (event == 0x06): that event gate is not asserted for a
-  // normal press, so gating on it starves the LVGL indev of clicks (PAIR tile etc.).
+  // pointCount now counts only live-contact points (refresh() filters event==0x06),
+  // so a finger lift correctly drops it to 0 and LVGL gets the press→release it
+  // needs to fire clicks (PAIR tile etc.).
   if (state_.pointCount > 0) {
     x = state_.points[0].x;
     y = state_.points[0].y;
@@ -162,4 +172,42 @@ bool Cst9217::enterSleep() {
   state_.pointCount = 0;
   for (TouchPoint& pt : state_.points) pt = TouchPoint{};
   return true;
+}
+
+// ── runtime touch transform + NVS persistence (ported from HubFeature) ──
+HubTouchTransform::Mapping Cst9217::mapping() const {
+  HubTouchTransform::Mapping m;
+  m.swapXY = swapXY_; m.mirrorX = mirrorX_; m.mirrorY = mirrorY_;
+  return m;
+}
+
+void Cst9217::loadCalibration() {
+  using namespace AppConfig::HubTouch;
+  Preferences prefs;
+  if (!prefs.begin(kNvsNamespace, true)) {  // read-only; false if namespace absent
+    calibrated_ = false;
+    return;
+  }
+  swapXY_     = prefs.getBool(kNvsSwapXYKey, kSwapXY);
+  mirrorX_    = prefs.getBool(kNvsMirrorXKey, kMirrorX);
+  mirrorY_    = prefs.getBool(kNvsMirrorYKey, kMirrorY);
+  calibrated_ = prefs.getBool(kNvsCalibratedKey, false);
+  prefs.end();
+}
+
+bool Cst9217::saveCalibration() {
+  using namespace AppConfig::HubTouch;
+  Preferences prefs;
+  if (!prefs.begin(kNvsNamespace, false)) return false;
+  prefs.putBool(kNvsSwapXYKey, swapXY_);
+  prefs.putBool(kNvsMirrorXKey, mirrorX_);
+  prefs.putBool(kNvsMirrorYKey, mirrorY_);
+  prefs.putBool(kNvsCalibratedKey, calibrated_);
+  prefs.end();
+  return true;
+}
+
+bool Cst9217::applyMapping(bool swapXY, bool mirrorX, bool mirrorY, bool persist) {
+  swapXY_ = swapXY; mirrorX_ = mirrorX; mirrorY_ = mirrorY; calibrated_ = true;
+  return persist ? saveCalibration() : true;
 }

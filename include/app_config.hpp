@@ -272,10 +272,28 @@ static constexpr bool     kEnableGyroLpf = true;
 }  // namespace HubImu
 
 namespace HubTouch {
+// Factory-default axis flags, used only until the boot calibration wizard
+// persists a board-specific runtime transform to NVS. See HubTouchCalibration.
 static constexpr bool kSwapXY = true;
 static constexpr bool kMirrorX = true;
 static constexpr bool kMirrorY = true;
+// NVS (Preferences) storage for the runtime touch transform. Keys mirror the
+// barebone hub: touch swap/mirrorX/mirrorY + the "calibrated" flag.
+static constexpr const char* kNvsNamespace = "touchcal";
+static constexpr const char* kNvsSwapXYKey = "tsx";
+static constexpr const char* kNvsMirrorXKey = "tmx";
+static constexpr const char* kNvsMirrorYKey = "tmy";
+static constexpr const char* kNvsCalibratedKey = "tcal";
 }  // namespace HubTouch
+
+// Boot touch-calibration wizard: tap 4 targets on an orbit; solve the swap/mirror
+// permutation (of 8) that best maps the taps onto the shown targets.
+namespace HubTouchCalibration {
+static constexpr uint8_t  kStepCount = 4;             // targets: top, right, bottom, left
+static constexpr uint16_t kTargetOrbitRadiusPx = 174; // distance of each target from centre
+static constexpr uint16_t kTargetDiameterPx = 34;     // visual dot size
+static constexpr uint16_t kMinSamplesPerStep = 3;     // ignore ultra-brief noise taps
+}  // namespace HubTouchCalibration
 
 namespace HubDisplay {
 static constexpr uint16_t kWidth = 466;
@@ -323,6 +341,7 @@ static constexpr bool kEnableAudio = false;       // codecs probed then powered 
 static constexpr bool kEnableSleep = true;
 static constexpr bool kEnablePmicTelemetry = true;
 static constexpr bool kEnableEspNow = true;       // ESP-NOW client (reactor link)
+static constexpr bool kEnableTouchCalibration = true;  // first-boot touch swap/mirror wizard
 }  // namespace HubFeatures
 
 namespace HubEspNow {
