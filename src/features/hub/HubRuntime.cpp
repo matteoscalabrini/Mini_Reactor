@@ -13,7 +13,7 @@
 #include "features/hub/sleep/HubSleepLogic.hpp"
 #include "features/hub/ui/BringupScreen.hpp"
 #include "features/hub/link/HubLink.hpp"
-#include "features/hub/ui/EspNowScreen.hpp"
+#include "features/hub/ui/HubUi.hpp"
 #include "features/hub/touch/TouchCalibration.hpp"
 #include "sync/SyncCodec.hpp"
 #include <lvgl.h>
@@ -45,7 +45,7 @@ static uint32_t g_lastActivityMs = 0;  // updated on every touch event; used by 
 static void createNormalScreen() {
   if (g_normalScreenUp) return;
   if (!AppConfig::HubFeatures::kEnableDisplay || !g_display.isReady()) return;
-  if (AppConfig::HubFeatures::kEnableEspNow) EspNowScreen::create();
+  if (AppConfig::HubFeatures::kEnableEspNow) HubUi::begin();
   else                                       BringupScreen::create();
   g_normalScreenUp = true;
 }
@@ -217,7 +217,6 @@ void tick() {
 
   if (AppConfig::HubFeatures::kEnableEspNow) {
     g_link.tick();
-    if (EspNowScreen::pairPressed()) g_link.startPairing();
     // Reactor "Recalibrate HUB" command -> re-run the touch wizard (drain the
     // latch even when the feature is off). close() restores the current screen.
     if (g_link.consumeRecalibrate() &&
@@ -285,23 +284,40 @@ void tick() {
       lastUi = now;
       if (AppConfig::HubFeatures::kEnableEspNow) {
         const synclink::Telemetry& t = g_link.latest();
-        EspNowScreen::View v = {};
-        v.mode = g_link.state() == HubLink::State::Paired   ? EspNowScreen::Mode::Paired
-               : g_link.state() == HubLink::State::Searching ? EspNowScreen::Mode::Searching
-                                                             : EspNowScreen::Mode::Unpaired;
-        v.sweepChannel  = g_link.sweepChannel();
-        v.linkAlive     = g_link.linkAlive();
-        v.tempValid     = (t.tempC_c != synclink::kNullI16);
-        v.tempC         = synclink::decFixed(t.tempC_c, synclink::kScaleTempC);
-        v.setpointC     = synclink::decFixed(t.setpointC_c, synclink::kScaleTempC);
-        v.heaterPct     = t.heaterPct_h / synclink::kScaleHeaterPct;
-        v.rpm           = synclink::decFixed((int16_t)t.rpm_c, synclink::kScaleRpm);
-        v.runActive     = (t.flags & synclink::kFlagRunActive);
-        v.motorPaused   = (t.flags & synclink::kFlagMotorPaused);
-        v.fullHold      = (t.flags & synclink::kFlagFullHold);
-        v.safetyTripped = (t.flags & synclink::kFlagSafetyTripped);
-        v.elapsedSec    = t.elapsedSec;
-        EspNowScreen::update(v);
+        const auto& axp = g_axp.state();
+        hubui::Model mdl;
+        mdl.linked          = g_link.linkAlive();
+        mdl.sweepChannel    = g_link.sweepChannel();
+        mdl.batteryPct      = axp.batteryPercent;
+        mdl.batteryMv       = axp.batteryVoltageMv;
+        mdl.charging        = axp.charging;
+        mdl.runActive       = (t.flags & synclink::kFlagRunActive);
+        mdl.motorPaused     = (t.flags & synclink::kFlagMotorPaused);
+        mdl.fullHold        = (t.flags & synclink::kFlagFullHold);
+        mdl.safetyTripped   = (t.flags & synclink::kFlagSafetyTripped);
+        mdl.probeFault      = (t.flags & synclink::kFlagProbeFault);
+        mdl.heaterActive    = (t.flags & synclink::kFlagHeaterActive);
+        mdl.tempValid       = (t.tempC_c != synclink::kNullI16);
+        mdl.tempC           = synclink::decFixed(t.tempC_c, synclink::kScaleTempC);
+        mdl.setpointC       = synclink::decFixed(t.setpointC_c, synclink::kScaleTempC);
+        mdl.heaterPct       = t.heaterPct_h / synclink::kScaleHeaterPct;
+        mdl.rpm             = synclink::decFixed((int16_t)t.rpm_c, synclink::kScaleRpm);
+        mdl.heaterTempValid = (t.heaterTempC_d != synclink::kNullI16);
+        mdl.heaterTempC     = synclink::decFixed(t.heaterTempC_d, synclink::kScaleHeaterC);
+        mdl.processMaxC     = synclink::decFixed(t.processMaxC_d, synclink::kScaleHeaterC);
+        mdl.load            = t.load; mdl.loadValid = (t.load != synclink::kNullI16);
+        mdl.elapsedSec      = t.elapsedSec;
+        mdl.remainingSec    = t.remainingSec;
+        const HubUi::Mode uimode = (g_link.state() == HubLink::State::Paired)
+                                     ? HubUi::Mode::Normal : HubUi::Mode::Pairing;
+        const bool searching = (g_link.state() == HubLink::State::Searching);
+        HubUi::update(mdl, uimode, searching, g_link.sweepChannel());
+        if (HubUi::consumePair())  g_link.startPairing();
+        if (HubUi::consumeStop())  g_link.sendStop();
+        if (HubUi::consumeStart()) g_link.sendStart();
+        if (HubUi::consumePause())
+          g_link.sendPause(((t.flags & synclink::kFlagMotorPaused) ||
+                            (t.flags & synclink::kFlagFullHold)) ? 0 : 2);
       } else {
         BringupScreen::Snapshot snap = {};
         const auto& axp = g_axp.state();
