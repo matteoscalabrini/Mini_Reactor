@@ -33,3 +33,5 @@ export const wifiScan = () => get("/api/v1/wifi/scan");
 export const wifiConnect = (ssid, password) => post("/api/v1/wifi/connect", { ssid, password });
 export const wifiForget = () => post("/api/v1/wifi/forget");
 export const setLogInterval = (seconds) => post("/api/v1/log/interval", { seconds });
+export const espnowPair = () => post("/api/v1/espnow/pair");
+export const espnowForget = () => post("/api/v1/espnow/forget");

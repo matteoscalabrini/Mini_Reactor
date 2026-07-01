@@ -36,6 +36,21 @@ export function mount(root) {
       el("button", { class: "go", onclick: () => { if (!ssidSel.value) return toast("Select a network"); api.wifiConnect(ssidSel.value, pass.value); toast("Connecting…", "ok"); } }, "Connect"),
       el("button", { class: "ghost", onclick: () => { if (confirm("Forget WiFi and return to setup AP?")) api.wifiForget(); } }, "Forget")));
 
+  // HUB link (ESP-NOW pairing). Hidden unless features.espnow is on.
+  const hubInfo = el("p", { class: "muted" }, "Pair a HUB companion over ESP-NOW.");
+  const hub = sec("HUB LINK", hubInfo,
+    el("div", { class: "btns" },
+      el("button", { class: "go", onclick: async (e) => {
+        const b = e.currentTarget; const r = await api.espnowPair();
+        toast(r.ok ? "Pairing open 60s — press Pair on the HUB" : "Pairing unavailable", r.ok ? "ok" : "err");
+        flashApplied(b, r.ok);
+      } }, "Pair HUB"),
+      el("button", { class: "ghost", onclick: async () => {
+        if (!confirm("Forget the bound HUB?")) return;
+        const r = await api.espnowForget();
+        toast(r.ok ? "HUB binding cleared" : "Failed to clear binding", r.ok ? "ok" : "err");
+      } }, "Forget HUB")));
+
   // SD / log
   const sdInfo = el("p", { class: "muted" }, "—");
   function eraseModal() {
@@ -166,13 +181,14 @@ export function mount(root) {
       el("div", {}, el("div", { class: "lbl" }, "ELAPSED"), elapsedV),
       el("div", {}, el("div", { class: "lbl" }, "REMAINING"), remainV)));
 
-  root.append(runSec, wifi, sd, pid, cal, motor, sys);
+  root.append(runSec, wifi, hub, sd, pid, cal, motor, sys);
   api.getCalibration().then((r) => { if (r.body) calInfo.textContent = `Method ${r.body.method} · ${r.body.calibrated ? "calibrated" : "factory"} · ${(r.body.points || []).length} point(s)`; });
 
   let primed = false;
   const unsub = store.subscribe((d) => {
     const w = d.wifi || {}, st = d.storage || {}, p = (d.thermal || {}).pid || {}, at = p.autotune || {}, disc = d.disc || {}, s = d.system || {}, drv = disc.driver || {};
     sd.hidden = !featureEnabled(d, "sdLogging");
+    hub.hidden = !featureEnabled(d, "espnow");
     atStartBtn.hidden = atCancelBtn.hidden = !featureEnabled(d, "autotune");
     wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
     sdInfo.textContent = st.sdMounted

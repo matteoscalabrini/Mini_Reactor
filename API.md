@@ -241,8 +241,9 @@ pushed to the HUB at ~4 Hz.
 ### `POST /api/v1/espnow/pair`
 
 Opens a 60-second pairing window. The reactor will accept the next `PairRequest`
-from a HUB that is simultaneously scanning. Trigger this at the same time as
-tapping PAIR on the HUB screen.
+from a HUB that is simultaneously scanning. Trigger it from the web UI
+(**Settings → HUB LINK → Pair HUB**, shown only when the feature is enabled) at
+the same time as tapping PAIR on the HUB screen.
 
 **Response:** `{ "ok": true }` — window is now open.
 **503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
@@ -250,7 +251,8 @@ tapping PAIR on the HUB screen.
 ### `POST /api/v1/espnow/forget`
 
 Clears the stored HUB binding (MAC + channel). The HUB will detect the link loss
-and re-sweep channels to re-pair.
+and re-sweep channels to re-pair. Exposed in the web UI as **Settings → HUB
+LINK → Forget HUB**.
 
 **Response:** `{ "ok": true }`
 **503 `feature_disabled`** when `AppConfig::Features::kEnableEspNow = false`.
@@ -378,8 +380,8 @@ Mock = [`tools/mock_server.py`](tools/mock_server.py).
 | `POST /wifi/connect` | ✅ | ✅ | ✅ | OK |
 | `POST /wifi/forget` | ✅ | ✅ | ✅ | OK |
 | `POST /debug/probe-fault` | ❌ | ❌ | ✅ | Mock-only test affordance |
-| `POST /espnow/pair` | ❌ (HUB) | ✅ | ❌ | ESP-NOW pairing window |
-| `POST /espnow/forget` | ❌ (HUB) | ✅ | ❌ | Clears HUB binding |
+| `POST /espnow/pair` | ✅ Settings | ✅ | ✅ | ESP-NOW pairing window |
+| `POST /espnow/forget` | ✅ Settings | ✅ | ✅ | Clears HUB binding |
 
 **Only gap: run pause/resume** (the deferred "Plan B"). The UI ships Pause ▾ /
 Resume controls and derives a `paused` state from `status.run.pause`, but the

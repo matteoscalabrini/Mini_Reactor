@@ -93,7 +93,7 @@ def _run_csv(r):
 
 # Compile-time feature toggles mirrored from AppConfig::Features. Flip any to
 # False to preview the SPA hiding that feature's controls (no hardware needed).
-MOCK_FEATURES = {"sdLogging": True, "oledUi": True, "autotune": True}
+MOCK_FEATURES = {"sdLogging": True, "oledUi": True, "autotune": True, "espnow": True}
 
 
 def status():
@@ -501,6 +501,14 @@ async def api_cal_reset(req):
     return web.json_response({"ok": True})
 
 
+async def api_espnow_pair(req):
+    return web.json_response({"ok": True})
+
+
+async def api_espnow_forget(req):
+    return web.json_response({"ok": True})
+
+
 def main():
     app = web.Application()
     app.router.add_get("/ws", ws_handler)
@@ -525,6 +533,8 @@ def main():
     app.router.add_post("/api/v1/calibration/reset", api_cal_reset)
     app.router.add_post("/api/v1/sd/erase", api_sd_erase)
     app.router.add_post("/api/v1/disc/test", api_disc_test)
+    app.router.add_post("/api/v1/espnow/pair", api_espnow_pair)
+    app.router.add_post("/api/v1/espnow/forget", api_espnow_forget)
     app.router.add_get("/", lambda r: web.FileResponse(DATA / "index.html"))
     app.router.add_static("/", DATA)
 
