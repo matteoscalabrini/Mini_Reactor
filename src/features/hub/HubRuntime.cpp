@@ -212,10 +212,7 @@ void tick() {
       lastMotion = now;
       Qmi8658::Status st;
       if (g_imu.poll(st)) {
-        g_lastImuStatus = st;
-        Serial.printf("[HUB] imu ax=%.3f ay=%.3f az=%.3f gx=%.1f gy=%.1f gz=%.1f\n",
-                      st.accelXg, st.accelYg, st.accelZg,
-                      st.gyroXdps, st.gyroYdps, st.gyroZdps);
+        g_lastImuStatus = st;  // cached for screen; per-poll serial log removed (was flooding)
       }
     }
   }
@@ -227,22 +224,15 @@ void tick() {
     lastPoll = now;
     if (AppConfig::HubFeatures::kEnablePmicTelemetry) {
       Axp2101::State s;
-      if (g_axp.refreshStatus(s)) {
-        Serial.printf("[HUB] batt %d%% %umV vbus=%d\n",
-                      s.batteryPercent, s.batteryVoltageMv, (int)s.vbusPresent);
-      }
+      g_axp.refreshStatus(s);  // refresh cached state for sleep FSM + screen; per-poll serial log removed
     }
     if (AppConfig::HubFeatures::kEnableRtc) {
       Pcf85063::DateTime dt;
-      if (g_rtc.refresh(dt)) {
-        Serial.printf("[HUB] rtc %02u:%02u:%02u\n", dt.hours, dt.minutes, dt.seconds);
-      }
+      g_rtc.refresh(dt);  // refresh cached time for screen; per-poll serial log removed
     }
     if (AppConfig::HubFeatures::kEnableIoExpander) {
-      Tca9554::State ioState;  // Task 7 Minor: named ioState to avoid shadowing Axp2101::State s
-      if (g_io.refresh(ioState)) {
-        Serial.printf("[HUB] ioexp input=0x%02X\n", ioState.input);
-      }
+      Tca9554::State ioState;  // named ioState to avoid shadowing Axp2101::State s
+      g_io.refresh(ioState);  // refresh cached state for screen; per-poll serial log removed
     }
   }
 
