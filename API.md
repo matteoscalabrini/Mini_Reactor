@@ -238,6 +238,13 @@ The binary wire protocol is documented in [`docs/PROTOCOL_ESPNOW.md`](docs/PROTO
 ESP-NOW telemetry is a compact binary projection of the `GET /api/v1/status` document,
 pushed to the HUB at ~4 Hz.
 
+**HUB-initiated commands.** The HUB control surface is monitor + **Start / Pause / Stop**
+only (all parameter tuning stays on this web API). Because the HUB has no adjust screen,
+its **START** sends a `RunStart` command with the `kCmdFlagUseCurrent` flag: the reactor
+begins a run using its **currently configured** setpoint and disc rpm, run-until-stopped —
+no target/rpm/duration is chosen on the HUB. (Web/REST `RunStart` is unchanged and still
+carries explicit values.) There is **no new REST endpoint** for this.
+
 ### `POST /api/v1/espnow/pair`
 
 Opens a 60-second pairing window. The reactor will accept the next `PairRequest`

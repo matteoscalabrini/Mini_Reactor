@@ -83,16 +83,16 @@ void update(const hubui::Model& m) {
   if (safety) {
     lv_label_set_text(s_name, "OVER-TEMP CUTOFF");
     lv_obj_set_style_text_color(s_name, hubui::lv_redHero(), 0);
-    lv_label_set_text(s_sub, "heater forced off · check reactor");
+    lv_label_set_text(s_sub, "heater forced off • check reactor");
   } else if (idle) {
     lv_label_set_text(s_name, "NO RUN");
     lv_obj_set_style_text_color(s_name, hubui::lv_slate(), 0);
-    lv_label_set_text(s_sub, "ambient · ready");
+    lv_label_set_text(s_sub, "ambient • ready");
   } else {
     char e[16]; hubui::formatHms(m.elapsedSec, e, sizeof(e));
-    snprintf(b, sizeof(b), "RUNNING · %s", e); lv_label_set_text(s_name, b);
+    snprintf(b, sizeof(b), "RUNNING • %s", e); lv_label_set_text(s_name, b);
     lv_obj_set_style_text_color(s_name, hubui::lv_slate(), 0);
-    snprintf(b, sizeof(b), "target %.1f° · heat %.0f%% · %.0f rpm", m.setpointC, m.heaterPct, m.rpm);
+    snprintf(b, sizeof(b), "target %.1f° • heat %.0f%% • %.0f rpm", m.setpointC, m.heaterPct, m.rpm);
     lv_label_set_text(s_sub, b);
   }
   lv_obj_align(s_name, LV_ALIGN_CENTER, 0, -80);

@@ -39,6 +39,6 @@ void update(const hubui::Model& m) {
   lv_label_set_text(s_val[2], b);
   { char r[16]; hubui::formatRemaining(m.remainingSec, r, sizeof(r)); lv_label_set_text(s_val[3], r); }
   snprintf(b, sizeof(b), "%.2fV %u%%", m.batteryMv / 1000.0f, (unsigned)m.batteryPct); lv_label_set_text(s_val[4], b);
-  snprintf(b, sizeof(b), "ch%u · %s", (unsigned)m.sweepChannel, m.linked ? "ok" : "lost"); lv_label_set_text(s_val[5], b);
+  snprintf(b, sizeof(b), "ch%u • %s", (unsigned)m.sweepChannel, m.linked ? "ok" : "lost"); lv_label_set_text(s_val[5], b);
 }
 }  // namespace DetailsScreen
