@@ -16,6 +16,7 @@
 #include <esp_heap_caps.h>  // DIAG: heap-leak instrumentation (system.* fields)
 
 #include "app_config.hpp"
+#include "features/control/GainSchedule.hpp"
 #include "features/control/Reactor.hpp"
 #include "features/control/ThermalController.hpp"
 #include "features/heater/Heater.hpp"
@@ -96,6 +97,13 @@ ThermalController::Config makeThermalConfig() {
   c.heaterSafetyMaxC = AppConfig::Thermal::kHeaterSafetyMaxC;
   c.processMaxC = AppConfig::Thermal::kProcessMaxC;
   c.safetyCheckMs = AppConfig::Thermal::kSafetyCheckMs;
+  c.adaptiveEnabled = AppConfig::Features::kEnableAdaptiveThermal;
+  c.bandC = AppConfig::Thermal::kApproachBandC;
+  c.holdDutyCap = AppConfig::Thermal::kHoldDutyCap;
+  c.heatKp = AppConfig::Thermal::kHeatKp; c.heatKi = AppConfig::Thermal::kHeatKi; c.heatKd = AppConfig::Thermal::kHeatKd;
+  c.holdKp = AppConfig::Thermal::kHoldKp; c.holdKi = AppConfig::Thermal::kHoldKi; c.holdKd = AppConfig::Thermal::kHoldKd;
+  c.tuneMarginC = AppConfig::Thermal::kTuneMarginC;
+  c.heatKpScale = AppConfig::Thermal::kHeatKpScale;
   return c;
 }
 
@@ -332,6 +340,16 @@ String buildStatusJson() {
   pid["d"] = g_thermal.dTerm();
   pid["out"] = roundf(g_thermal.outputDuty() * 1000) / 1000.0f;
   pid["mode"] = g_thermal.modeStr();
+  pid["regime"] = g_thermal.regimeStr();
+  pid["dutyCeil"] = roundf(g_thermal.dutyCeil() * 1000) / 1000.0f;
+  pid["tuned"] = g_thermal.tuned();
+  JsonObject sch = pid["schedule"].to<JsonObject>();
+  const GainSchedule::Gains hg = g_thermal.heatGains();
+  const GainSchedule::Gains dg = g_thermal.holdGains();
+  JsonObject shHeat = sch["heat"].to<JsonObject>();
+  shHeat["kp"] = hg.kp; shHeat["ki"] = hg.ki; shHeat["kd"] = hg.kd;
+  JsonObject shHold = sch["hold"].to<JsonObject>();
+  shHold["kp"] = dg.kp; shHold["ki"] = dg.ki; shHold["kd"] = dg.kd;
   JsonObject at = pid["autotune"].to<JsonObject>();
   at["active"] = g_thermal.autotuneActive();
   at["progress"] = g_thermal.autotuneProgress();
@@ -467,6 +485,7 @@ void begin() {
   Serial.printf("[FEAT] SD logging: %s\n", AppConfig::Features::kEnableSdLogging ? "enabled" : "disabled");
   Serial.printf("[FEAT] OLED UI:    %s\n", AppConfig::Features::kEnableOledUi ? "enabled" : "disabled");
   Serial.printf("[FEAT] autotune:   %s\n", AppConfig::Features::kEnableAutotune ? "enabled" : "disabled");
+  Serial.printf("[FEAT] adaptive PID: %s\n", AppConfig::Features::kEnableAdaptiveThermal ? "enabled" : "disabled");
 
   // Primary I2C bus (Wire, GPIO1/2): HUSB238 and anything else on the board header.
   Wire.begin(AppConfig::I2c::kSdaPin, AppConfig::I2c::kSclPin, AppConfig::I2c::kClockHz);

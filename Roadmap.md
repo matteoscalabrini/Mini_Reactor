@@ -27,6 +27,10 @@ the specs/plans under `docs/superpowers/`.
 
 - [x] Thermal PID control on DS18B20 liquid probe; gains persisted in NVS (`control/ThermalController`, `control/PidController`)
 - [x] Relay autotune mode (`control/RelayAutotune`)
+- [x] Adaptive gain-scheduled thermal control — heat/approach/hold regimes with tapered duty
+      ceiling (kills 36→40 overshoot); auto-run relay tune below setpoint derives heat+hold
+      gains; toggle kEnableAdaptiveThermal. Spec/plan under docs/superpowers/. On-hardware
+      overshoot verification pending next run.
 - [x] Independent NTC over-temp safety high-limit + disconnected-probe start refusal (`sensor/Thermistor`, `system/AlarmTracker`)
 - [x] Heater-NTC calibration (offset / Beta / Steinhart by point count) (`sensor/ThermistorCalibration`)
 - [x] Disc agitator: TMC2209 UART `VACTUAL` rpm control, current/microsteps/direction persisted (`motor/Tmc2209Motor`, `motor/RpmKinematics`)

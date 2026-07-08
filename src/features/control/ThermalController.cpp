@@ -25,15 +25,45 @@ void ThermalController::begin() {
 
 void ThermalController::loadGains() {
   prefs_.begin(cfg_.prefsNamespace, false);
+  GainSchedule::Config sc;
+  sc.hold = {prefs_.getFloat("holdKp", cfg_.holdKp),
+             prefs_.getFloat("holdKi", cfg_.holdKi),
+             prefs_.getFloat("holdKd", cfg_.holdKd)};
+  sc.heat = {prefs_.getFloat("heatKp", cfg_.heatKp),
+             prefs_.getFloat("heatKi", cfg_.heatKi),
+             prefs_.getFloat("heatKd", cfg_.heatKd)};
+  sc.bandC = cfg_.bandC;
+  sc.holdDutyCap = cfg_.holdDutyCap;
+  sc.dutyMax = cfg_.dutyMax;
+  sched_.setConfig(sc);
+  tuned_ = prefs_.getBool("tuned", false);
+  // Fixed-mode PID keeps its own gains (unchanged legacy path).
   pid_.setGains(prefs_.getFloat("kp", cfg_.kp),
                 prefs_.getFloat("ki", cfg_.ki),
                 prefs_.getFloat("kd", cfg_.kd));
+  pid_.setDerivativeOnMeasurement(cfg_.adaptiveEnabled);
 }
 
 void ThermalController::persistGains() {
   prefs_.putFloat("kp", pid_.kp());
   prefs_.putFloat("ki", pid_.ki());
   prefs_.putFloat("kd", pid_.kd());
+}
+
+void ThermalController::beginAutotuneAt(float atSetpointC) {
+  RelayAutotune::Config ac;
+  ac.relayHigh = cfg_.dutyMax;
+  ac.relayLow = cfg_.dutyMin;
+  autotune_.begin(atSetpointC, millis(), ac);
+  autotuneResult_ = nullptr;
+  mode_ = Mode::Autotune;
+}
+
+void ThermalController::persistSchedule() {
+  const GainSchedule::Config& sc = sched_.config();
+  prefs_.putFloat("holdKp", sc.hold.kp); prefs_.putFloat("holdKi", sc.hold.ki); prefs_.putFloat("holdKd", sc.hold.kd);
+  prefs_.putFloat("heatKp", sc.heat.kp); prefs_.putFloat("heatKi", sc.heat.ki); prefs_.putFloat("heatKd", sc.heat.kd);
+  prefs_.putBool("tuned", tuned_);
 }
 
 bool ThermalController::enable(bool on) {
@@ -49,6 +79,11 @@ bool ThermalController::enable(bool on) {
   enabled_ = on;
   pid_.reset();
   lastPidMs_ = 0;
+  if (on && cfg_.adaptiveEnabled && !tuned_) {
+    // Commission once: relay-tune BELOW target so the culture never overshoots
+    // during identification; derived gains apply to the real setpoint after.
+    beginAutotuneAt(setpoint_ - cfg_.tuneMarginC);
+  }
   if (!on) {
     cancelAutotune();  // clears autotuneResult_ + returns to Auto if mid-tune
     applyOff();
@@ -101,6 +136,11 @@ const char* ThermalController::modeStr() const {
   }
 }
 
+const char* ThermalController::regimeStr() const {
+  if (!cfg_.adaptiveEnabled) return "fixed";
+  return sched_.regime(setpoint_, liquidC_);
+}
+
 void ThermalController::applyOff() {
   heater_.off();
   duty_ = 0.0f;
@@ -145,8 +185,17 @@ void ThermalController::update() {
     if (autotune_.done() || autotune_.failed()) {
       if (autotune_.done()) {
         float kp, ki, kd;
-        if (autotune_.computeGains(kp, ki, kd)) { setGains(kp, ki, kd); }
-        autotuneResult_ = "ok";
+        if (autotune_.computeGains(kp, ki, kd)) {
+          GainSchedule::Config sc = sched_.config();
+          sc.hold = {kp, ki, kd};                                   // conservative = hold
+          sc.heat = GainSchedule::scaleForHeat(sc.hold, cfg_.heatKpScale);
+          sched_.setConfig(sc);
+          tuned_ = true;
+          persistSchedule();
+          autotuneResult_ = "ok";
+        } else {
+          autotuneResult_ = "failed";
+        }
       } else {
         autotuneResult_ = "failed";
       }
@@ -155,8 +204,16 @@ void ThermalController::update() {
     }
   } else if (mode_ == Mode::Manual) {
     heater_.setDuty(duty_);  // freeze at last duty
-  } else {
-    duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, cfg_.dutyMax);
+  } else {  // Mode::Auto
+    if (cfg_.adaptiveEnabled) {
+      const GainSchedule::Output g = sched_.evaluate(setpoint_, liquidC_);
+      dutyCeil_ = g.dutyCeil;
+      pid_.setGains(g.kp, g.ki, g.kd);
+      duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, g.dutyCeil);
+    } else {
+      dutyCeil_ = cfg_.dutyMax;
+      duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, cfg_.dutyMax);
+    }
     heater_.setDuty(duty_);
   }
 }

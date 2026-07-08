@@ -145,6 +145,21 @@ static constexpr float kNtcMaxPlausibleC = 110.0f;
 static constexpr float kPidKp = 0.08f;
 static constexpr float kPidKi = 0.0015f;
 static constexpr float kPidKd = 0.4f;
+
+// Adaptive gain scheduling. hold = today's conservative set (unchanged); heat =
+// aggressive set for the ramp far below setpoint. Duty is capped on a taper from
+// kHoldDutyCap (at setpoint) up to kDutyMax (>= kApproachBandC below setpoint).
+static constexpr float kHoldKp = 0.08f;
+static constexpr float kHoldKi = 0.0015f;
+static constexpr float kHoldKd = 0.4f;
+static constexpr float kHeatKp = 0.144f;   // ~1.8x hold
+static constexpr float kHeatKi = 0.003f;
+static constexpr float kHeatKd = 0.2f;
+static constexpr float kApproachBandC = 3.0f;   // blend/taper band below setpoint
+static constexpr float kHoldDutyCap   = 0.6f;   // max duty at setpoint (soft landing)
+static constexpr float kTuneMarginC   = 3.0f;   // auto-tune this far BELOW target
+static constexpr float kHeatKpScale   = 1.8f;   // heat = scaleForHeat(hold, this)
+
 static constexpr float kDutyMin = 0.0f;
 static constexpr float kDutyMax = 1.0f;
 
@@ -199,6 +214,7 @@ namespace Features {
 static constexpr bool kEnableSdLogging = true;
 static constexpr bool kEnableOledUi    = false;  // OLED blit only; encoder/buttons stay live
 static constexpr bool kEnableAutotune  = true;
+static constexpr bool kEnableAdaptiveThermal = true;  // gain-scheduled thermal + auto-tune-on-first-run
 static constexpr bool kEnableEspNow    = true;   // ESP-NOW responder (HUB link)
 }  // namespace Features
 

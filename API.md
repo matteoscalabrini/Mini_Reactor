@@ -80,6 +80,13 @@ source of truth for all live state. Shape:
     "pid": {
       "kp": 0.08, "ki": 0.0015, "kd": 0.4,
       "p": 0.0, "i": 0.0, "d": 0.0, "out": 0.425, "mode": "auto",
+      "regime": "hold",         // "heat" | "approach" | "hold" | "fixed"; active gain-scheduling regime; "fixed" when kEnableAdaptiveThermal is false
+      "dutyCeil": 0.6,          // current max-duty ceiling (soft-landing taper near setpoint)
+      "tuned": true,            // false until the first auto-run relay tune completes
+      "schedule": {             // always present; active/derived gain sets (fixed mode shows configured defaults)
+        "heat": { "kp": 0.144, "ki": 0.003, "kd": 0.2 },
+        "hold": { "kp": 0.08, "ki": 0.0015, "kd": 0.4 }
+      },
       "autotune": { "active": false, "progress": 0, "result": null }
     }
   },
@@ -210,6 +217,13 @@ Gains and/or mode:
 ```
 Gains apply only when all three of `kp`,`ki`,`kd` are present. `mode` is a string
 (e.g. `"auto"` | `"manual"`).
+
+> **Note:** when `kEnableAdaptiveThermal` is enabled (default), the controller sets
+> PID gains per-sample from the gain schedule (`status.thermal.pid.schedule`), so a
+> manual gains POST has no lasting effect in Auto mode — it's overwritten on the next
+> control tick. Manual gains apply only when the adaptive feature is disabled (fixed
+> mode); in adaptive mode use `POST /pid/autotune` instead, which auto-runs once per
+> commissioning.
 
 ### `POST /api/v1/pid/autotune`
 ```json
