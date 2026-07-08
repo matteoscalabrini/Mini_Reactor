@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Wire.h>
+#include <esp_heap_caps.h>  // DIAG: heap-leak instrumentation (system.* fields)
 
 #include "app_config.hpp"
 #include "features/control/Reactor.hpp"
@@ -133,6 +134,7 @@ WifiManager::Config makeWifiConfig() {
   c.connectTimeoutMs = AppConfig::Wifi::kConnectTimeoutMs;
   c.reconnectIntervalMs = AppConfig::Wifi::kReconnectIntervalMs;
   c.apFallbackDelayMs = AppConfig::Wifi::kApFallbackDelayMs;
+  c.apRetryIntervalMs = AppConfig::Wifi::kApRetryIntervalMs;
   c.maxScanResults = AppConfig::Wifi::kMaxScanResults;
   c.prefsNamespace = AppConfig::Wifi::kPrefsNamespace;
   c.prefsSsidKey = AppConfig::Wifi::kPrefsSsidKey;
@@ -240,6 +242,7 @@ void requestPd() {
                   g_pd.lastErrorString());
     return;
   }
+  delay(2000);
   g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
   delay(300);
   Husb238::Status s;
@@ -282,6 +285,14 @@ String buildStatusJson() {
   JsonObject sys = doc["system"].to<JsonObject>();
   sys["firmware"] = AppConfig::kFirmwareVersion;
   sys["freeHeap"] = ESP.getFreeHeap();
+  // DIAG (heap-leak hunt): minFreeHeap = lowest-ever free (true-leak floor);
+  // largestBlock = biggest contiguous free block (fragmentation signal — if free
+  // stays flat but this shrinks, it's fragmentation not a leak); dma pool is the
+  // one lwIP/WiFi pbufs draw from, so its floor is what actually kills the radio.
+  sys["minFreeHeap"]  = ESP.getMinFreeHeap();
+  sys["largestBlock"] = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+  sys["freeDma"]      = heap_caps_get_free_size(MALLOC_CAP_DMA);
+  sys["minFreeDma"]   = heap_caps_get_minimum_free_size(MALLOC_CAP_DMA);
   Husb238::Status ps;
   sys["vbus"] = g_pd.refreshStatus(ps) ? voltageCodeStr(ps.voltage) : "?";
   sys["sdMounted"] = g_sd.mounted();

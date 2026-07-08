@@ -12,6 +12,7 @@ the specs/plans under `docs/superpowers/`.
 ## Platform Services (reusable, hardware-agnostic)
 
 - [x] WiFi station + AP captive-portal onboarding, async scan (`net/WifiManager`)
+  - [x] Stable **AP-only** fallback: setup portal drops STA so the shared radio can't starve the AP (fixes portal unreachable-on-AP); auto-recovers by switching AP→STA every `kApRetryIntervalMs`, never coexisting
 - [x] AES-encrypted credential storage in NVS (`security/NvsAes`)
 - [x] Async Web API + single telemetry WebSocket (`net/WebInterface`)
 - [x] SPIFFS-served dependency-free ES-module SPA (`data/`)
@@ -60,6 +61,30 @@ Ported from ../Barebone. See docs/superpowers/specs/2026-06-30-hub-board-bringup
 - [x] **`features/` module layout** — product features moved under `include/features/*` and `src/features/*` (control, heater, motor, sensor, ui); platform services (net, storage, security, power, system) kept separate.
 - [x] `main.cpp` orchestration-only (delegates to `AppRuntime`)
 - [x] `API.md` matches exposed endpoints; mock-only affordances flagged
+
+## Stability — network death after 30min–2h uptime (investigation, 2026-07-08)
+
+Symptom: web UI + hub link + ping all die after variable uptime (~30min…1h50m observed);
+control loop (heater/PID/motor) keeps running. Firmware audit found no unbounded leak in
+app code; WS/AsyncTCP library layer (AsyncTCP 3.3.2 / ESPAsyncWebServer 3.6.0) is bounded
+(`closeWhenFull=true`, 32-msg queue cap). Live evidence 2026-07-08: device off-LAN (no ARP),
+**no `MiniReactor-Setup` AP beaconing** → points at heap/driver starvation, not AP-fallback exile.
+
+- [x] Heap diagnostics in `system.*` status fields (minFreeHeap, largestBlock, freeDma, minFreeDma)
+- [x] `tools/heapmon.py` — network-side capture harness (CSV until death + held WS client to exercise
+      the push path; ping fallback distinguishes http_dead vs ip_dead)
+- [x] Evidence run (bench, 2026-07-08): death reproduced in 5.5 min; heap **healthy** at death
+      (~209k free, largestBlock 164k) — leak/fragmentation ruled out. RSSI faded −82→−93 at death;
+      `WL_CONNECTED` stayed true through a 61 s outage (FSM blind). Captures: `tools/heapmon-bench1.csv`,
+      `tools/serial-bench1.log`.
+- [x] **Root cause: WiFi modem power-save (default ON) + marginal RSSI** — PS DTIM misses make the AP's
+      buffered unicast undeliverable (ping/ARP/TCP die) while beacons still arrive, so the FSM never
+      reconnects. Fix: `WiFi.setSleep(false)` in `WifiManager::begin()` (also required for ESP-NOW RX).
+      A/B verified: PS on = dead at 5.5 min; PS off = clean 30+ min soak at same RSSI, same load.
+- [ ] Hardening pass from audit: hostname-before-mode, NVS save-only-on-change, cache TMC/PD reads
+      out of the 10 Hz status build, status build at push rate, `availableForWriteAll()` WS gate,
+      event-driven runs-list rebuild (not 1 Hz SD enumeration), WiFi-stack-only self-heal watchdog
+      (never `ESP.restart()` while a run is active)
 
 ## Backlog / Future
 

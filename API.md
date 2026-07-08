@@ -52,7 +52,13 @@ source of truth for all live state. Shape:
 {
   "apiVersion": "1.0",
   "uptimeSec": 1234,
-  "system":  { "firmware": "1.0.0", "freeHeap": 210000, "vbus": "12V", "sdMounted": true },
+  "system":  { "firmware": "1.0.0", "freeHeap": 210000, "minFreeHeap": 168000, "largestBlock": 110000, "freeDma": 90000, "minFreeDma": 42000, "vbus": "12V", "sdMounted": true },
+  // heap diagnostics (all bytes, internal RAM — board has no PSRAM):
+  //   freeHeap      current free heap
+  //   minFreeHeap   lowest free heap since boot (true-leak floor — keeps dropping on a leak)
+  //   largestBlock  biggest contiguous free block (fragmentation signal)
+  //   freeDma       free in the DMA-capable pool that lwIP/WiFi pbufs draw from
+  //   minFreeDma    lowest-ever DMA-pool free (its floor is what starves the radio)
   "thermal": {
     "tempC": 35.81,            // null when sensorFault
     "errorC": 0.19,            // setpoint - temp; null when sensorFault
