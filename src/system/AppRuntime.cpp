@@ -599,6 +599,26 @@ void tick() {
     g_sd.appendLine(g_reactor.csvRow());
   }
 
+  // DIAG (network-wedge hunt, overnight bench — remove after): serial heartbeat.
+  // Serial survives the network death that kills the WS/HTTP/ping path, so this is
+  // the evidence the office (network-only) capture lacked: loopN climbing after the
+  // network dies proves the main loop is still alive (a stack/driver wedge, not a
+  // hang/crash); a frozen loopN means the loop itself stopped. Also snapshots heap +
+  // WiFi driver state at the moment the radio stops passing traffic.
+  static uint32_t lastDiagMs = 0;
+  static uint32_t loopN = 0;
+  ++loopN;
+  if (now - lastDiagMs >= 15000) {
+    lastDiagMs = now;
+    Serial.printf("[DIAG] up=%lus loopN=%lu heap=%u min=%u largest=%u dma=%u dmaMin=%u wifi=%d rssi=%d\n",
+                  (unsigned long)(now / 1000UL), (unsigned long)loopN,
+                  (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+                  (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
+                  (int)WiFi.status(), (int)WiFi.RSSI());
+  }
+
   delay(2);  // yield to WiFi/AsyncTCP tasks
 }
 
