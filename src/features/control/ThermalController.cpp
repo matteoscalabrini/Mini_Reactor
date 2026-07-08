@@ -192,8 +192,10 @@ void ThermalController::update() {
           sched_.setConfig(sc);
           tuned_ = true;
           persistSchedule();
+          autotuneResult_ = "ok";
+        } else {
+          autotuneResult_ = "failed";
         }
-        autotuneResult_ = "ok";
       } else {
         autotuneResult_ = "failed";
       }
