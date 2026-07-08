@@ -242,12 +242,31 @@ void requestPd() {
                   g_pd.lastErrorString());
     return;
   }
-  delay(2000);
-  g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
-  delay(300);
-  Husb238::Status s;
-  if (g_pd.refreshStatus(s)) {
-    Serial.printf("  negotiated VBUS = %s\n", voltageCodeStr(s.voltage));
+  // On a cold cable insertion the HUSB238 is still running its Type-C attach +
+  // PD source-capability discovery when we get here, so a single fire-and-forget
+  // REQUEST_PD (even after a fixed delay) is dropped — the classic "12V only
+  // applies after a reset" symptom. Force a fresh source-cap advertisement, then
+  // re-issue the request and verify the negotiated voltage, retrying within a
+  // bounded window (a warm reset "worked" only because the PD session was already
+  // settled by then).
+  Husb238::Status s{};
+  const uint32_t deadline = millis() + AppConfig::Pd::kNegotiateTimeoutMs;
+  bool have12 = false;
+  bool askedCaps = false;
+  while (millis() < deadline) {
+    if (!g_pd.refreshStatus(s)) { delay(AppConfig::Pd::kNegotiateRetryMs); continue; }
+    if (s.voltage == Husb238::VoltageCode::V12) { have12 = true; break; }
+    if (s.attached) {
+      if (!askedCaps) { g_pd.requestSourceCapabilities(); askedCaps = true; }  // populate SRC_PDO regs
+      g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
+    }
+    delay(AppConfig::Pd::kNegotiateRetryMs);
+  }
+  if (have12) {
+    Serial.println(F("  negotiated VBUS = 12V"));
+  } else {
+    Serial.printf("  12V NOT negotiated (VBUS=%s) — source may not offer 12V; +12V rail stays off\n",
+                  voltageCodeStr(s.voltage));
   }
 }
 

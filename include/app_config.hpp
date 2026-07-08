@@ -40,6 +40,12 @@ static constexpr uint8_t kAddress = 0x08;  // fixed HUSB238 I2C address
 // sourced from VBUS via the PD-gated PMOS, so request 12V.
 static constexpr Husb238::PdSelection kRequestProfile =
     Husb238::PdSelection::PD_SRC_12V;
+// Cold-plug negotiation: on cable insertion the HUSB238 is still completing its
+// Type-C attach + source-cap discovery when boot reaches requestPd(). Instead of
+// a single blind request, poll/re-request within this bounded window and verify
+// the negotiated voltage — retrying every kNegotiateRetryMs until 12V or timeout.
+static constexpr uint32_t kNegotiateTimeoutMs = 3000;  // max wait for attach + 12V contract
+static constexpr uint32_t kNegotiateRetryMs   = 150;   // poll / re-issue REQUEST_PD cadence
 }  // namespace Pd
 
 // ── SPI bus + micro-SD card (J7) ─────────────────────────────────────────────
