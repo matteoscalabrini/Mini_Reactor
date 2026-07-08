@@ -52,6 +52,26 @@ void test_reset_clears_state() {
   TEST_ASSERT_EQUAL_FLOAT(1.0f, pid.step(10.0f, 9.0f, 1.0f, -100.0f, 100.0f)); // integral back to 1
 }
 
+void test_derivative_on_measurement_no_setpoint_kick() {
+  PidController pid;
+  pid.setGains(0.0f, 0.0f, 1.0f);
+  pid.setDerivativeOnMeasurement(true);
+  pid.step(10.0f, 8.0f, 1.0f, -100.0f, 100.0f);   // prime prevPv=8
+  // setpoint 10→20 with pv unchanged: derivative-on-error would spike +10;
+  // on-measurement sees pv delta 0 → d=0 (no kick)
+  pid.step(20.0f, 8.0f, 1.0f, -100.0f, 100.0f);
+  TEST_ASSERT_EQUAL_FLOAT(0.0f, pid.dTerm());
+}
+
+void test_derivative_on_measurement_brakes_on_rise() {
+  PidController pid;
+  pid.setGains(0.0f, 0.0f, 1.0f);
+  pid.setDerivativeOnMeasurement(true);
+  pid.step(10.0f, 8.0f, 1.0f, -100.0f, 100.0f);   // prevPv=8
+  pid.step(10.0f, 9.0f, 1.0f, -100.0f, 100.0f);   // pv 8→9, d = -(1)/1 = -1
+  TEST_ASSERT_EQUAL_FLOAT(-1.0f, pid.dTerm());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_proportional_only);
@@ -60,5 +80,7 @@ int main(int, char**) {
   RUN_TEST(test_anti_windup_holds_integral);
   RUN_TEST(test_derivative_on_change);
   RUN_TEST(test_reset_clears_state);
+  RUN_TEST(test_derivative_on_measurement_no_setpoint_kick);
+  RUN_TEST(test_derivative_on_measurement_brakes_on_rise);
   return UNITY_END();
 }

@@ -14,17 +14,21 @@ class PidController {
   float kp() const { return kp_; }
   float ki() const { return ki_; }
   float kd() const { return kd_; }
+  void setDerivativeOnMeasurement(bool on) { derivOnMeas_ = on; }
 
   void reset() {
-    integral_ = 0.0f; prevError_ = 0.0f; havePrev_ = false;
+    integral_ = 0.0f; prevError_ = 0.0f; prevPv_ = 0.0f; havePrev_ = false;
     p_ = i_ = d_ = 0.0f; out_ = 0.0f;
   }
 
   float step(float setpoint, float pv, float dt, float outMin, float outMax) {
     const float error = setpoint - pv;
     integral_ += error * dt;
-    const float deriv = havePrev_ ? (error - prevError_) / dt : 0.0f;
+    const float deriv = havePrev_
+        ? (derivOnMeas_ ? -(pv - prevPv_) / dt : (error - prevError_) / dt)
+        : 0.0f;
     prevError_ = error;
+    prevPv_ = pv;
     havePrev_ = true;
 
     p_ = kp_ * error;
@@ -53,6 +57,8 @@ class PidController {
  private:
   float kp_ = 0.0f, ki_ = 0.0f, kd_ = 0.0f;
   float integral_ = 0.0f, prevError_ = 0.0f;
+  float prevPv_ = 0.0f;
+  bool derivOnMeas_ = false;
   bool havePrev_ = false;
   float p_ = 0.0f, i_ = 0.0f, d_ = 0.0f, out_ = 0.0f;
 };
