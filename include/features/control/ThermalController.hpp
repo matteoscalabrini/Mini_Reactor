@@ -25,6 +25,7 @@
 
 #include <Preferences.h>
 
+#include "features/control/GainSchedule.hpp"
 #include "features/control/PidController.hpp"
 #include "features/control/RelayAutotune.hpp"
 
@@ -44,6 +45,14 @@ class ThermalController {
     float processMaxC = 55.0f;       // liquid sanity ceiling
     uint32_t safetyCheckMs = 200;    // NTC safety poll cadence
     const char* prefsNamespace = "pid";
+
+    bool  adaptiveEnabled = false;   // gain scheduling + auto-tune-on-first-run
+    float bandC = 3.0f;
+    float holdDutyCap = 0.6f;
+    float heatKp = 0.144f, heatKi = 0.003f, heatKd = 0.2f;
+    float holdKp = 0.08f,  holdKi = 0.0015f, holdKd = 0.4f;
+    float tuneMarginC = 3.0f;
+    float heatKpScale = 1.8f;
   };
 
   ThermalController(Ds18b20& liquid, Thermistor& heaterNtc, Heater& heater,
@@ -77,6 +86,12 @@ class ThermalController {
   float iTerm() const { return pid_.iTerm(); }
   float dTerm() const { return pid_.dTerm(); }
   float outputDuty() const { return duty_; }  // 0..1 controller output
+
+  const char* regimeStr() const;                // "heat"|"approach"|"hold" (adaptive) or "fixed"
+  float dutyCeil() const { return dutyCeil_; }
+  bool tuned() const { return tuned_; }
+  GainSchedule::Gains heatGains() const { return sched_.config().heat; }
+  GainSchedule::Gains holdGains() const { return sched_.config().hold; }
 
   /* Autotune telemetry. */
   bool autotuneActive() const { return mode_ == Mode::Autotune; }
@@ -112,6 +127,9 @@ class ThermalController {
 
   PidController pid_;
   RelayAutotune autotune_;
+  GainSchedule sched_;
+  bool tuned_ = false;
+  float dutyCeil_ = 1.0f;
   Mode mode_ = Mode::Auto;
   const char* autotuneResult_ = nullptr;
   Preferences prefs_;

@@ -25,9 +25,23 @@ void ThermalController::begin() {
 
 void ThermalController::loadGains() {
   prefs_.begin(cfg_.prefsNamespace, false);
+  GainSchedule::Config sc;
+  sc.hold = {prefs_.getFloat("holdKp", cfg_.holdKp),
+             prefs_.getFloat("holdKi", cfg_.holdKi),
+             prefs_.getFloat("holdKd", cfg_.holdKd)};
+  sc.heat = {prefs_.getFloat("heatKp", cfg_.heatKp),
+             prefs_.getFloat("heatKi", cfg_.heatKi),
+             prefs_.getFloat("heatKd", cfg_.heatKd)};
+  sc.bandC = cfg_.bandC;
+  sc.holdDutyCap = cfg_.holdDutyCap;
+  sc.dutyMax = cfg_.dutyMax;
+  sched_.setConfig(sc);
+  tuned_ = prefs_.getBool("tuned", false);
+  // Fixed-mode PID keeps its own gains (unchanged legacy path).
   pid_.setGains(prefs_.getFloat("kp", cfg_.kp),
                 prefs_.getFloat("ki", cfg_.ki),
                 prefs_.getFloat("kd", cfg_.kd));
+  pid_.setDerivativeOnMeasurement(cfg_.adaptiveEnabled);
 }
 
 void ThermalController::persistGains() {
@@ -101,6 +115,11 @@ const char* ThermalController::modeStr() const {
   }
 }
 
+const char* ThermalController::regimeStr() const {
+  if (!cfg_.adaptiveEnabled) return "fixed";
+  return sched_.regime(setpoint_, liquidC_);
+}
+
 void ThermalController::applyOff() {
   heater_.off();
   duty_ = 0.0f;
@@ -155,8 +174,16 @@ void ThermalController::update() {
     }
   } else if (mode_ == Mode::Manual) {
     heater_.setDuty(duty_);  // freeze at last duty
-  } else {
-    duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, cfg_.dutyMax);
+  } else {  // Mode::Auto
+    if (cfg_.adaptiveEnabled) {
+      const GainSchedule::Output g = sched_.evaluate(setpoint_, liquidC_);
+      dutyCeil_ = g.dutyCeil;
+      pid_.setGains(g.kp, g.ki, g.kd);
+      duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, g.dutyCeil);
+    } else {
+      dutyCeil_ = cfg_.dutyMax;
+      duty_ = pid_.step(setpoint_, liquidC_, dt, cfg_.dutyMin, cfg_.dutyMax);
+    }
     heater_.setDuty(duty_);
   }
 }
