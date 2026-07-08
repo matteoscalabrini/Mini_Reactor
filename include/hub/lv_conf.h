@@ -52,6 +52,12 @@
 #define LV_FONT_MONTSERRAT_48 0
 #define LV_FONT_DEFAULT &lv_font_montserrat_12
 
+// The generated Doto fonts (hub_doto_88 hero temp, hub_doto_16) are compressed
+// (bitmap_format=1). Without this, LVGL cannot decompress their glyphs and the
+// hero temperature renders blank ("Compressed fonts is used but
+// LV_USE_FONT_COMPRESSED is not enabled" warning in lv_font_fmt_txt.c).
+#define LV_USE_FONT_COMPRESSED 1
+
 #define LV_USE_THEME_DEFAULT 0
 #define LV_USE_THEME_BASIC 0
 #define LV_USE_THEME_MONO 0
