@@ -19,6 +19,14 @@ WifiManager::WifiManager(const Config& config) : cfg_(config) {}
 void WifiManager::begin() {
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
+  // Modem power-save must stay OFF. With PS on (Arduino default) a weak link
+  // makes the STA miss DTIM delivery windows: the AP's buffered unicast to us
+  // becomes undeliverable (ping/ARP/TCP all die) while beacons still arrive,
+  // so WL_CONNECTED never drops and this FSM stays blind — the "network death
+  // after 30min-2h" bug. Bench A/B 2026-07-08: PS on = dead in 5.5 min at
+  // -82dBm; PS off = clean soak at the same RSSI. Espressif also requires PS
+  // off for reliable ESP-NOW RX (the HUB link).
+  WiFi.setSleep(false);
   WiFi.setHostname(cfg_.hostname);
   WiFi.setAutoReconnect(false);  // we manage reconnection ourselves
 
@@ -43,7 +51,11 @@ void WifiManager::saveCredentials(const String& ssid, const String& password) {
 
 void WifiManager::startAccessPoint() {
   if (apActive_) return;
-  WiFi.mode(WIFI_AP_STA);
+  // AP-ONLY (not AP_STA): the ESP32 shares one radio, and a co-running STA that
+  // keeps scanning/associating starves the softAP data path — the portal becomes
+  // unreachable (TCP SYNs time out even though the AP beacons + DHCP still work).
+  // Auto-recovery happens by *switching* back to STA in poll(), never coexisting.
+  WiFi.mode(WIFI_AP);
   WiFi.softAP(cfg_.apSsid, strlen(cfg_.apPassword) ? cfg_.apPassword : nullptr);
   dns_.setErrorReplyCode(DNSReplyCode::NoError);
   dns_.start(kDnsPort, "*", WiFi.softAPIP());
@@ -138,18 +150,32 @@ void WifiManager::poll() {
     Serial.println("[WIFI] connection lost");
   }
 
-  // Periodic reconnect if we have credentials.
+  // ── Setup AP is up → hold a STABLE, AP-only portal ──
+  // STA is OFF here (see startAccessPoint). We must NOT drive reconnects while the
+  // AP serves clients, or the shared radio's STA activity makes the portal
+  // unreachable. Auto-recover only by fully switching AP → STA and back — never
+  // coexisting — and only occasionally (apRetryIntervalMs).
+  if (apActive_) {
+    if (ssid_.length() > 0 && now - lastReconnectMs_ > cfg_.apRetryIntervalMs) {
+      lastReconnectMs_ = now;
+      Serial.println("[WIFI] AP retry: dropping AP to try saved network");
+      stopAccessPoint();               // full mode switch AP → STA (no coexistence)
+      beginConnect(ssid_, password_);  // connecting_ FSM re-raises the AP on timeout
+    }
+    return;
+  }
+
+  // ── STA-only reconnect (safe: no AP up, so no radio contention) ──
   if (ssid_.length() > 0 && now - lastReconnectMs_ > cfg_.reconnectIntervalMs) {
     lastReconnectMs_ = now;
     beginConnect(ssid_, password_);
     return;
   }
 
-  // AP fallback after the grace period so onboarding stays available.
-  if (!apActive_ && staLostMs_ != 0 && now - staLostMs_ > cfg_.apFallbackDelayMs) {
+  // Raise the setup AP after the grace period so onboarding stays available.
+  if (staLostMs_ != 0 && now - staLostMs_ > cfg_.apFallbackDelayMs) {
     startAccessPoint();
   }
-
 }
 
 // Service an async WiFi scan. Called every poll() regardless of connection state.

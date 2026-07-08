@@ -173,6 +173,7 @@ static constexpr const char* kApPassword   = "";  // open AP for onboarding
 static constexpr uint32_t kConnectTimeoutMs    = 15000;
 static constexpr uint32_t kReconnectIntervalMs = 20000;
 static constexpr uint32_t kApFallbackDelayMs   = 20000;  // STA-loss grace period
+static constexpr uint32_t kApRetryIntervalMs   = 300000; // on setup AP: retry saved net every 5min (drops AP briefly)
 static constexpr uint8_t  kMaxScanResults      = 16;
 static constexpr const char* kPrefsNamespace = "wifi";
 static constexpr const char* kPrefsSsidKey   = "ssid";

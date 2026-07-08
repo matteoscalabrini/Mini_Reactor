@@ -29,6 +29,7 @@ class WifiManager {
     uint32_t connectTimeoutMs = 15000;
     uint32_t reconnectIntervalMs = 20000;
     uint32_t apFallbackDelayMs = 20000;
+    uint32_t apRetryIntervalMs = 300000;  // while on setup AP, how often to briefly retry the saved network
     uint8_t maxScanResults = 16;
     const char* prefsNamespace = "wifi";
     const char* prefsSsidKey = "ssid";
