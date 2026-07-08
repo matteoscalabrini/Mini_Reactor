@@ -119,6 +119,8 @@ class ThermalController {
   void applyOff();
   void loadGains();
   void persistGains();
+  void beginAutotuneAt(float atSetpointC);
+  void persistSchedule();
 
   Ds18b20& liquid_;
   Thermistor& ntc_;

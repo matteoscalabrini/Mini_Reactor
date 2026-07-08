@@ -50,6 +50,22 @@ void ThermalController::persistGains() {
   prefs_.putFloat("kd", pid_.kd());
 }
 
+void ThermalController::beginAutotuneAt(float atSetpointC) {
+  RelayAutotune::Config ac;
+  ac.relayHigh = cfg_.dutyMax;
+  ac.relayLow = cfg_.dutyMin;
+  autotune_.begin(atSetpointC, millis(), ac);
+  autotuneResult_ = nullptr;
+  mode_ = Mode::Autotune;
+}
+
+void ThermalController::persistSchedule() {
+  const GainSchedule::Config& sc = sched_.config();
+  prefs_.putFloat("holdKp", sc.hold.kp); prefs_.putFloat("holdKi", sc.hold.ki); prefs_.putFloat("holdKd", sc.hold.kd);
+  prefs_.putFloat("heatKp", sc.heat.kp); prefs_.putFloat("heatKi", sc.heat.ki); prefs_.putFloat("heatKd", sc.heat.kd);
+  prefs_.putBool("tuned", tuned_);
+}
+
 bool ThermalController::enable(bool on) {
   if (on == enabled_) return enabled_;
   if (on) {
@@ -63,6 +79,11 @@ bool ThermalController::enable(bool on) {
   enabled_ = on;
   pid_.reset();
   lastPidMs_ = 0;
+  if (on && cfg_.adaptiveEnabled && !tuned_) {
+    // Commission once: relay-tune BELOW target so the culture never overshoots
+    // during identification; derived gains apply to the real setpoint after.
+    beginAutotuneAt(setpoint_ - cfg_.tuneMarginC);
+  }
   if (!on) {
     cancelAutotune();  // clears autotuneResult_ + returns to Auto if mid-tune
     applyOff();
@@ -164,7 +185,14 @@ void ThermalController::update() {
     if (autotune_.done() || autotune_.failed()) {
       if (autotune_.done()) {
         float kp, ki, kd;
-        if (autotune_.computeGains(kp, ki, kd)) { setGains(kp, ki, kd); }
+        if (autotune_.computeGains(kp, ki, kd)) {
+          GainSchedule::Config sc = sched_.config();
+          sc.hold = {kp, ki, kd};                                   // conservative = hold
+          sc.heat = GainSchedule::scaleForHeat(sc.hold, cfg_.heatKpScale);
+          sched_.setConfig(sc);
+          tuned_ = true;
+          persistSchedule();
+        }
         autotuneResult_ = "ok";
       } else {
         autotuneResult_ = "failed";
