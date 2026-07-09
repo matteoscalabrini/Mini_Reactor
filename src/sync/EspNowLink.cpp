@@ -17,6 +17,11 @@ struct RxItem {
 QueueHandle_t s_rxQueue = nullptr;
 EspNowLink::RecvFn s_onRecv = nullptr;
 
+// DIAG (network-wedge hunt): L2 send-health counters (see EspNowLink::txDiag).
+uint32_t s_txSends = 0;    // esp_now_send calls issued
+uint32_t s_txOks = 0;      // ... accepted by the driver TX path (ESP_OK)
+int      s_txLastErr = 0;  // last non-OK esp_now_send return code
+
 // ISR/Wi-Fi-task context: copy bytes into the queue, nothing else.
 void onDataRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
   if (!s_rxQueue || len <= 0 || len > 250) return;
@@ -71,9 +76,19 @@ bool EspNowLink::send(const uint8_t* mac, const uint8_t* data, size_t len) {
   if (!ready_) return false;
   if (len > 250) { Serial.println("[ESPNOW] send: oversized frame"); return false; }
   bool ok = false;
-  for (int i = 0; i < 3; ++i)                          // 3x best-effort resend
-    ok = (esp_now_send(mac, data, len) == ESP_OK) || ok;
+  for (int i = 0; i < 3; ++i) {                        // 3x best-effort resend
+    const esp_err_t e = esp_now_send(mac, data, len);
+    ++s_txSends;
+    if (e == ESP_OK) { ++s_txOks; ok = true; }
+    else s_txLastErr = (int)e;
+  }
   return ok;
+}
+
+void EspNowLink::txDiag(uint32_t& sends, uint32_t& oks, int& lastErr) {
+  sends = s_txSends;
+  oks = s_txOks;
+  lastErr = s_txLastErr;
 }
 
 bool EspNowLink::sendBroadcast(const uint8_t* data, size_t len) {

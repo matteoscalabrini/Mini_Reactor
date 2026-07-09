@@ -29,6 +29,14 @@ class EspNowLink {
 
   bool ready() const { return ready_; }
 
+  // DIAG (network-wedge hunt): L2 TX health. ESP-NOW bypasses lwIP/TCP entirely,
+  // so comparing this against the (dead) web path localizes a wedge: if enOk
+  // keeps climbing while HTTP is dead the fault is above L2 (TCP/lwIP); if enOk
+  // freezes too, the WiFi driver itself has wedged (lastErr carries the code,
+  // e.g. ESP_ERR_ESPNOW_NO_MEM = TX-buffer exhaustion). Static so a heartbeat can
+  // read it without the instance. Counts each esp_now_send call (3 per send()).
+  static void txDiag(uint32_t& sends, uint32_t& oks, int& lastErr);
+
  private:
   bool     ready_ = false;
   uint16_t seq_   = 0;

@@ -610,13 +610,20 @@ void tick() {
   ++loopN;
   if (now - lastDiagMs >= 15000) {
     lastDiagMs = now;
-    Serial.printf("[DIAG] up=%lus loopN=%lu heap=%u min=%u largest=%u dma=%u dmaMin=%u wifi=%d rssi=%d\n",
+    // ESP-NOW L2 send health (bypasses lwIP/TCP): enOk frozen while HTTP is dead
+    // => WiFi-driver wedge; enOk still climbing => fault is above L2. enErr is the
+    // last esp_now_send error code (0x3007 NO_MEM = TX-buffer exhaustion, etc.).
+    uint32_t enTx = 0, enOk = 0; int enErr = 0;
+    EspNowLink::txDiag(enTx, enOk, enErr);
+    Serial.printf("[DIAG] up=%lus loopN=%lu heap=%u min=%u largest=%u dma=%u dmaMin=%u "
+                  "wifi=%d rssi=%d enTx=%lu enOk=%lu enErr=0x%X\n",
                   (unsigned long)(now / 1000UL), (unsigned long)loopN,
                   (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMinFreeHeap(),
                   (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
                   (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_DMA),
-                  (int)WiFi.status(), (int)WiFi.RSSI());
+                  (int)WiFi.status(), (int)WiFi.RSSI(),
+                  (unsigned long)enTx, (unsigned long)enOk, (unsigned)enErr);
   }
 
   delay(2);  // yield to WiFi/AsyncTCP tasks
