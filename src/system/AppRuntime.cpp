@@ -247,38 +247,41 @@ const char* voltageCodeStr(Husb238::VoltageCode v) {
 }
 
 void requestPd() {
-  Serial.println(F("\n[HUSB238] Requesting 12V PD profile ..."));
+  Serial.println(F("\n[HUSB238] USB-PD sink: requesting 12V (re-asserted from the loop until VBUS=12V) ..."));
   if (!g_pd.probe()) {
-    Serial.printf("  not found (%s) — running on USB-default 5V\n",
+    Serial.printf("  HUSB238 not found (%s) — running on USB-default 5V\n",
                   g_pd.lastErrorString());
     return;
   }
-  // On a cold cable insertion the HUSB238 is still running its Type-C attach +
-  // PD source-capability discovery when we get here, so a single fire-and-forget
-  // REQUEST_PD (even after a fixed delay) is dropped — the classic "12V only
-  // applies after a reset" symptom. Force a fresh source-cap advertisement, then
-  // re-issue the request and verify the negotiated voltage, retrying within a
-  // bounded window (a warm reset "worked" only because the PD session was already
-  // settled by then).
-  Husb238::Status s{};
-  const uint32_t deadline = millis() + AppConfig::Pd::kNegotiateTimeoutMs;
-  bool have12 = false;
-  bool askedCaps = false;
-  while (millis() < deadline) {
-    if (!g_pd.refreshStatus(s)) { delay(AppConfig::Pd::kNegotiateRetryMs); continue; }
-    if (s.voltage == Husb238::VoltageCode::V12) { have12 = true; break; }
-    if (s.attached) {
-      if (!askedCaps) { g_pd.requestSourceCapabilities(); askedCaps = true; }  // populate SRC_PDO regs
-      g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
-    }
-    delay(AppConfig::Pd::kNegotiateRetryMs);
+  // Fire the first request now; pdReconcile() in the loop keeps re-issuing it
+  // until VBUS actually reads 12V. On a cold cable insertion the HUSB238's Type-C
+  // attach + source-cap discovery can complete AFTER any fixed boot-time window,
+  // so a boot-only request is dropped — the "12V only applies after a reset"
+  // symptom. Re-asserting from the loop does what repeated resets would, until it
+  // takes; once at 12V it stops.
+  g_pd.requestSourceCapabilities();
+  g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
+}
+
+// Re-assert the 12V PD request until it takes. Called every loop, self-gated to
+// kReconcilePeriodMs. Removes any dependence on PD attach completing within a
+// boot-time window: it keeps selecting the 12V PDO + REQUEST_PD each period while
+// VBUS is below 12V, and stops (only re-asserting if the contract is later lost).
+void pdReconcile() {
+  static uint32_t lastMs = 0;
+  static bool at12 = false;
+  const uint32_t now = millis();
+  if (now - lastMs < AppConfig::Pd::kReconcilePeriodMs) return;
+  lastMs = now;
+  Husb238::Status s;
+  if (!g_pd.refreshStatus(s)) return;                    // I2C hiccup; retry next period
+  if (s.voltage == Husb238::VoltageCode::V12) {
+    if (!at12) { Serial.println(F("[HUSB238] VBUS = 12V negotiated")); at12 = true; }
+    return;                                              // at 12V — nothing to do
   }
-  if (have12) {
-    Serial.println(F("  negotiated VBUS = 12V"));
-  } else {
-    Serial.printf("  12V NOT negotiated (VBUS=%s) — source may not offer 12V; +12V rail stays off\n",
-                  voltageCodeStr(s.voltage));
-  }
+  at12 = false;                                          // below 12V — keep (re)asserting
+  g_pd.requestSourceCapabilities();                      // refresh SRC_PDO regs
+  g_pd.requestProfile(AppConfig::Pd::kRequestProfile);   // select 12V + REQUEST_PD
 }
 
 // Build the nested /api/v1 telemetry object (spec §4). P1+P2 fields;
@@ -551,6 +554,7 @@ void begin() {
 
 void tick() {
   g_wifi.poll();
+  pdReconcile();        // keep re-asserting the 12V PD request until VBUS=12V
   g_thermal.update();   // PID, internally gated to its sample period
   g_reactor.update();   // run timer
 
