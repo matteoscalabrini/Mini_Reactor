@@ -143,6 +143,9 @@ WifiManager::Config makeWifiConfig() {
   c.reconnectIntervalMs = AppConfig::Wifi::kReconnectIntervalMs;
   c.apFallbackDelayMs = AppConfig::Wifi::kApFallbackDelayMs;
   c.apRetryIntervalMs = AppConfig::Wifi::kApRetryIntervalMs;
+  c.txWatchdogEnabled = AppConfig::Wifi::kEnableTxWatchdog;
+  c.txStallMs = AppConfig::Wifi::kTxStallMs;
+  c.txRecoverBackoffMs = AppConfig::Wifi::kTxRecoverBackoffMs;
   c.maxScanResults = AppConfig::Wifi::kMaxScanResults;
   c.prefsNamespace = AppConfig::Wifi::kPrefsNamespace;
   c.prefsSsidKey = AppConfig::Wifi::kPrefsSsidKey;
@@ -591,6 +594,16 @@ void tick() {
   }
   g_web.update(statusJson, scanJson);
   g_espnow.poll();
+
+  // WiFi TX-wedge self-heal. Driven by the ESP-NOW L2 send counters (the TX whose
+  // result we can see): if the STA is associated but nothing lands for kTxStallMs,
+  // the driver TX-buffer pool has wedged — restart the WiFi stack (never
+  // ESP.restart(), a run may be active) and rebuild ESP-NOW.
+  {
+    uint32_t enTx = 0, enOk = 0; int enErr = 0;
+    EspNowLink::txDiag(enTx, enOk, enErr);
+    if (g_wifi.pollWatchdog(now, enTx, enOk)) g_espnow.reinit();
+  }
 
   // Periodic SD logging — run-only: rows are written only while a run is open.
   static uint32_t lastLogMs = 0;

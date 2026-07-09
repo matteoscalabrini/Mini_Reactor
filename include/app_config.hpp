@@ -199,6 +199,13 @@ static constexpr uint8_t  kMaxScanResults      = 16;
 static constexpr const char* kPrefsNamespace = "wifi";
 static constexpr const char* kPrefsSsidKey   = "ssid";
 static constexpr const char* kPrefsPassKey   = "pass";
+// TX-wedge self-heal: the WiFi driver's TX-buffer pool can exhaust under load
+// (esp_now_send -> ESP_ERR_ESPNOW_NO_MEM); TCP + ESP-NOW both die while the STA
+// stays associated (WL_CONNECTED never drops). Detected via the ESP-NOW send
+// counters; on a sustained wedge, restart the WiFi stack (never ESP.restart()).
+static constexpr bool     kEnableTxWatchdog      = true;
+static constexpr uint32_t kTxStallMs             = 30000;  // associated + sending but 0 landing this long => recover
+static constexpr uint32_t kTxRecoverBackoffMs    = 30000;  // min gap between stack restarts
 }  // namespace Wifi
 
 // ── Web server ───────────────────────────────────────────────────────────────

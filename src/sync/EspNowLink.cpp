@@ -50,6 +50,18 @@ bool EspNowLink::begin(RecvFn onRecv) {
   return true;
 }
 
+void EspNowLink::reinit() {
+  // A WiFi-stack restart (WIFI_OFF) tears down esp_now. Rebuild it: clear stale
+  // state, re-init, re-register the recv cb, re-add the broadcast peer. The RX
+  // queue is static and persists, so it is not recreated here.
+  ready_ = false;
+  esp_now_deinit();
+  if (esp_now_init() != ESP_OK) { Serial.println("[ESPNOW] reinit: esp_now_init failed"); return; }
+  esp_now_register_recv_cb(onDataRecv);
+  if (!addPeer(synclink::kBroadcastMac, 0)) Serial.println("[ESPNOW] reinit: broadcast peer add failed");
+  ready_ = true;
+}
+
 bool EspNowLink::seenBefore(uint16_t seq) {
   for (int i = 0; i < kRingSize; ++i)
     if (recentValid_[i] && recentSeq_[i] == seq) return true;

@@ -12,6 +12,7 @@ class EspNowLink {
   using RecvFn = void (*)(const uint8_t* mac, const uint8_t* data, int len);
 
   bool begin(RecvFn onRecv);          // esp_now_init + register cbs + broadcast peer
+  void reinit();                      // re-init esp_now after a WiFi-stack restart (WIFI_OFF kills it)
   void poll();                        // drain RX queue -> onRecv (with dedup)
 
   bool send(const uint8_t* mac, const uint8_t* data, size_t len);  // 3x resend

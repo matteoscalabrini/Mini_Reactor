@@ -14,6 +14,7 @@ class EspNowResponder {
   EspNowResponder(Reactor& reactor, WebInterface& web) : reactor_(reactor), web_(web) {}
 
   void begin();                 // gated init: esp_now + load binding
+  void reinit();                // rebuild esp_now + re-add bound peer after a WiFi-stack restart
   void poll();                  // drain link + push telemetry at cadence
   void openPairWindow();        // POST /espnow/pair
   void forget();                // POST /espnow/forget — notifies the HUB (Unpair) then drops it

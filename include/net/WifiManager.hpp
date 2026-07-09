@@ -19,6 +19,8 @@
 #include <DNSServer.h>
 #include <Preferences.h>
 
+#include "net/WifiWatchdog.hpp"
+
 class WifiManager {
  public:
   // Config — built from AppConfig::Wifi.
@@ -30,6 +32,9 @@ class WifiManager {
     uint32_t reconnectIntervalMs = 20000;
     uint32_t apFallbackDelayMs = 20000;
     uint32_t apRetryIntervalMs = 300000;  // while on setup AP, how often to briefly retry the saved network
+    bool     txWatchdogEnabled = true;    // self-heal the WiFi TX-buffer wedge
+    uint32_t txStallMs = 30000;           // associated + sending but 0 landing this long => restart stack
+    uint32_t txRecoverBackoffMs = 30000;
     uint8_t maxScanResults = 16;
     const char* prefsNamespace = "wifi";
     const char* prefsSsidKey = "ssid";
@@ -52,6 +57,17 @@ class WifiManager {
   /* requestScan() — Ask for an async scan; results land in scanJson() shortly. */
   void requestScan();
 
+  /* pollWatchdog() — Drive the TX-wedge detector with the ESP-NOW send counters
+   * (the TX whose result we can observe). Returns true on the tick it just
+   * restarted the WiFi stack, so the caller can re-init ESP-NOW. No-op unless
+   * txWatchdogEnabled. */
+  bool pollWatchdog(uint32_t now, uint32_t txAttempts, uint32_t txOks);
+
+  /* DIAG (test only): force the next pollWatchdog() to run the real recovery path
+   * so the WiFi-stack restart + ESP-NOW rebuild can be verified on demand without
+   * waiting for a natural wedge. Remove with the rest of the diag scaffolding. */
+  void debugTriggerWedge() { debugForce_ = true; }
+
   bool staConnected() const;
   bool apActive() const { return apActive_; }
   String ipAddress() const;
@@ -63,6 +79,7 @@ class WifiManager {
  private:
   void startAccessPoint();
   void stopAccessPoint();
+  void recoverStack();   // cycle the WiFi driver to reclaim the wedged TX-buffer pool
   void beginConnect(const String& ssid, const String& password);
   void loadCredentials();
   void saveCredentials(const String& ssid, const String& password);
@@ -71,6 +88,8 @@ class WifiManager {
   Config cfg_;
   Preferences prefs_;
   DNSServer dns_;
+  WifiWatchdog watchdog_;
+  bool debugForce_ = false;   // DIAG: force one recovery (test only)
 
   String ssid_;
   String password_;

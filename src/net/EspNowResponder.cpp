@@ -34,6 +34,13 @@ void EspNowResponder::begin() {
   }
 }
 
+void EspNowResponder::reinit() {
+  if (!AppConfig::Features::kEnableEspNow) return;
+  link_.reinit();                          // rebuild esp_now (broadcast peer re-added inside)
+  if (bound_) link_.addPeer(peerMac_, 0);  // re-add the bound HUB peer (channel 0 = follow radio)
+  Serial.println("[ESPNOW] re-initialized after WiFi stack recovery");
+}
+
 void EspNowResponder::onRecvStatic(const uint8_t* mac, const uint8_t* data, int len) {
   if (s_self) s_self->handleRecv(mac, data, len);
 }
