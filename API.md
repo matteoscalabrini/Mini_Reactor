@@ -108,7 +108,11 @@ source of truth for all live state. Shape:
     "id": 7,                   // current run id; null when idle
     "name": "Ethanol distillation"  // null when unnamed or idle
   },
-  "wifi": { "mode": "sta", "connected": true, "ssid": "LAB-NET", "ip": "192.168.1.42", "rssi": -55 },
+  "wifi": { "mode": "sta", "connected": true, "ssid": "LAB-NET", "ip": "192.168.1.42", "rssi": -55, "recoveries": 0 },
+  //   recoveries: count of WiFi-stack self-heals since boot. The driver's TX-buffer
+  //   pool can wedge under load (TCP + ESP-NOW stop transmitting while still
+  //   associated); the watchdog restarts just the WiFi stack (never the chip, so a
+  //   run keeps going). A rising count means it caught + healed a wedge.
   "storage": {
     "sdMounted": true,
     "logBytes": null,          // not yet reported

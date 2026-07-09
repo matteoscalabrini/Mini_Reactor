@@ -63,10 +63,9 @@ class WifiManager {
    * txWatchdogEnabled. */
   bool pollWatchdog(uint32_t now, uint32_t txAttempts, uint32_t txOks);
 
-  /* DIAG (test only): force the next pollWatchdog() to run the real recovery path
-   * so the WiFi-stack restart + ESP-NOW rebuild can be verified on demand without
-   * waiting for a natural wedge. Remove with the rest of the diag scaffolding. */
-  void debugTriggerWedge() { debugForce_ = true; }
+  /* recoveryCount() — number of WiFi-stack self-heals since boot (exposed in
+   * telemetry so the wedge/recovery is visible over WiFi without serial). */
+  uint32_t recoveryCount() const { return recoveryCount_; }
 
   bool staConnected() const;
   bool apActive() const { return apActive_; }
@@ -89,7 +88,7 @@ class WifiManager {
   Preferences prefs_;
   DNSServer dns_;
   WifiWatchdog watchdog_;
-  bool debugForce_ = false;   // DIAG: force one recovery (test only)
+  uint32_t recoveryCount_ = 0;   // WiFi-stack self-heals since boot
 
   String ssid_;
   String password_;

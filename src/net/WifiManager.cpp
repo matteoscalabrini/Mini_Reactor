@@ -44,7 +44,6 @@ void WifiManager::begin() {
 }
 
 bool WifiManager::pollWatchdog(uint32_t now, uint32_t txAttempts, uint32_t txOks) {
-  if (debugForce_) { debugForce_ = false; recoverStack(); return true; }  // DIAG test hook
   if (!cfg_.txWatchdogEnabled) return false;
   // Only meaningful while associated; watchdog_ ignores the down/idle cases.
   if (!watchdog_.update(now, staConnected(), txAttempts, txOks)) return false;
@@ -56,7 +55,9 @@ void WifiManager::recoverStack() {
   // WiFi driver TX-buffer pool wedged (associated but nothing transmits). Cycle
   // the driver OFF->STA to reclaim it, then re-associate via the normal FSM.
   // NEVER ESP.restart() — a run may be active. ESP-NOW is rebuilt by the caller.
-  Serial.println("[WIFI] TX path wedged (associated, no TX landing) — restarting WiFi stack");
+  ++recoveryCount_;
+  Serial.printf("[WIFI] TX path wedged (associated, no TX landing) — restarting WiFi stack (#%u)\n",
+                (unsigned)recoveryCount_);
   WiFi.disconnect(false, false);
   WiFi.mode(WIFI_OFF);
   delay(100);

@@ -130,7 +130,6 @@ class WebInterface {
     String wifiPass;
     bool wifiForget = false;
     bool wifiScan = false;
-    bool wifiKick = false;   // DIAG: force a WiFi-stack recovery (test only)
     bool logInterval = false;  uint32_t logIntervalSec = 0;
   } pending_;
 };

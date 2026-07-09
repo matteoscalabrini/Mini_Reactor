@@ -437,14 +437,6 @@ void WebInterface::registerRoutes() {
     sendOk(req);
   });
 
-  // ── DIAG (test only): force a WiFi-stack recovery to verify the self-heal path ──
-  server_->on("/api/v1/debug/wifikick", HTTP_POST, [this](AsyncWebServerRequest* req) {
-    xSemaphoreTake(mutex_, portMAX_DELAY);
-    pending_.wifiKick = true;
-    xSemaphoreGive(mutex_);
-    sendOk(req);
-  });
-
   // ── Static UI + SPA fallback ──
   server_->serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
@@ -502,7 +494,6 @@ void WebInterface::applyPending() {
   if (p.calReset) { Serial.println("[CMD] calibration reset"); reactor_.resetCalibration(); }
   if (p.wifiConnect) { Serial.printf("[CMD] wifi connect ssid='%s'\n", p.wifiSsid.c_str()); wifi_.connect(p.wifiSsid, p.wifiPass); }
   if (p.wifiForget) { Serial.println("[CMD] wifi forget"); wifi_.forget(); }
-  if (p.wifiKick) { Serial.println("[CMD] debug wifi kick — forcing WiFi-stack recovery"); wifi_.debugTriggerWedge(); }
   if (p.wifiScan) { Serial.println("[CMD] wifi scan requested"); wifi_.requestScan(); }
   if (p.logInterval) { Serial.printf("[CMD] log interval=%us\n", (unsigned)p.logIntervalSec); sd_.setLogIntervalSec(p.logIntervalSec); }
   if (p.sdErase) { Serial.println("[CMD] sd ERASE all files"); sd_.eraseAll(); }
