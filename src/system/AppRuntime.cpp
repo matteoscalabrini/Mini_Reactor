@@ -247,41 +247,58 @@ const char* voltageCodeStr(Husb238::VoltageCode v) {
 }
 
 void requestPd() {
-  Serial.println(F("\n[HUSB238] USB-PD sink: requesting 12V (re-asserted from the loop until VBUS=12V) ..."));
+  Serial.println(F("\n[HUSB238] USB-PD sink probe ..."));
   if (!g_pd.probe()) {
     Serial.printf("  HUSB238 not found (%s) — running on USB-default 5V\n",
                   g_pd.lastErrorString());
     return;
   }
-  // Fire the first request now; pdReconcile() in the loop keeps re-issuing it
-  // until VBUS actually reads 12V. On a cold cable insertion the HUSB238's Type-C
-  // attach + source-cap discovery can complete AFTER any fixed boot-time window,
-  // so a boot-only request is dropped — the "12V only applies after a reset"
-  // symptom. Re-asserting from the loop does what repeated resets would, until it
-  // takes; once at 12V it stops.
-  g_pd.requestSourceCapabilities();
-  g_pd.requestProfile(AppConfig::Pd::kRequestProfile);
+  // No PD command here: at cold plug the Type-C attach + source-cap exchange is
+  // still in flight when boot reaches this point, and a command fired into that
+  // handshake collides with it — the source answers with a PD Hard Reset that
+  // drops VBUS to 0V (the "PSU reboots on plug" failure). pdReconcile() in the
+  // loop negotiates 12V once ATTACH is actually reported.
+  Serial.println(F("  found — 12V negotiated from the loop once attach completes"));
 }
 
-// Re-assert the 12V PD request until it takes. Called every loop, self-gated to
-// kReconcilePeriodMs. Removes any dependence on PD attach completing within a
-// boot-time window: it keeps selecting the 12V PDO + REQUEST_PD each period while
-// VBUS is below 12V, and stops (only re-asserting if the contract is later lost).
+// Negotiate/hold the 12V contract from the loop, self-gated to kReconcilePeriodMs.
+// At most ONE PD action per period, and only while ATTACH is set:
+//   - table shows the 12V PDO   → single REQUEST_PD (no caps command paired with it)
+//   - table empty (no caps yet) → single GET_SRC_CAP; the request goes next period
+//   - caps refreshed but still no 12V PDO → source can't do 12V; stop until re-plug
+// GET_SRC_CAP restarts the PD negotiation, so pairing it back-to-back with
+// REQUEST_PD makes the two exchanges collide and the source Hard Reset (VBUS→0V).
 void pdReconcile() {
   static uint32_t lastMs = 0;
   static bool at12 = false;
+  static bool capsAsked = false;   // one caps refresh per attach
+  static bool no12V = false;       // source advertises caps without a 12V PDO
   const uint32_t now = millis();
   if (now - lastMs < AppConfig::Pd::kReconcilePeriodMs) return;
   lastMs = now;
   Husb238::Status s;
   if (!g_pd.refreshStatus(s)) return;                    // I2C hiccup; retry next period
+  if (!s.attached) {                                     // unplugged: re-arm for next attach
+    at12 = false; capsAsked = false; no12V = false;
+    return;
+  }
   if (s.voltage == Husb238::VoltageCode::V12) {
     if (!at12) { Serial.println(F("[HUSB238] VBUS = 12V negotiated")); at12 = true; }
     return;                                              // at 12V — nothing to do
   }
-  at12 = false;                                          // below 12V — keep (re)asserting
-  g_pd.requestSourceCapabilities();                      // refresh SRC_PDO regs
-  g_pd.requestProfile(AppConfig::Pd::kRequestProfile);   // select 12V + REQUEST_PD
+  at12 = false;                                          // below 12V — reconcile
+  if (no12V) return;
+  Husb238::SourceCapability cap12;
+  if (!g_pd.readSourceCapability(AppConfig::Pd::kRequestProfile, cap12)) return;
+  if (cap12.present) {
+    g_pd.requestProfile(AppConfig::Pd::kRequestProfile); // select 12V + REQUEST_PD
+  } else if (!capsAsked) {
+    g_pd.requestSourceCapabilities();                    // populate SRC_PDO table
+    capsAsked = true;
+  } else {
+    Serial.println(F("[HUSB238] source offers no 12V PDO — +12V rail stays off"));
+    no12V = true;
+  }
 }
 
 // Build the nested /api/v1 telemetry object (spec §4). P1+P2 fields;
@@ -378,6 +395,8 @@ String buildStatusJson() {
   JsonObject at = pid["autotune"].to<JsonObject>();
   at["active"] = g_thermal.autotuneActive();
   at["progress"] = g_thermal.autotuneProgress();
+  if (g_thermal.autotuneActive()) at["phase"] = g_thermal.autotunePhase();  // "ramp"|"cycling"
+  else at["phase"] = nullptr;
   const char* ares = g_thermal.autotuneResult();
   if (ares) at["result"] = ares;
   else at["result"] = nullptr;
@@ -434,7 +453,11 @@ String buildStatusJson() {
   JsonObject storage = doc["storage"].to<JsonObject>();
   storage["sdMounted"] = g_sd.mounted();
   storage["logBytes"] = nullptr;  // accurate size arrives with the SD-mgmt phase
-  storage["logging"] = g_sd.mounted();
+  // logging = rows are actually being written right now (run open, writes OK) —
+  // not merely "card mounted". logDegraded latches when a row write fails
+  // mid-run (yanked/dying card): rows are being lost.
+  storage["logging"] = g_sd.mounted() && g_sd.currentRunId() != 0 && !g_sd.writeDegraded();
+  storage["logDegraded"] = g_sd.writeDegraded();
   storage["logIntervalSec"] = g_sd.logIntervalSec();
 
   static AlarmTracker s_alarms;
@@ -558,11 +581,19 @@ void tick() {
   g_thermal.update();   // PID, internally gated to its sample period
   g_reactor.update();   // run timer
 
-  // Finalize a run that ended on its own (duration timeout): the reactor stops
-  // itself, so close+save the open file here. Web-initiated stops already call
-  // endRun() in applyPending.
+  // Run-file lifecycle on the running edge — the one place that sees EVERY
+  // start/stop path (web, HUB, OLED panel, duration timeout).
+  //   rising edge: open a run file if none is open yet. Web starts already
+  //     opened one (with the session name) in applyPending; panel starts used
+  //     to bypass SD entirely and log nothing — this closes that hole.
+  //   falling edge: close+save the file. Web stops already called endRun().
   static bool prevRunning = false;
   const bool nowRunning = g_reactor.running();
+  if (AppConfig::Features::kEnableSdLogging && !prevRunning && nowRunning &&
+      g_sd.mounted() && g_sd.currentRunId() == 0) {
+    const int id = g_sd.startRun("");  // unnamed: panel has no name entry
+    Serial.printf("[SD] run file opened (id=%d) for non-web start\n", id);
+  }
   if (AppConfig::Features::kEnableSdLogging && prevRunning && !nowRunning && g_sd.currentRunId() != 0) {
     g_sd.endRun(true);  // auto-stop saves
   }
@@ -589,9 +620,12 @@ void tick() {
     statusJson = buildStatusJson();
     scanJson = g_wifi.scanJson();
     g_web.cacheCalJson(buildCalJson());
-    static uint32_t lastRunsMs = 0;
-    if (AppConfig::Features::kEnableSdLogging && now - lastRunsMs >= 1000) {       // refresh the runs list ~1 Hz
-      lastRunsMs = now;
+    // Rebuild the runs list only when the run-file set actually changed
+    // (start/stop/delete/erase). The old ~1 Hz rebuild re-enumerated the card —
+    // opening every .name sidecar — every second, forever.
+    static uint32_t lastRunsMut = ~0UL;
+    if (AppConfig::Features::kEnableSdLogging && g_sd.mutations() != lastRunsMut) {
+      lastRunsMut = g_sd.mutations();
       int latestRun = 0;
       g_web.cacheRunsJson(buildRunsJson(latestRun));
       g_web.cacheLatestRunId(latestRun);  // lets GET /log resolve the newest run off-bus

@@ -34,6 +34,9 @@ void WifiManager::begin() {
   wc.stallMs = cfg_.txStallMs;
   wc.backoffMs = cfg_.txRecoverBackoffMs;
   watchdog_.setConfig(wc);
+  Serial.printf("[WIFI] TX-wedge watchdog %s (stall %lus, needs ESP-NOW TX as its probe)\n",
+                cfg_.txWatchdogEnabled ? "enabled" : "disabled",
+                (unsigned long)(cfg_.txStallMs / 1000));
 
   loadCredentials();
   if (ssid_.length() > 0) {
@@ -116,6 +119,7 @@ bool WifiManager::connect(const String& ssid, const String& password) {
   if (ssid.isEmpty()) return false;
   ssid_ = ssid;
   password_ = password;
+  credsDirty_ = true;
   beginConnect(ssid_, password_);
   return true;
 }
@@ -156,7 +160,9 @@ void WifiManager::poll() {
     if (connected) {
       connecting_ = false;
       wasConnected_ = true;
-      saveCredentials(ssid_, password_);
+      // Persist only creds that came in via connect() — reconnects and self-heals
+      // reuse the stored pair, and rewriting it each time just wears NVS.
+      if (credsDirty_) { saveCredentials(ssid_, password_); credsDirty_ = false; }
       Serial.printf("[WIFI] connected, IP %s\n", WiFi.localIP().toString().c_str());
       stopAccessPoint();  // onboarding done — drop the setup AP
     } else if (now - connectStartedMs_ > cfg_.connectTimeoutMs) {

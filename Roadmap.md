@@ -31,6 +31,24 @@ the specs/plans under `docs/superpowers/`.
       ceiling (kills 36→40 overshoot); auto-run relay tune below setpoint derives heat+hold
       gains; toggle kEnableAdaptiveThermal. Spec/plan under docs/superpowers/. On-hardware
       overshoot verification pending next run.
+- [x] Adaptive thermal review fixes (2026-07-10) — gains POST writes the HOLD set (+derived
+      HEAT, counts as commissioning) instead of being scheduler-overwritten; failed
+      commissioning tune latches (`atTried` NVS) instead of re-running 30 min every Start;
+      autotune start 409s without an active run and tunes below setpoint from the button
+      path too; fixed-mode tune completion now lands on the live PID; `autotune.phase`
+      (ramp/cycling) in status. UI: TUNING pill + REGIME readout + duty-ceiling tick on
+      Monitor; Settings PID section shows hold/heat sets + TUNED state, primes from HOLD.
+- [ ] Manual heater duty control (Manual mode currently freezes the last PID duty; no
+      duty input exposed) — decide whether to add a duty field or drop the mode.
+- [x] SD logging review fixes (2026-07-10) — integrity: run file now opens on the loop's
+      running-edge (panel/OLED starts were logging NOTHING), sd/erase 409s while a run is
+      active, row-write failures latch `logDegraded` and `storage.logging` means "writing
+      rows now". Scale: runs list rebuilt on change (was 1 Hz card enumeration forever),
+      `GET /runs/{id}?tail=N` + History loads a 1000-row tail by default with explicit
+      Load full, fault rows excluded from the trend (no more 0 °C dives), `t_ms` is now
+      run-relative.
+- [ ] SD card hot-remount (begin() runs only at boot; a card yanked mid-session stays
+      unmounted until reboot — logDegraded now at least reports it).
 - [x] Independent NTC over-temp safety high-limit + disconnected-probe start refusal (`sensor/Thermistor`, `system/AlarmTracker`)
 - [x] Heater-NTC calibration (offset / Beta / Steinhart by point count) (`sensor/ThermistorCalibration`)
 - [x] Disc agitator: TMC2209 UART `VACTUAL` rpm control, current/microsteps/direction persisted (`motor/Tmc2209Motor`, `motor/RpmKinematics`)
@@ -85,10 +103,18 @@ app code; WS/AsyncTCP library layer (AsyncTCP 3.3.2 / ESPAsyncWebServer 3.6.0) i
       buffered unicast undeliverable (ping/ARP/TCP die) while beacons still arrive, so the FSM never
       reconnects. Fix: `WiFi.setSleep(false)` in `WifiManager::begin()` (also required for ESP-NOW RX).
       A/B verified: PS on = dead at 5.5 min; PS off = clean 30+ min soak at same RSSI, same load.
-- [ ] Hardening pass from audit: hostname-before-mode, NVS save-only-on-change, cache TMC/PD reads
-      out of the 10 Hz status build, status build at push rate, `availableForWriteAll()` WS gate,
-      event-driven runs-list rebuild (not 1 Hz SD enumeration), WiFi-stack-only self-heal watchdog
-      (never `ESP.restart()` while a run is active)
+- [x] WiFi TX-buffer wedge self-heal (2026-07-09): `availableForWriteAll()` WS pressure gate +
+      WifiWatchdog on the ESP-NOW send counters + `recoverStack()` driver cycle (never
+      `ESP.restart()` while a run is active); `wifi.recoveries` in status.
+- [x] WiFi self-heal review fixes (2026-07-10) — the shipped detector could **never fire**:
+      its stall clock reset on every non-sending loop tick (polled ~3 ms, sends every 250 ms
+      ⇒ max 250 ms accumulated vs a 30 s threshold; both bench "recoveries" were forced via
+      the diag kick, bypassing it). Rewired to track attempts-outstanding-without-progress;
+      native tests now model the real cadence (6 cases incl. a named regression). Plus:
+      1 Hz broadcast Probe when no HUB is bound (detection no longer HUB-only), credentials
+      persisted only when changed (NVS wear), Settings WIFI line shows "· N self-heals".
+- [ ] Hardening pass from audit (remaining): hostname-before-mode, cache TMC/PD reads out of
+      the 10 Hz status build, status build at push rate
 
 ## Backlog / Future
 

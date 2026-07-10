@@ -84,7 +84,7 @@ class Reactor {
   /* PID control surface (delegates to the ThermalController). */
   void setPidGains(float kp, float ki, float kd) { thermal_.setGains(kp, ki, kd); }
   void setPidMode(const char* m) { thermal_.setModeStr(m); }
-  void startAutotune() { thermal_.startAutotune(); }
+  bool startAutotune() { return thermal_.startAutotune(); }  // false: no active run
   void cancelAutotune() { thermal_.cancelAutotune(); }
 
   /* Heater-NTC calibration delegates. */

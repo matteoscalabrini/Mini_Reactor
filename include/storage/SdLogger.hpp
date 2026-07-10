@@ -44,6 +44,15 @@ class SdLogger {
   /* mounted() — True once begin() succeeded and the card is usable. */
   bool mounted() const { return mounted_; }
 
+  /* writeDegraded() — True once a row write failed for the current run (card
+   * yanked/dying). Latched until the next startRun(); rows are being lost. */
+  bool writeDegraded() const { return writeDegraded_; }
+
+  /* mutations() — Counter bumped by every change to the run-file set (start,
+   * end, delete, erase). Lets callers rebuild the runs list only on change
+   * instead of re-enumerating the card on a timer. */
+  uint32_t mutations() const { return mutations_; }
+
   /*
    * checkAndReport() — Print card-detect state, type, size, root listing, and a
    * non-destructive write/read/delete self-test result to out.
@@ -107,6 +116,8 @@ class SdLogger {
   File current_;
   int currentId_ = 0;
   char currentName_[33] = {0};
+  bool writeDegraded_ = false;   // a row write failed this run (latched)
+  uint32_t mutations_ = 0;       // run-file set change counter
 
   uint32_t logIntervalMs_ = 10000;  // SD log row interval (NVS-persisted)
   Preferences prefs_;

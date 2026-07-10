@@ -167,8 +167,10 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);l
 .kv{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:11px 0}
 .kv::before{content:"";flex:1;order:1;align-self:flex-end;margin-bottom:4px;border-bottom:1px dotted var(--rule)}
 .kv>:first-child{order:0} .kv>:last-child{order:2}
-.bar{height:7px;background:var(--sheet-2);border:1px solid var(--rule-2);border-radius:var(--radius);overflow:hidden;margin-top:6px}
+.bar{position:relative;height:7px;background:var(--sheet-2);border:1px solid var(--rule-2);border-radius:var(--radius);overflow:hidden;margin-top:6px}
 .bar>i{display:block;height:100%;background:var(--accent);transition:width .35s ease}
+/* Reference tick (e.g. the scheduled duty ceiling) overlaid on a bar. */
+.bar>b{position:absolute;top:0;bottom:0;width:2px;background:var(--ref);transition:left .35s ease}
 .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
 .stat3 .v{font-family:var(--mono);font-weight:600;font-size:16px;margin-top:4px}
 

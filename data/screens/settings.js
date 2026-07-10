@@ -72,7 +72,12 @@ export function mount(root) {
   const sdInfo = el("p", { class: "muted" }, "—");
   function eraseModal() {
     const input = el("input", { type: "text", placeholder: "type: erase" });
-    const ok = el("button", { class: "stop", disabled: "", onclick: async () => { ok.disabled = true; await api.post("/api/v1/sd/erase"); toast("Erasing…", "ok"); bg.remove(); } }, "Erase card");
+    const ok = el("button", { class: "stop", disabled: "", onclick: async () => {
+      ok.disabled = true;
+      const r = await api.post("/api/v1/sd/erase");
+      toast(r.ok ? "Erasing…" : ((r.body.error && r.body.error.message) || "Erase refused"), r.ok ? "ok" : "err");
+      bg.remove();
+    } }, "Erase card");
     input.addEventListener("input", () => { if (input.value.trim() === "erase") ok.removeAttribute("disabled"); else ok.setAttribute("disabled", ""); });
     const bg = el("div", { class: "modal-bg" },
       el("div", { class: "modal" },
@@ -88,7 +93,7 @@ export function mount(root) {
     el("div", { class: "btns" },
       el("button", { class: "go", onclick: async (e) => {
         const b = e.currentTarget, s = +logInt.value;
-        if (s < 1 || s > 3600) return toast("interval must be 1–3600 s");
+        if (!Number.isFinite(s) || s < 1 || s > 3600) return toast("interval must be 1–3600 s");
         const r = await api.setLogInterval(s); flashApplied(b, r.ok);
       } }, "Apply interval"),
       el("button", { class: "btn", onclick: async (e) => {
@@ -109,10 +114,17 @@ export function mount(root) {
   const kp = el("input", { type: "number", step: "0.001" }), ki = el("input", { type: "number", step: "0.0001" }), kd = el("input", { type: "number", step: "0.01" });
   const modeSel = el("select", {}, el("option", { value: "auto" }, "Auto"), el("option", { value: "manual" }, "Manual"));
   const atInfo = el("span", { class: "v" }, "—");
-  const atStartBtn = el("button", { class: "ghost", onclick: () => api.autotune("start") }, "Autotune");
+  const atStartBtn = el("button", { class: "ghost", onclick: async () => {
+    const r = await api.autotune("start");
+    if (!r.ok) toast((r.body.error && r.body.error.message) || "Autotune needs an active run");
+  } }, "Autotune");
   const atCancelBtn = el("button", { class: "ghost", onclick: () => api.autotune("cancel") }, "Cancel");
+  // Adaptive builds: Apply writes the HOLD gain set (HEAT derived); this line
+  // shows the sets actually in use + commissioning state.
+  const schedLine = el("p", { class: "muted", hidden: "" }, "—");
   const pid = sec("PID TUNING",
     el("div", { class: "row" }, field("Kp", kp), field("Ki", ki), field("Kd", kd)),
+    schedLine,
     field("MODE", modeSel),
     el("div", { class: "btns" },
       el("button", { class: "go", onclick: async (e) => { const b = e.currentTarget; const r = await api.pidGains(+kp.value, +ki.value, +kd.value); flashApplied(b, r.ok); } }, "Apply gains"),
@@ -208,15 +220,30 @@ export function mount(root) {
     hub.hidden = !featureEnabled(d, "espnow");
     renderHubPeers((d.espnow || {}).peers || []);
     atStartBtn.hidden = atCancelBtn.hidden = !featureEnabled(d, "autotune");
-    wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`;
-    sdInfo.textContent = st.sdMounted
-      ? `Card mounted · logging every ${st.logIntervalSec ?? "—"}s` : "No card";
-    atInfo.textContent = at.active ? `running ${at.progress || 0}%` : (at.result || "idle");
+    atStartBtn.disabled = !(d.run || {}).active;  // firmware 409s without a run
+    const adaptive = !!p.regime && p.regime !== "fixed";
+    schedLine.hidden = !adaptive;
+    if (adaptive) {
+      const g = (x) => x ? `${(+x.kp).toFixed(3)} / ${(+x.ki).toFixed(4)} / ${(+x.kd).toFixed(2)}` : "—";
+      const sch = p.schedule || {};
+      schedLine.textContent = `Adaptive · ${p.tuned ? "TUNED" : "UNTUNED (defaults)"} — hold ${g(sch.hold)} · heat ${g(sch.heat)}. Apply writes the HOLD set; HEAT is derived ×1.8.`;
+    }
+    wifiInfo.textContent = `${w.connected ? "Station" : w.mode === "ap" ? "Access point" : "Offline"} · ${w.ssid || "—"} · ${w.ip || "—"}`
+      + (w.recoveries ? ` · ${w.recoveries} self-heal${w.recoveries > 1 ? "s" : ""}` : "");
+    sdInfo.textContent = !st.sdMounted ? "No card"
+      : st.logDegraded ? "Card mounted · LOG WRITE FAILURE — rows are being lost"
+      : `Card mounted · logs during runs · every ${st.logIntervalSec ?? "—"}s`;
+    atInfo.textContent = at.active
+      ? (at.phase === "ramp" ? "running · ramping to tune point" : `running ${at.progress || 0}%`)
+      : (at.result || "idle");
     sysInfo.textContent = `Firmware ${s.firmware || "—"} · heap ${s.freeHeap || "—"} · VBUS ${s.vbus || "—"} · driver ${drv.version || "—"} (${drv.connected ? "ok" : "—"})`;
     if (!testBtn.disabled || testBtn.textContent === "Test") testBtn.disabled = (d.run || {}).active === true;
     if (!primed) {
       primed = true;
-      kp.value = p.kp ?? ""; ki.value = p.ki ?? ""; kd.value = p.kd ?? ""; if (p.mode) modeSel.value = p.mode;
+      // Adaptive: prime the editor from the HOLD set (what Apply writes) — the
+      // live p.kp/ki/kd are the scheduler's blended output, not a setting.
+      const src = (p.regime && p.regime !== "fixed") ? ((p.schedule || {}).hold || {}) : p;
+      kp.value = src.kp ?? ""; ki.value = src.ki ?? ""; kd.value = src.kd ?? ""; if (p.mode) modeSel.value = p.mode;
       if (st.logIntervalSec != null) logInt.value = st.logIntervalSec;
       curMa.value = disc.currentMa ?? ""; micro.value = disc.microsteps ?? ""; if (disc.direction) dirSel.value = disc.direction;
     }

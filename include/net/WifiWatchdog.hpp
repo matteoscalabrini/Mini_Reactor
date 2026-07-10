@@ -9,9 +9,13 @@
  *
  * Detection is fed a monotonic TX "attempts" and "oks" counter each tick (from
  * EspNowLink::txDiag — the only always-present TX we can see the result of).
- * Fires when we are connected AND actively transmitting (attempts advancing) but
- * nothing lands (oks frozen) for stallMs. It deliberately never fires when idle
- * (not transmitting) or disconnected — an idle or down link is not a wedge.
+ * update() runs at loop rate (~3 ms) while sends happen every 250 ms, so the
+ * detector tracks whether attempts are OUTSTANDING (advanced without any ok
+ * since): the stall clock freezes at the first unanswered send and only progress
+ * or disconnect clears it. Per-tick "am I sending right now" must NOT reset the
+ * clock — that made the original detector provably unable to fire (the clock
+ * was reset on the ~77 idle ticks between every send). It deliberately never
+ * fires when idle (nothing outstanding) or disconnected — not a wedge.
  */
 #pragma once
 
@@ -31,7 +35,7 @@ class WifiWatchdog {
     if (!connected) {  // down: not our failure mode; hold counters, disarm
       lastAttempts_ = txAttempts;
       lastOks_ = txOks;
-      armed_ = false;
+      outstanding_ = false;
       return false;
     }
     const bool sending = (txAttempts != lastAttempts_);
@@ -39,16 +43,18 @@ class WifiWatchdog {
     lastAttempts_ = txAttempts;
     lastOks_ = txOks;
 
-    if (progressing || !sending || !armed_) {
-      healthyMs_ = now;  // healthy, idle, or first connected observation
-      armed_ = true;
+    if (progressing) outstanding_ = false;  // something landed — healthy
+    else if (sending) outstanding_ = true;  // attempts advancing, none landing
+    if (!outstanding_) {  // healthy or idle: no unanswered sends, clock follows now
+      healthyMs_ = now;
       return false;
     }
-    // Transmitting but nothing landing.
+    // Unanswered sends outstanding since healthyMs_.
     if (now - healthyMs_ < cfg_.stallMs) return false;
     if (recovered_ && now - lastRecoverMs_ < cfg_.backoffMs) return false;
     lastRecoverMs_ = now;
-    healthyMs_ = now;  // restart the stall clock after triggering
+    healthyMs_ = now;      // restart the stall clock after triggering
+    outstanding_ = false;  // re-arm only on the next unanswered send
     recovered_ = true;
     return true;
   }
@@ -57,6 +63,6 @@ class WifiWatchdog {
   Config cfg_;
   uint32_t lastAttempts_ = 0, lastOks_ = 0;
   uint32_t healthyMs_ = 0, lastRecoverMs_ = 0;
-  bool armed_ = false;
+  bool outstanding_ = false;  // attempts advanced with no ok since
   bool recovered_ = false;
 };

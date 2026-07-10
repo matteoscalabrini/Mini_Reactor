@@ -41,5 +41,6 @@ class EspNowResponder {
   uint8_t   channel_ = 0;                      // WiFi channel at bind time
   char      peerName_[synclink::kNameLen] = {0};
   uint32_t  lastTelemetryMs_ = 0;
+  uint32_t  lastProbeMs_ = 0;   // unbound TX probe cadence (keeps the wedge watchdog fed)
   uint32_t  pairUntilMs_ = 0;   // millis() deadline; 0 = closed
 };

@@ -151,6 +151,14 @@ void EspNowResponder::poll() {
   if (bound_ && now - lastTelemetryMs_ >= AppConfig::EspNow::kTelemetryPeriodMs) {
     lastTelemetryMs_ = now;
     sendTelemetry();
+  } else if (!bound_ && now - lastProbeMs_ >= AppConfig::EspNow::kProbePeriodMs) {
+    // Unbound: no telemetry flows, so the TX-wedge watchdog would be blind.
+    // A bare-Header broadcast Probe keeps the send counters moving.
+    lastProbeMs_ = now;
+    Header h = {kProtocolVersion, (uint8_t)MsgType::Probe, link_.nextSeq()};
+    uint8_t buf[sizeof(Header)];
+    std::memcpy(buf, &h, sizeof(h));
+    link_.sendBroadcast(buf, sizeof(h));
   }
 }
 

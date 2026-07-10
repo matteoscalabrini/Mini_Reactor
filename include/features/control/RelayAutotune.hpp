@@ -55,6 +55,12 @@ class RelayAutotune {
 
   bool done() const { return done_; }
   bool failed() const { return failed_; }
+  /* Coarse lifecycle for the UI: progressPct() reads 0 through the initial ramp
+   * (often the longest phase), so expose which phase the tune is actually in. */
+  const char* phase() const {
+    if (done_ || failed_) return "done";
+    return haveLastCross_ ? "cycling" : "ramp";
+  }
   int progressPct() const {
     if (failed_) return 100;
     if (cfg_.targetCycles <= 0) return 0;

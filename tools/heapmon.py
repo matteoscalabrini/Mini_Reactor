@@ -51,7 +51,7 @@ def fetch_status(host: str, timeout: float = 5.0) -> dict:
 FIELDS = [
     "time", "state", "uptimeSec", "freeHeap", "minFreeHeap", "largestBlock",
     "freeDma", "minFreeDma", "rssi", "wifiMode", "espnowBound", "runActive",
-    "pingOk", "wsFrames",
+    "recoveries", "pingOk", "wsFrames",
 ]
 
 
@@ -161,6 +161,7 @@ def main() -> int:
                 wifiMode=s.get("wifi", {}).get("mode", ""),
                 espnowBound=s.get("espnow", {}).get("bound", ""),
                 runActive=s.get("run", {}).get("active", ""),
+                recoveries=s.get("wifi", {}).get("recoveries", ""),
                 pingOk=1,
                 wsFrames=sum(h.frames for h in holders),
             )

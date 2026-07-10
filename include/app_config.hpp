@@ -40,11 +40,12 @@ static constexpr uint8_t kAddress = 0x08;  // fixed HUSB238 I2C address
 // sourced from VBUS via the PD-gated PMOS, so request 12V.
 static constexpr Husb238::PdSelection kRequestProfile =
     Husb238::PdSelection::PD_SRC_12V;
-// Cold-plug negotiation: on cable insertion the HUSB238's Type-C attach +
-// source-cap discovery can finish AFTER any fixed boot-time window, so a
-// boot-only 12V request is dropped ("only applies after a reset"). Instead,
-// re-assert the request from the main loop every kReconcilePeriodMs until VBUS
-// actually reads 12V (then stop). No dependence on attach completing at boot.
+// Cold-plug negotiation: the 12V contract is negotiated from the main loop
+// (pdReconcile, every kReconcilePeriodMs), gated on the ATTACH bit — never from
+// boot, where a command lands mid Type-C handshake and the source answers with
+// a Hard Reset (VBUS→0V, "PSU reboots on plug"). One PD action per period:
+// REQUEST_PD when the 12V PDO is advertised, one GET_SRC_CAP if the PDO table
+// is empty. Stops at VBUS=12V, or until re-plug if the source offers no 12V.
 static constexpr uint32_t kReconcilePeriodMs = 1000;
 }  // namespace Pd
 
@@ -202,7 +203,9 @@ static constexpr const char* kPrefsPassKey   = "pass";
 // TX-wedge self-heal: the WiFi driver's TX-buffer pool can exhaust under load
 // (esp_now_send -> ESP_ERR_ESPNOW_NO_MEM); TCP + ESP-NOW both die while the STA
 // stays associated (WL_CONNECTED never drops). Detected via the ESP-NOW send
-// counters; on a sustained wedge, restart the WiFi stack (never ESP.restart()).
+// counters (HUB telemetry when bound, 1 Hz Probe when unbound; kEnableEspNow=false
+// leaves the watchdog blind); on a sustained wedge, restart the WiFi stack
+// (never ESP.restart()).
 static constexpr bool     kEnableTxWatchdog      = true;
 static constexpr uint32_t kTxStallMs             = 30000;  // associated + sending but 0 landing this long => recover
 static constexpr uint32_t kTxRecoverBackoffMs    = 30000;  // min gap between stack restarts
@@ -235,6 +238,11 @@ namespace EspNow {
 static constexpr const char* kNvsNamespace = "espnow";
 static constexpr uint32_t kTelemetryPeriodMs = 250;  // ~4 Hz, mirrors WS push
 static constexpr uint32_t kPairWindowMs = 60000;     // 60 s allow-pairing window
+// Unbound TX probe: the WiFi TX-wedge watchdog watches the ESP-NOW send
+// counters, and telemetry only flows when a HUB is bound. With no HUB, a tiny
+// broadcast Probe keeps the TX path exercised so the watchdog still sees the
+// wedge. (kEnableEspNow=false leaves the watchdog blind — see Wifi comment.)
+static constexpr uint32_t kProbePeriodMs = 1000;
 static constexpr const char* kDeviceName = "reactor";
 }  // namespace EspNow
 

@@ -7,6 +7,9 @@ export function mount(root) {
   const buf = makeBuffer(150, 2000);
   const heroVal = el("span", {}, "—"), heroPill = el("span", { class: "pill off" }, "MONITOR");
   const setp = el("div", { class: "v" }, "—"), errv = el("div", { class: "v" }, "—");
+  // Adaptive regime (heat/approach/hold) — hidden in fixed-gain builds.
+  const regimeV = el("div", { class: "v" }, "—");
+  const regimeBox = el("div", { hidden: "" }, el("div", { class: "lbl" }, "REGIME"), regimeV);
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("width", "100%"); svg.setAttribute("height", "170"); svg.setAttribute("preserveAspectRatio", "none");
 
@@ -26,6 +29,9 @@ export function mount(root) {
   const progBar = bar(0), progPct = el("span", { class: "n" }, "—");
   const rpmN = el("span", { class: "n" }, "—");
   const rpmBar = bar(0), heatN = el("span", { class: "n" }, "—"), heatBar = bar(0);
+  // Duty-ceiling tick: where the gain schedule caps the heater right now.
+  const capTick = el("b", { hidden: "" });
+  heatBar.append(capTick);
   const probeState = el("span", { class: "pill off" }, "—"), probeMethod = el("div", { class: "v" }, "—"),
         probeRes = el("div", { class: "v" }, "—"), probeTemp = el("div", { class: "v" }, "—");
 
@@ -37,7 +43,8 @@ export function mount(root) {
           el("div", { class: "reading" }, heroVal, el("span", { class: "u" }, "°C")),
           el("div", { class: "meta" },
             el("div", {}, el("div", { class: "lbl" }, "SETPOINT"), setp),
-            el("div", {}, el("div", { class: "lbl" }, "ERROR"), errv))),
+            el("div", {}, el("div", { class: "lbl" }, "ERROR"), errv),
+            regimeBox)),
         dev,
         el("div", { class: "chart" }, svg,
           el("div", { class: "legend" }, el("span", {}, el("i", {}), "Measured"),
@@ -64,11 +71,18 @@ export function mount(root) {
 
   const unsub = store.subscribe((d) => {
     const th = d.thermal || {}, sf = th.safety || {}, pr = sf.probe || {}, run = d.run || {}, disc = d.disc || {};
+    const pid = th.pid || {}, at = pid.autotune || {};
     heroVal.textContent = fixed(th.tempC, 1);
     setp.textContent = fixed(th.setpointC, 1); errv.textContent = fixed(th.errorC, 1);
     errv.className = "v" + ((th.errorC || 0) > 0 ? " up" : "");
-    heroPill.className = "pill " + (sf.tripped ? "bad" : th.fault ? "warn" : run.active ? "on" : "off");
-    heroPill.textContent = sf.tripped ? "SAFETY CUTOUT" : th.fault ? "PROBE FAULT" : run.active ? "REGULATING" : "MONITOR";
+    // Autotune outranks "REGULATING": the bath deliberately oscillates below
+    // setpoint while tuning, so the pill must explain the red deviation strip.
+    heroPill.className = "pill " + (sf.tripped ? "bad" : th.fault ? "warn" : at.active ? "warn" : run.active ? "on" : "off");
+    heroPill.textContent = sf.tripped ? "SAFETY CUTOUT" : th.fault ? "PROBE FAULT"
+      : at.active ? (at.phase === "ramp" ? "TUNING · RAMP" : `TUNING ${at.progress || 0}%`)
+      : run.active ? "REGULATING" : "MONITOR";
+    regimeBox.hidden = !pid.regime || pid.regime === "fixed";
+    regimeV.textContent = (pid.regime || "—").toUpperCase();
     // Deviation strip: measured minus setpoint, mapped onto the ±DEV_FS scale.
     // In-spec = accent; out of tolerance either side = bad (out).
     const d2 = (th.tempC != null && th.setpointC != null) ? th.tempC - th.setpointC : null;
@@ -86,6 +100,8 @@ export function mount(root) {
     rpmBar.firstChild.style.width = Math.min(100, ((disc.rpm || 0) / 30) * 100) + "%";
     heatN.innerHTML = ""; heatN.append(fixed(th.heaterPct, 0), el("span", { class: "u" }, "%"));
     heatBar.firstChild.style.width = Math.max(0, Math.min(100, th.heaterPct || 0)) + "%";
+    capTick.hidden = pid.dutyCeil == null || pid.dutyCeil >= 0.995;
+    if (!capTick.hidden) capTick.style.left = pid.dutyCeil * 100 + "%";
     probeState.className = "pill " + (sf.tripped ? "bad" : pr.resistanceOhms == null ? "warn" : pr.calibrated ? "on" : "off");
     probeState.textContent = sf.tripped ? "OVER-LIMIT" : pr.resistanceOhms == null ? "FAULT" : pr.calibrated ? "CALIBRATED" : "FACTORY";
     probeMethod.textContent = pr.method || "—";

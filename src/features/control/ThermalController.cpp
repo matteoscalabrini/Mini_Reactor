@@ -37,6 +37,7 @@ void ThermalController::loadGains() {
   sc.dutyMax = cfg_.dutyMax;
   sched_.setConfig(sc);
   tuned_ = prefs_.getBool("tuned", false);
+  atTried_ = prefs_.getBool("atTried", false);
   // Fixed-mode PID keeps its own gains (unchanged legacy path).
   pid_.setGains(prefs_.getFloat("kp", cfg_.kp),
                 prefs_.getFloat("ki", cfg_.ki),
@@ -79,9 +80,13 @@ bool ThermalController::enable(bool on) {
   enabled_ = on;
   pid_.reset();
   lastPidMs_ = 0;
-  if (on && cfg_.adaptiveEnabled && !tuned_) {
+  if (on && cfg_.adaptiveEnabled && !tuned_ && !atTried_) {
     // Commission once: relay-tune BELOW target so the culture never overshoots
     // during identification; derived gains apply to the real setpoint after.
+    // atTried_ latches (persisted) so a FAILED tune does not re-run a 30-minute
+    // experiment on every Start — defaults hold until an explicit re-tune/gains.
+    atTried_ = true;
+    prefs_.putBool("atTried", true);
     beginAutotuneAt(setpoint_ - cfg_.tuneMarginC);
   }
   if (!on) {
@@ -94,19 +99,26 @@ bool ThermalController::enable(bool on) {
 void ThermalController::setSetpoint(float celsius) { setpoint_ = celsius; }
 
 void ThermalController::setGains(float kp, float ki, float kd) {
-  pid_.setGains(kp, ki, kd);
-  persistGains();
+  if (cfg_.adaptiveEnabled) {
+    // Adaptive: the scheduler overwrites pid_ every sample, so user gains land
+    // in the schedule instead — they become the HOLD set, HEAT is derived by
+    // the fixed scale. Counts as commissioning (blocks the auto-tune-on-start).
+    GainSchedule::Config sc = sched_.config();
+    sc.hold = {kp, ki, kd};
+    sc.heat = GainSchedule::scaleForHeat(sc.hold, cfg_.heatKpScale);
+    sched_.setConfig(sc);
+    tuned_ = true;
+    persistSchedule();
+  } else {
+    pid_.setGains(kp, ki, kd);
+    persistGains();
+  }
 }
 
 void ThermalController::setMode(Mode m) {
   if (m == mode_) return;
-  if (m == Mode::Autotune) {
-    RelayAutotune::Config ac;
-    ac.relayHigh = cfg_.dutyMax;
-    ac.relayLow = cfg_.dutyMin;
-    autotune_.begin(setpoint_, millis(), ac);
-    autotuneResult_ = nullptr;  // in progress
-  }
+  // Mode::Autotune is not entered here — only via startAutotune()/enable(),
+  // which go through beginAutotuneAt() (tune point BELOW setpoint).
   if (m == Mode::Auto) {
     pid_.reset();
     lastPidMs_ = 0;
@@ -119,7 +131,17 @@ void ThermalController::setModeStr(const char* m) {
   else setMode(Mode::Auto);  // any non-"manual" returns to auto
 }
 
-void ThermalController::startAutotune() { setMode(Mode::Autotune); }
+bool ThermalController::startAutotune() {
+  // Idle guard: with enabled_ false, update() never advances the tune — the
+  // session would wedge at 0% and time out "failed" during a later run.
+  if (!enabled_) return false;
+  // Same protect-the-culture tune point as commissioning: BELOW the setpoint
+  // by the margin (the old path oscillated AROUND it, overshooting the batch).
+  atTried_ = true;
+  prefs_.putBool("atTried", true);
+  beginAutotuneAt(setpoint_ - cfg_.tuneMarginC);
+  return true;
+}
 
 void ThermalController::cancelAutotune() {
   if (mode_ == Mode::Autotune) {
@@ -186,12 +208,19 @@ void ThermalController::update() {
       if (autotune_.done()) {
         float kp, ki, kd;
         if (autotune_.computeGains(kp, ki, kd)) {
-          GainSchedule::Config sc = sched_.config();
-          sc.hold = {kp, ki, kd};                                   // conservative = hold
-          sc.heat = GainSchedule::scaleForHeat(sc.hold, cfg_.heatKpScale);
-          sched_.setConfig(sc);
-          tuned_ = true;
-          persistSchedule();
+          if (cfg_.adaptiveEnabled) {
+            GainSchedule::Config sc = sched_.config();
+            sc.hold = {kp, ki, kd};                                 // conservative = hold
+            sc.heat = GainSchedule::scaleForHeat(sc.hold, cfg_.heatKpScale);
+            sched_.setConfig(sc);
+            tuned_ = true;
+            persistSchedule();
+          } else {
+            // Fixed mode: the derived gains must land on the live PID — the
+            // schedule is never evaluated here.
+            pid_.setGains(kp, ki, kd);
+            persistGains();
+          }
           autotuneResult_ = "ok";
         } else {
           autotuneResult_ = "failed";

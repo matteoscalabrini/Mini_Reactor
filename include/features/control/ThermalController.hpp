@@ -73,10 +73,11 @@ class ThermalController {
   float kd() const { return pid_.kd(); }
 
   /* Mode. setModeStr accepts "auto"|"manual"; startAutotune/cancelAutotune
-   * drive the autotune lifecycle. */
+   * drive the autotune lifecycle. startAutotune returns false when no run is
+   * active (enabled_ off) — the tune cannot advance and would wedge. */
   void setMode(Mode m);
   void setModeStr(const char* m);          // "auto"|"manual"
-  void startAutotune();
+  bool startAutotune();
   void cancelAutotune();
   Mode mode() const { return mode_; }
   const char* modeStr() const;
@@ -96,6 +97,7 @@ class ThermalController {
   /* Autotune telemetry. */
   bool autotuneActive() const { return mode_ == Mode::Autotune; }
   int autotuneProgress() const { return autotune_.progressPct(); }
+  const char* autotunePhase() const { return autotune_.phase(); }  // "ramp"|"cycling"|"done"
   const char* autotuneResult() const { return autotuneResult_; }  // null|"ok"|"failed"
 
   /* Heater-NTC calibration (delegates to the safety thermistor). */
@@ -131,6 +133,7 @@ class ThermalController {
   RelayAutotune autotune_;
   GainSchedule sched_;
   bool tuned_ = false;
+  bool atTried_ = false;   // commissioning attempted (persisted failure latch)
   float dutyCeil_ = 1.0f;
   Mode mode_ = Mode::Auto;
   const char* autotuneResult_ = nullptr;

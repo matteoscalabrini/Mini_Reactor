@@ -102,7 +102,12 @@ void SdLogger::checkAndReport(Stream& out) {
 bool SdLogger::appendLine(const String& line) {
   // Run-only logging: rows go to the open run file; no run open -> nothing to write.
   if (!mounted_ || currentId_ == 0 || !current_) return false;
-  current_.println(line);
+  // A zero-byte write means the card stopped accepting data (yanked/dying);
+  // latch it so status can say "rows are being lost" instead of "logging".
+  if (current_.println(line) == 0) {
+    writeDegraded_ = true;
+    return false;
+  }
   current_.flush();                         // survive a yanked card mid-run
   return true;
 }
@@ -138,6 +143,7 @@ bool SdLogger::removeRecursive(const char* path) {
 bool SdLogger::eraseAll() {
   if (!mounted_) return false;
   if (currentId_ != 0) endRun(false);   // close+discard the open run before wiping
+  mutations_++;
   return removeRecursive("/");          // best-effort full wipe (run-only: no log to recreate)
 }
 
@@ -173,6 +179,8 @@ int SdLogger::startRun(const char* name) {
   }
   current_ = SD.open(RunFiles::csvPath(id).c_str(), FILE_APPEND);
   if (!current_) { mounted_ = false; currentId_ = 0; return 0; }
+  writeDegraded_ = false;
+  mutations_++;
   return id;
 }
 
@@ -187,6 +195,7 @@ void SdLogger::endRun(bool save) {
   currentId_ = 0;
   currentName_[0] = '\0';
   current_ = File();   // drop the closed handle object
+  mutations_++;
 }
 
 std::vector<SdLogger::RunInfo> SdLogger::listRuns() {
@@ -226,5 +235,6 @@ bool SdLogger::deleteRun(int id) {
   if (id == currentId_) endRun(false);     // can't delete the open run; discard it
   const std::string np = RunFiles::namePath(id);
   if (SD.exists(np.c_str())) SD.remove(np.c_str());  // sidecar is optional (unnamed runs)
+  mutations_++;
   return SD.remove(RunFiles::csvPath(id).c_str());
 }

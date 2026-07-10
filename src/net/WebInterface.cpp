@@ -31,6 +31,7 @@
 #include <SD.h>
 #include <SPIFFS.h>
 
+#include <memory>
 #include <string.h>
 #include "app_config.hpp"
 #include "features/control/Reactor.hpp"
@@ -73,6 +74,49 @@ static void sendError(AsyncWebServerRequest* req, int status, const char* code,
                 "\",\"message\":\"" + msg + "\"}}";
   AsyncWebServerResponse* resp = req->beginResponse(status, "application/json", body);
   resp->addHeader("Access-Control-Allow-Origin", "*");
+  req->send(resp);
+}
+
+// Stream "header line + roughly the last `rows` rows" of a run CSV as a chunked
+// response. Rows are estimated at kTailRowBytes; seek that far back from the end
+// and drop the (likely partial) line at the seek point. The open File lives in a
+// shared_ptr captured by the chunk callback, so it closes with the response —
+// including on client disconnect. Runs on the async task, same as the full-file
+// req->send(SD, ...) path.
+static void sendCsvTail(AsyncWebServerRequest* req, const String& path, uint32_t rows) {
+  static constexpr uint32_t kTailRowBytes = 96;  // generous per-row estimate
+  struct TailCtx {
+    File file;
+    String head;           // header line + '\n', replayed before the tail bytes
+    size_t headSent = 0;
+  };
+  auto ctx = std::make_shared<TailCtx>();
+  ctx->file = SD.open(path, FILE_READ);
+  if (!ctx->file) {
+    sendError(req, 404, "not_found", "no such run");
+    return;
+  }
+  ctx->head = ctx->file.readStringUntil('\n') + "\n";
+  const size_t size = ctx->file.size();
+  const uint64_t back = (uint64_t)rows * kTailRowBytes;
+  const bool truncated = back < size;
+  if (truncated) {
+    ctx->file.seek(size - (size_t)back);
+    ctx->file.readStringUntil('\n');   // discard the partial line at the seek point
+  }  // else: window covers the whole file — position is already just past the header
+  AsyncWebServerResponse* resp = req->beginChunkedResponse(
+      "text/csv", [ctx](uint8_t* buf, size_t maxLen, size_t) -> size_t {
+        size_t n = 0;
+        while (n < maxLen && ctx->headSent < ctx->head.length())
+          buf[n++] = (uint8_t)ctx->head[ctx->headSent++];
+        if (n < maxLen && ctx->file)
+          n += ctx->file.read(buf + n, maxLen - n);
+        return n;                       // 0 = end of response
+      });
+  resp->addHeader("Access-Control-Allow-Origin", "*");
+  // Lets the UI distinguish "this is a window" from "this was the whole file"
+  // (the cached runs-list bytes are stale for the live run).
+  resp->addHeader("X-Tail-Truncated", truncated ? "1" : "0");
   req->send(resp);
 }
 
@@ -226,6 +270,12 @@ void WebInterface::registerRoutes() {
           sendError(req, 400, "invalid_request", "action must be start|cancel");
           return;
         }
+        // Idle guard: with no active run the heater loop never advances the
+        // tune — it would sit at 0% and time out "failed" mid-next-run.
+        if (action == "start" && !reactor_.running()) {
+          sendError(req, 409, "run_not_active", "start a run before autotune");
+          return;
+        }
         xSemaphoreTake(mutex_, portMAX_DELAY);
         if (action == "start") pending_.autotuneStart = true;
         else pending_.autotuneCancel = true;
@@ -297,6 +347,12 @@ void WebInterface::registerRoutes() {
   // ── POST sd/erase ──
   server_->on("/api/v1/sd/erase", HTTP_POST, [this](AsyncWebServerRequest* req) {
     if (featureGate(req, AppConfig::Features::kEnableSdLogging)) return;
+    // Run guard: erasing mid-run would delete the LIVE run's file and leave the
+    // rest of the run unlogged (eraseAll discards the open run first).
+    if (reactor_.running()) {
+      sendError(req, 409, "run_active", "stop the run before erasing the card");
+      return;
+    }
     xSemaphoreTake(mutex_, portMAX_DELAY);
     pending_.sdErase = true;
     xSemaphoreGive(mutex_);
@@ -391,6 +447,13 @@ void WebInterface::registerRoutes() {
     if (!sd_.mounted() || !SD.exists(path)) {
       sendError(req, 404, "not_found", "no such run");
       return;
+    }
+    // ?tail=N — header line + roughly the last N rows, so the UI can show a
+    // recent window without pulling a multi-day CSV off the card. Seeks back
+    // N * kTailRowBytes from the end and skips the first partial line.
+    if (req->hasParam("tail")) {
+      const long rows = req->getParam("tail")->value().toInt();
+      if (rows > 0) { sendCsvTail(req, path, (uint32_t)rows); return; }
     }
     req->send(SD, path, "text/csv", true);
   });

@@ -82,12 +82,15 @@ source of truth for all live state. Shape:
       "p": 0.0, "i": 0.0, "d": 0.0, "out": 0.425, "mode": "auto",
       "regime": "hold",         // "heat" | "approach" | "hold" | "fixed"; active gain-scheduling regime; "fixed" when kEnableAdaptiveThermal is false
       "dutyCeil": 0.6,          // current max-duty ceiling (soft-landing taper near setpoint)
-      "tuned": true,            // false until the first auto-run relay tune completes
+      "tuned": true,            // gains commissioned — by a completed relay tune OR a manual gains POST
       "schedule": {             // always present; active/derived gain sets (fixed mode shows configured defaults)
         "heat": { "kp": 0.144, "ki": 0.003, "kd": 0.2 },
         "hold": { "kp": 0.08, "ki": 0.0015, "kd": 0.4 }
       },
-      "autotune": { "active": false, "progress": 0, "result": null }
+      "autotune": { "active": false, "progress": 0, "phase": null, "result": null }
+      // autotune.phase: "ramp" (heating to the tune point; progress reads 0) |
+      // "cycling" (relay oscillation; progress = completed cycles) | null when inactive
+
     }
   },
   "disc": {
@@ -113,10 +116,15 @@ source of truth for all live state. Shape:
   //   pool can wedge under load (TCP + ESP-NOW stop transmitting while still
   //   associated); the watchdog restarts just the WiFi stack (never the chip, so a
   //   run keeps going). A rising count means it caught + healed a wedge.
+  //   Detection watches the ESP-NOW send counters: HUB telemetry when bound, a 1 Hz
+  //   broadcast Probe when unbound. kEnableEspNow=false leaves the watchdog blind
+  //   (no observable TX) — the toggle dependency is logged at boot.
+  //   Shown in the UI as "· N self-heals" on the Settings WIFI line when > 0.
   "storage": {
     "sdMounted": true,
     "logBytes": null,          // not yet reported
-    "logging": true,
+    "logging": true,           // rows are being written NOW (run open + writes OK) — not just "card mounted"
+    "logDegraded": false,      // a row write failed mid-run (yanked/dying card): rows are being lost; latched until next run
     "logIntervalSec": 10       // current SD row cadence (see /log/interval)
   },
   "alarms": [
@@ -167,7 +175,9 @@ Start or stop a run. Body field `action` selects the operation.
   [Connection audit](#connection-audit).
 
 ### `GET /api/v1/runs`
-Saved-run index, served from a ~1 Hz loop-built cache:
+Saved-run index, served from a loop-built cache (rebuilt when the run-file set
+changes — start/stop/delete/erase — not on a timer). `bytes` for the `current`
+run is its size at open time, not live:
 ```json
 { "runs": [ { "id": 7, "label": "Ethanol distillation", "bytes": 10240, "current": true } ] }
 ```
@@ -178,6 +188,13 @@ Downloads that run's CSV (`text/csv`, attachment). 404 `not_found` if absent. Th
 server names the attachment after the on-disk file (`00007.csv`); the UI overrides
 the saved filename with the **session name** (`jimbo.csv`, or `run_<id>.csv` when
 unnamed) via the download link, since UI and API are same-origin.
+
+**`?tail=N`** — returns the CSV header line plus **roughly the last N rows**
+(chunked, no attachment sizing). Rows are located by a 96-bytes-per-row estimate
+from the end of file, so expect slightly more than N. The response carries
+`X-Tail-Truncated: 1|0` — `0` means the window covered the whole file. The
+History UI loads `?tail=1000` by default and fetches the full file only on
+explicit request; multi-week runs produce multi-MB CSVs.
 
 ### `POST /api/v1/runs/{id}/delete`
 Queues deletion of a run's CSV + sidecar. (The open run is discarded if targeted.)
@@ -222,18 +239,28 @@ Gains and/or mode:
 Gains apply only when all three of `kp`,`ki`,`kd` are present. `mode` is a string
 (e.g. `"auto"` | `"manual"`).
 
-> **Note:** when `kEnableAdaptiveThermal` is enabled (default), the controller sets
-> PID gains per-sample from the gain schedule (`status.thermal.pid.schedule`), so a
-> manual gains POST has no lasting effect in Auto mode — it's overwritten on the next
-> control tick. Manual gains apply only when the adaptive feature is disabled (fixed
-> mode); in adaptive mode use `POST /pid/autotune` instead, which auto-runs once per
-> commissioning.
+> **Adaptive gains contract:** when `kEnableAdaptiveThermal` is enabled (default),
+> a gains POST writes the schedule's **HOLD** set; the HEAT set is derived from it
+> (`kHeatKpScale`, ×1.8). Both persist, and `status.thermal.pid.tuned` becomes `true`
+> (manual gains count as commissioning — the auto-tune-on-first-start won't run).
+> The live `pid.kp/ki/kd` in status remain the scheduler's per-sample blended output,
+> not the stored sets — read `pid.schedule` for those. With the adaptive feature
+> disabled (fixed mode), gains apply directly to the live PID as before.
 
 ### `POST /api/v1/pid/autotune`
 ```json
 { "action": "start" }   // "start" | "cancel"
 ```
-Progress/result surface in `status.thermal.pid.autotune`.
+Progress/phase/result surface in `status.thermal.pid.autotune`.
+
+- `start` requires an active run — otherwise `409 run_not_active` (the control
+  loop only advances the tune while a run is enabled).
+- The relay tune oscillates `kTuneMarginC` (3 °C) **below** the current setpoint
+  so the batch never overshoots; derived gains land in the schedule (adaptive) or
+  the live PID (fixed mode).
+- Commissioning runs at most once on first Start: a **failed** tune latches
+  (`atTried` in NVS) and the firmware keeps the configured defaults instead of
+  re-running a 30-minute tune on every Start. Explicit `start` always re-tunes.
 
 ### `GET /api/v1/calibration`
 ```json
@@ -354,6 +381,13 @@ logging only records the run.
 open, one CSV row is appended to `/runs/NNNNN.csv` every `logIntervalSec`; when no
 run is open, nothing is written. There is no always-on `/reactor_log.csv`. Header:
 `t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety`.
+`t_ms` is milliseconds **since run start** (first row ≈ 0). Files written before
+2026-07-10 used boot-relative millis. Fault rows zero-fill the temperatures and
+set `fault=1` — filter on the flag before plotting.
+
+A run file is opened on **every** start path: web and HUB starts open it (with
+the session name) via the command queue; panel (OLED) starts are caught by the
+loop's running-edge and open an unnamed file.
 
 ### `GET /api/v1/log`
 Convenience alias that downloads the **latest run's** CSV (the newest `/runs`
@@ -372,8 +406,9 @@ Out-of-range ⇒ 400 `out_of_range`. Current value is reported in
 `status.storage.logIntervalSec`.
 
 ### `POST /api/v1/sd/erase`
-No body. **Destructive** — deletes every file/dir on the card (all runs). The open
-run is closed and discarded first.
+No body. **Destructive** — deletes every file/dir on the card (all runs).
+Refused with `409 run_active` while a run is active (it would delete the live
+run's file and leave the rest of the run unlogged).
 
 ---
 

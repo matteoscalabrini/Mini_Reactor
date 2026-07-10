@@ -92,6 +92,7 @@ class WifiManager {
 
   String ssid_;
   String password_;
+  bool credsDirty_ = false;  // new creds from connect(); persist on success only
   bool apActive_ = false;
   bool connecting_ = false;
   bool wasConnected_ = false;

@@ -194,9 +194,11 @@ ReactorTelemetry Reactor::telemetry() const {
 String Reactor::csvRow() const {
   const ReactorTelemetry t = telemetry();
   // t_ms,running,liquid_c,heater_c,setpoint_c,heater_pct,rpm,load,fault,safety
+  // t_ms is milliseconds since RUN START (rows are only written during runs),
+  // so a run's first row is ~0 — not boot-relative time.
   char buf[160];
   snprintf(buf, sizeof(buf), "%lu,%d,%.2f,%.2f,%.2f,%.1f,%.2f,%d,%d,%d",
-           (unsigned long)millis(), t.running ? 1 : 0,
+           (unsigned long)(running_ ? millis() - startMs_ : millis()), t.running ? 1 : 0,
            isnan(t.liquidTempC) ? 0.0f : t.liquidTempC,
            isnan(t.heaterTempC) ? 0.0f : t.heaterTempC, t.setpointC,
            t.heaterDutyPct, t.rpm, running_ ? (int)motor_.stallGuardResult() : 0,
