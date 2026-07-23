@@ -1,0 +1,8 @@
+time,state,uptimeSec,freeHeap,minFreeHeap,largestBlock,freeDma,minFreeDma,rssi,wifiMode,espnowBound,runActive,recoveries,pingOk,wsFrames
+2026-07-09T12:59:30,ip_dead,,,,,,,,,,,,0,
+2026-07-09T13:00:07,ok,36,177936,165200,135156,170176,157440,-69,sta,True,False,0,1,120
+2026-07-09T13:00:37,ok,66,175980,160196,131060,168220,152436,-70,sta,True,False,0,1,235
+2026-07-09T13:01:07,ip_dead,,,,,,,,,,,,0,
+2026-07-09T13:01:44,ok,21,175940,153244,116724,168180,145484,-71,sta,True,False,0,1,402
+2026-07-09T13:02:14,ok,51,175944,153244,116724,168184,145484,-70,sta,True,False,0,1,517
+2026-07-09T13:02:44,ok,81,175940,153244,116724,168180,145484,-73,sta,True,False,0,1,633

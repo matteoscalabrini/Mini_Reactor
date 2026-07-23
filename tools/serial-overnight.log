@@ -1,0 +1,331 @@
+serial logger attached (overnight wedge hunt)
+[10:11:12]     reactor_log.csv      709
+[10:11:12]     runs                 <dir>0
+[10:11:12]     .Spotlight-V100      <dir>0
+[10:11:12]     .fseventsd           <dir>0
+[10:11:12]   read/write test: PASS
+[10:11:12] [Heater] LEDC attached on GPIO40 @ 1000Hz/10bit
+[10:11:12] [ 10954][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKp NOT_FOUND
+[10:11:12] [ 10963][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKi NOT_FOUND
+[10:11:12] [ 10971][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKd NOT_FOUND
+[10:11:12] [ 10979][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKp NOT_FOUND
+[10:11:12] [ 10987][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKi NOT_FOUND
+[10:11:12] [ 10995][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKd NOT_FOUND
+[10:11:12] 
+[10:11:12] [TMC2209] Bringing up UART driver ...
+[10:11:12]   connected, version 0x21
+[10:11:12] [WIFI] connecting to 'DFL IoT' ...
+[10:11:12] [WEB] SPIFFS mounted, index.html found
+[10:11:12] [WEB] server up on port 80
+[10:11:12] [ESPNOW] enabled — bound to 28:84:85:91:EE:84
+[10:11:12] 
+[10:11:12] [RUN] reactor idle — control via browser.
+[10:11:14] [WIFI] connected, IP 10.77.77.250
+[10:11:20] [DIAG] up=17s loopN=543 heap=171788 min=144388 largest=124916 dma=164028 dmaMin=136628 wifi=3 rssi=-69 enTx=27 enOk=27 enErr=0x0
+[10:11:34] [DIAG] up=32s loopN=5440 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-71 enTx=195 enOk=195 enErr=0x0
+[10:11:49] [DIAG] up=47s loopN=10540 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-68 enTx=369 enOk=369 enErr=0x0
+[10:12:04] [DIAG] up=62s loopN=15659 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-70 enTx=546 enOk=546 enErr=0x0
+[10:12:19] [DIAG] up=77s loopN=20792 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-70 enTx=723 enOk=723 enErr=0x0
+[10:12:34] [DIAG] up=92s loopN=25903 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-71 enTx=897 enOk=897 enErr=0x0
+[10:12:49] [DIAG] up=107s loopN=31021 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-68 enTx=1074 enOk=1074 enErr=0x0
+[10:13:04] [DIAG] up=122s loopN=36114 heap=179204 min=144388 largest=124916 dma=171444 dmaMin=136628 wifi=3 rssi=-69 enTx=1251 enOk=1251 enErr=0x0
+[10:13:19] [DIAG] up=137s loopN=41226 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-70 enTx=1428 enOk=1428 enErr=0x0
+[10:13:34] [DIAG] up=152s loopN=46333 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-71 enTx=1605 enOk=1605 enErr=0x0
+[10:13:49] [DIAG] up=167s loopN=51440 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-71 enTx=1782 enOk=1782 enErr=0x0
+[10:14:04] [DIAG] up=182s loopN=56526 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-71 enTx=1959 enOk=1959 enErr=0x0
+[10:14:19] [DIAG] up=197s loopN=61641 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-69 enTx=2136 enOk=2136 enErr=0x0
+[10:14:34] [DIAG] up=212s loopN=66741 heap=179248 min=144388 largest=124916 dma=171488 dmaMin=136628 wifi=3 rssi=-68 enTx=2313 enOk=2313 enErr=0x0
+[10:14:49] [DIAG] up=227s loopN=71822 heap=150632 min=144388 largest=104436 dma=142872 dmaMin=136628 wifi=3 rssi=-67 enTx=2490 enOk=2490 enErr=0x0
+[10:15:04] [DIAG] up=243s loopN=76794 heap=150388 min=139956 largest=106484 dma=142628 dmaMin=132196 wifi=3 rssi=-69 enTx=2667 enOk=2667 enErr=0x0
+[10:15:19] [DIAG] up=258s loopN=81771 heap=173352 min=139612 largest=110580 dma=165592 dmaMin=131852 wifi=3 rssi=-70 enTx=2841 enOk=2841 enErr=0x0
+[10:15:34] [DIAG] up=273s loopN=86761 heap=173352 min=139612 largest=112628 dma=165592 dmaMin=131852 wifi=3 rssi=-71 enTx=3018 enOk=3018 enErr=0x0
+[10:15:49] [DIAG] up=288s loopN=91724 heap=173352 min=139612 largest=124916 dma=165592 dmaMin=131852 wifi=3 rssi=-70 enTx=3195 enOk=3195 enErr=0x0
+[10:16:04] [DIAG] up=303s loopN=96720 heap=156564 min=139612 largest=108532 dma=148804 dmaMin=131852 wifi=3 rssi=-68 enTx=3372 enOk=3372 enErr=0x0
+[10:16:19] [DIAG] up=318s loopN=100016 heap=156480 min=130528 largest=104436 dma=148720 dmaMin=122768 wifi=3 rssi=-70 enTx=3495 enOk=3495 enErr=0x0
+[10:16:34] [DIAG] up=333s loopN=104977 heap=153816 min=130528 largest=102388 dma=146056 dmaMin=122768 wifi=3 rssi=-73 enTx=3669 enOk=3669 enErr=0x0
+[10:16:39] [CMD] run start: target=30.0C rpm=8.0 dur=20160min name='Mini FC 3'
+[10:16:49] [DIAG] up=348s loopN=109658 heap=166540 min=130528 largest=112628 dma=158780 dmaMin=122768 wifi=3 rssi=-68 enTx=3846 enOk=3846 enErr=0x0
+[10:16:51] [CMD] setpoint target=36.0C
+[10:17:04] [DIAG] up=363s loopN=114315 heap=163776 min=130528 largest=112628 dma=158572 dmaMin=122768 wifi=3 rssi=-70 enTx=4023 enOk=4023 enErr=0x0
+[10:17:19] [DIAG] up=378s loopN=119014 heap=144396 min=130528 largest=98292 dma=138524 dmaMin=122768 wifi=3 rssi=-68 enTx=4200 enOk=4200 enErr=0x0
+[10:17:34] [DIAG] up=393s loopN=123706 heap=168504 min=130528 largest=112628 dma=160744 dmaMin=122768 wifi=3 rssi=-68 enTx=4374 enOk=4374 enErr=0x0
+[10:17:49] [DIAG] up=408s loopN=126817 heap=166544 min=128200 largest=112628 dma=158784 dmaMin=120440 wifi=3 rssi=-68 enTx=4494 enOk=4494 enErr=0x0
+[10:17:51] [CMD] disc current=300mA
+[10:17:51] [CMD] disc microsteps=16
+[10:17:51] [CMD] disc direction=cw
+[10:18:04] [DIAG] up=423s loopN=131482 heap=166544 min=128200 largest=112628 dma=158784 dmaMin=120440 wifi=3 rssi=-81 enTx=4668 enOk=4668 enErr=0x0
+[10:18:19] [DIAG] up=438s loopN=136129 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-76 enTx=4845 enOk=4845 enErr=0x0
+[10:18:34] [DIAG] up=453s loopN=140833 heap=144620 min=113776 largest=96244 dma=136860 dmaMin=106016 wifi=3 rssi=-70 enTx=5022 enOk=5022 enErr=0x0
+[10:18:49] [DIAG] up=468s loopN=145590 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-70 enTx=5196 enOk=5196 enErr=0x0
+[10:19:04] [DIAG] up=483s loopN=150327 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-70 enTx=5373 enOk=5373 enErr=0x0
+[10:19:19] [DIAG] up=498s loopN=155017 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=5547 enOk=5547 enErr=0x0
+[10:19:34] [DIAG] up=513s loopN=159697 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-68 enTx=5721 enOk=5721 enErr=0x0
+[10:19:49] [DIAG] up=528s loopN=164379 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=5898 enOk=5898 enErr=0x0
+[10:20:04] [DIAG] up=543s loopN=169072 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=6072 enOk=6072 enErr=0x0
+[10:20:19] [DIAG] up=558s loopN=173776 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=6249 enOk=6249 enErr=0x0
+[10:20:34] [DIAG] up=573s loopN=178472 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-70 enTx=6423 enOk=6423 enErr=0x0
+[10:20:49] [DIAG] up=588s loopN=183108 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=6600 enOk=6600 enErr=0x0
+[10:21:04] [DIAG] up=603s loopN=187838 heap=153688 min=113776 largest=88052 dma=151596 dmaMin=106016 wifi=3 rssi=-69 enTx=6777 enOk=6777 enErr=0x0
+[10:21:19] [DIAG] up=618s loopN=192514 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-70 enTx=6951 enOk=6951 enErr=0x0
+[10:21:34] [DIAG] up=633s loopN=197157 heap=138652 min=113776 largest=92148 dma=130892 dmaMin=106016 wifi=3 rssi=-69 enTx=7128 enOk=7128 enErr=0x0
+[10:21:49] [DIAG] up=648s loopN=201895 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-71 enTx=7302 enOk=7302 enErr=0x0
+[10:22:04] [DIAG] up=663s loopN=206610 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-69 enTx=7476 enOk=7476 enErr=0x0
+[10:22:19] [DIAG] up=678s loopN=211283 heap=158872 min=113776 largest=108532 dma=151220 dmaMin=106016 wifi=3 rssi=-70 enTx=7653 enOk=7653 enErr=0x0
+[10:22:34] [DIAG] up=693s loopN=215966 heap=166544 min=113776 largest=112628 dma=158784 dmaMin=106016 wifi=3 rssi=-70 enTx=7830 enOk=7830 enErr=0x0
+[10:22:49] [DIAG] up=708s loopN=220625 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=8004 enOk=8004 enErr=0x0
+[10:23:04] [DIAG] up=723s loopN=225266 heap=152164 min=108268 largest=96244 dma=144404 dmaMin=100508 wifi=3 rssi=-72 enTx=8181 enOk=8181 enErr=0x0
+[10:23:19] [DIAG] up=738s loopN=229936 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=8355 enOk=8355 enErr=0x0
+[10:23:34] [DIAG] up=753s loopN=234538 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=8529 enOk=8529 enErr=0x0
+[10:23:49] [DIAG] up=768s loopN=239266 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=8706 enOk=8706 enErr=0x0
+[10:24:04] [DIAG] up=783s loopN=243861 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=8880 enOk=8880 enErr=0x0
+[10:24:19] [DIAG] up=798s loopN=248518 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=9057 enOk=9057 enErr=0x0
+[10:24:34] [DIAG] up=813s loopN=253226 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=9231 enOk=9231 enErr=0x0
+[10:24:49] [DIAG] up=828s loopN=257828 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=9408 enOk=9408 enErr=0x0
+[10:25:05] [DIAG] up=843s loopN=262452 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=9585 enOk=9585 enErr=0x0
+[10:25:19] [DIAG] up=858s loopN=267144 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=9759 enOk=9759 enErr=0x0
+[10:25:34] [DIAG] up=873s loopN=271849 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=9933 enOk=9933 enErr=0x0
+[10:25:49] [DIAG] up=888s loopN=276501 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=10110 enOk=10110 enErr=0x0
+[10:26:04] [DIAG] up=903s loopN=281164 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=10284 enOk=10284 enErr=0x0
+[10:26:20] [DIAG] up=918s loopN=285884 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=10461 enOk=10461 enErr=0x0
+[10:26:35] [DIAG] up=933s loopN=290612 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=10638 enOk=10638 enErr=0x0
+[10:26:50] [DIAG] up=948s loopN=295306 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-72 enTx=10812 enOk=10812 enErr=0x0
+[10:27:05] [DIAG] up=963s loopN=300012 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=10989 enOk=10989 enErr=0x0
+[10:27:20] [DIAG] up=978s loopN=304768 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=11163 enOk=11163 enErr=0x0
+[10:27:35] [DIAG] up=993s loopN=309482 heap=145156 min=108268 largest=94196 dma=137396 dmaMin=100508 wifi=3 rssi=-70 enTx=11340 enOk=11340 enErr=0x0
+[10:27:50] [DIAG] up=1008s loopN=314217 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=11514 enOk=11514 enErr=0x0
+[10:28:05] [DIAG] up=1023s loopN=318935 heap=152176 min=108268 largest=96244 dma=144416 dmaMin=100508 wifi=3 rssi=-70 enTx=11691 enOk=11691 enErr=0x0
+[10:28:20] [DIAG] up=1038s loopN=323676 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=11865 enOk=11865 enErr=0x0
+[10:28:35] [DIAG] up=1053s loopN=328383 heap=138652 min=108268 largest=92148 dma=130892 dmaMin=100508 wifi=3 rssi=-70 enTx=12042 enOk=12042 enErr=0x0
+[10:28:50] [DIAG] up=1068s loopN=333116 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-69 enTx=12216 enOk=12216 enErr=0x0
+[10:29:05] [DIAG] up=1083s loopN=337813 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=12393 enOk=12393 enErr=0x0
+[10:29:20] [DIAG] up=1098s loopN=342542 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=12567 enOk=12567 enErr=0x0
+[10:29:35] [DIAG] up=1113s loopN=347292 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=12744 enOk=12744 enErr=0x0
+[10:29:50] [DIAG] up=1128s loopN=352050 heap=152184 min=108268 largest=96244 dma=144424 dmaMin=100508 wifi=3 rssi=-70 enTx=12921 enOk=12921 enErr=0x0
+[10:30:05] [DIAG] up=1143s loopN=356764 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=13095 enOk=13095 enErr=0x0
+[10:30:20] [DIAG] up=1158s loopN=361474 heap=150508 min=108268 largest=96244 dma=144320 dmaMin=100508 wifi=3 rssi=-70 enTx=13272 enOk=13272 enErr=0x0
+[10:30:35] [DIAG] up=1173s loopN=366274 heap=144352 min=108268 largest=96244 dma=136592 dmaMin=100508 wifi=3 rssi=-70 enTx=13449 enOk=13449 enErr=0x0
+[10:30:50] [DIAG] up=1188s loopN=370990 heap=152172 min=108268 largest=90100 dma=144412 dmaMin=100508 wifi=3 rssi=-69 enTx=13623 enOk=13623 enErr=0x0
+[10:31:05] [DIAG] up=1203s loopN=375694 heap=166544 min=108268 largest=112628 dma=158808 dmaMin=100508 wifi=3 rssi=-70 enTx=13797 enOk=13797 enErr=0x0
+[10:31:20] [DIAG] up=1218s loopN=380432 heap=161540 min=108268 largest=96244 dma=154048 dmaMin=100508 wifi=3 rssi=-70 enTx=13974 enOk=13974 enErr=0x0
+[10:31:35] [DIAG] up=1233s loopN=385174 heap=166544 min=108268 largest=112628 dma=158808 dmaMin=100508 wifi=3 rssi=-69 enTx=14148 enOk=14148 enErr=0x0
+[10:31:50] [DIAG] up=1248s loopN=389839 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-69 enTx=14325 enOk=14325 enErr=0x0
+[10:32:05] [DIAG] up=1263s loopN=394522 heap=152176 min=108268 largest=98292 dma=144416 dmaMin=100508 wifi=3 rssi=-69 enTx=14499 enOk=14499 enErr=0x0
+[10:32:20] [DIAG] up=1278s loopN=399169 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=14676 enOk=14676 enErr=0x0
+[10:32:35] [DIAG] up=1293s loopN=403855 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-69 enTx=14853 enOk=14853 enErr=0x0
+[10:32:50] [DIAG] up=1308s loopN=408568 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-70 enTx=15027 enOk=15027 enErr=0x0
+[10:33:05] [DIAG] up=1323s loopN=413246 heap=152164 min=108268 largest=94196 dma=144404 dmaMin=100508 wifi=3 rssi=-69 enTx=15204 enOk=15204 enErr=0x0
+[10:33:20] [DIAG] up=1338s loopN=417905 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-68 enTx=15381 enOk=15381 enErr=0x0
+[10:33:35] [DIAG] up=1353s loopN=422584 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-71 enTx=15555 enOk=15555 enErr=0x0
+[10:33:50] [DIAG] up=1368s loopN=427255 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=15732 enOk=15732 enErr=0x0
+[10:34:05] [DIAG] up=1383s loopN=431988 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=15909 enOk=15909 enErr=0x0
+[10:34:20] [DIAG] up=1398s loopN=436699 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=16083 enOk=16083 enErr=0x0
+[10:34:35] [DIAG] up=1413s loopN=441374 heap=148956 min=108268 largest=96244 dma=141196 dmaMin=100508 wifi=3 rssi=-73 enTx=16257 enOk=16257 enErr=0x0
+[10:34:50] [DIAG] up=1428s loopN=446110 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=16434 enOk=16434 enErr=0x0
+[10:35:05] [DIAG] up=1443s loopN=450802 heap=151844 min=108268 largest=102388 dma=143976 dmaMin=100508 wifi=3 rssi=-74 enTx=16608 enOk=16608 enErr=0x0
+[10:35:20] [DIAG] up=1458s loopN=455460 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=16785 enOk=16785 enErr=0x0
+[10:35:35] [DIAG] up=1473s loopN=460198 heap=152176 min=108268 largest=98292 dma=144416 dmaMin=100508 wifi=3 rssi=-73 enTx=16959 enOk=16959 enErr=0x0
+[10:35:50] [DIAG] up=1488s loopN=464907 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=17136 enOk=17136 enErr=0x0
+[10:36:05] [DIAG] up=1503s loopN=469571 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=17313 enOk=17313 enErr=0x0
+[10:36:20] [DIAG] up=1518s loopN=474232 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=17487 enOk=17487 enErr=0x0
+[10:36:35] [DIAG] up=1533s loopN=478950 heap=152164 min=108268 largest=96244 dma=144404 dmaMin=100508 wifi=3 rssi=-73 enTx=17664 enOk=17664 enErr=0x0
+[10:36:50] [DIAG] up=1548s loopN=483713 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=17838 enOk=17838 enErr=0x0
+[10:37:05] [DIAG] up=1563s loopN=488412 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=18015 enOk=18015 enErr=0x0
+[10:37:20] [DIAG] up=1578s loopN=493113 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=18189 enOk=18189 enErr=0x0
+[10:37:35] [DIAG] up=1593s loopN=497883 heap=152156 min=108268 largest=96244 dma=144396 dmaMin=100508 wifi=3 rssi=-73 enTx=18366 enOk=18366 enErr=0x0
+[10:37:50] [DIAG] up=1608s loopN=502573 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=18540 enOk=18540 enErr=0x0
+[10:38:05] [DIAG] up=1623s loopN=507199 heap=152164 min=108268 largest=94196 dma=144404 dmaMin=100508 wifi=3 rssi=-72 enTx=18717 enOk=18717 enErr=0x0
+[10:38:20] [DIAG] up=1638s loopN=511862 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=18891 enOk=18891 enErr=0x0
+[10:38:35] [DIAG] up=1653s loopN=516548 heap=155364 min=108268 largest=98292 dma=147604 dmaMin=100508 wifi=3 rssi=-73 enTx=19068 enOk=19068 enErr=0x0
+[10:38:50] [DIAG] up=1668s loopN=521294 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=19242 enOk=19242 enErr=0x0
+[10:39:05] [DIAG] up=1683s loopN=525941 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=19419 enOk=19419 enErr=0x0
+[10:39:20] [DIAG] up=1698s loopN=530590 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=19593 enOk=19593 enErr=0x0
+[10:39:35] [DIAG] up=1713s loopN=535330 heap=138652 min=108268 largest=92148 dma=130892 dmaMin=100508 wifi=3 rssi=-73 enTx=19770 enOk=19770 enErr=0x0
+[10:39:50] [DIAG] up=1728s loopN=539989 heap=152184 min=108268 largest=94196 dma=144424 dmaMin=100508 wifi=3 rssi=-72 enTx=19944 enOk=19944 enErr=0x0
+[10:40:05] [DIAG] up=1743s loopN=544678 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=20121 enOk=20121 enErr=0x0
+[10:40:20] [DIAG] up=1758s loopN=549360 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=20295 enOk=20295 enErr=0x0
+[10:40:35] [DIAG] up=1773s loopN=554025 heap=152164 min=108268 largest=94196 dma=144404 dmaMin=100508 wifi=3 rssi=-73 enTx=20469 enOk=20469 enErr=0x0
+[10:40:50] [DIAG] up=1788s loopN=558758 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=20646 enOk=20646 enErr=0x0
+[10:41:05] [DIAG] up=1803s loopN=563415 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=20823 enOk=20823 enErr=0x0
+[10:41:20] [DIAG] up=1818s loopN=568083 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=20997 enOk=20997 enErr=0x0
+[10:41:35] [DIAG] up=1834s loopN=572840 heap=166276 min=108268 largest=112628 dma=158516 dmaMin=100508 wifi=3 rssi=-73 enTx=21174 enOk=21174 enErr=0x0
+[10:41:50] [DIAG] up=1849s loopN=577537 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=21348 enOk=21348 enErr=0x0
+[10:42:05] [DIAG] up=1864s loopN=582210 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=21525 enOk=21525 enErr=0x0
+[10:42:20] [DIAG] up=1879s loopN=586894 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-72 enTx=21699 enOk=21699 enErr=0x0
+[10:42:35] [DIAG] up=1894s loopN=591550 heap=147988 min=108268 largest=94196 dma=149956 dmaMin=100508 wifi=3 rssi=-73 enTx=21876 enOk=21876 enErr=0x0
+[10:42:50] [DIAG] up=1909s loopN=596261 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=22053 enOk=22053 enErr=0x0
+[10:43:05] [DIAG] up=1924s loopN=600979 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=22227 enOk=22227 enErr=0x0
+[10:43:20] [DIAG] up=1939s loopN=605600 heap=152164 min=108268 largest=94196 dma=144404 dmaMin=100508 wifi=3 rssi=-74 enTx=22404 enOk=22404 enErr=0x0
+[10:43:35] [DIAG] up=1954s loopN=610271 heap=141920 min=108268 largest=96244 dma=134160 dmaMin=100508 wifi=3 rssi=-74 enTx=22581 enOk=22581 enErr=0x0
+[10:43:50] [DIAG] up=1969s loopN=614905 heap=166536 min=108268 largest=112628 dma=158776 dmaMin=100508 wifi=3 rssi=-74 enTx=22755 enOk=22755 enErr=0x0
+[10:44:05] [DIAG] up=1984s loopN=619584 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-74 enTx=22929 enOk=22929 enErr=0x0
+[10:44:20] [DIAG] up=1999s loopN=624321 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=23106 enOk=23106 enErr=0x0
+[10:44:35] [DIAG] up=2014s loopN=629003 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=23280 enOk=23280 enErr=0x0
+[10:44:50] [DIAG] up=2029s loopN=633695 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=23457 enOk=23457 enErr=0x0
+[10:45:05] [DIAG] up=2044s loopN=638449 heap=166128 min=108268 largest=112628 dma=158368 dmaMin=100508 wifi=3 rssi=-72 enTx=23631 enOk=23631 enErr=0x0
+[10:45:20] [DIAG] up=2059s loopN=643129 heap=152164 min=108268 largest=96244 dma=144404 dmaMin=100508 wifi=3 rssi=-72 enTx=23808 enOk=23808 enErr=0x0
+[10:45:35] [DIAG] up=2074s loopN=647843 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-72 enTx=23985 enOk=23985 enErr=0x0
+[10:45:50] [DIAG] up=2089s loopN=652555 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=24159 enOk=24159 enErr=0x0
+[10:46:05] [DIAG] up=2104s loopN=657264 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-72 enTx=24336 enOk=24336 enErr=0x0
+[10:46:21] [DIAG] up=2119s loopN=662012 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=24513 enOk=24513 enErr=0x0
+[10:46:36] [DIAG] up=2134s loopN=666752 heap=166544 min=108268 largest=112628 dma=158784 dmaMin=100508 wifi=3 rssi=-73 enTx=24687 enOk=24687 enErr=0x0
+[10:46:51] [DIAG] up=2149s loopN=671408 heap=161648 min=108268 largest=108532 dma=153812 dmaMin=100508 wifi=3 rssi=-74 enTx=24861 enOk=24861 enErr=0x0
+[10:47:06] [DIAG] up=2164s loopN=676142 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=25038 enOk=25038 enErr=0x0
+[10:47:21] [DIAG] up=2179s loopN=680799 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=25212 enOk=25212 enErr=0x0
+[10:47:36] [DIAG] up=2194s loopN=685416 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=25389 enOk=25389 enErr=0x0
+[10:47:51] [DIAG] up=2209s loopN=690099 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=25563 enOk=25563 enErr=0x0
+[10:48:06] [DIAG] up=2224s loopN=694796 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=25740 enOk=25740 enErr=0x0
+[10:48:21] [DIAG] up=2239s loopN=699469 heap=161724 min=108268 largest=94196 dma=153964 dmaMin=100508 wifi=3 rssi=-73 enTx=25917 enOk=25917 enErr=0x0
+[10:48:36] [DIAG] up=2254s loopN=704183 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=26091 enOk=26091 enErr=0x0
+[10:48:51] [DIAG] up=2269s loopN=708858 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=26268 enOk=26268 enErr=0x0
+[10:49:06] [DIAG] up=2284s loopN=713595 heap=152088 min=108268 largest=92148 dma=144328 dmaMin=100508 wifi=3 rssi=-72 enTx=26445 enOk=26445 enErr=0x0
+[10:49:21] [DIAG] up=2299s loopN=718263 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=26619 enOk=26619 enErr=0x0
+[10:49:36] [DIAG] up=2314s loopN=722945 heap=152088 min=108268 largest=96244 dma=144328 dmaMin=100508 wifi=3 rssi=-73 enTx=26796 enOk=26796 enErr=0x0
+[10:49:51] [DIAG] up=2329s loopN=727621 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=26973 enOk=26973 enErr=0x0
+[10:50:06] [DIAG] up=2344s loopN=732284 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=27147 enOk=27147 enErr=0x0
+[10:50:21] [DIAG] up=2359s loopN=736932 heap=146400 min=108268 largest=94196 dma=138640 dmaMin=100508 wifi=3 rssi=-73 enTx=27324 enOk=27324 enErr=0x0
+[10:50:36] [DIAG] up=2374s loopN=741613 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=27498 enOk=27498 enErr=0x0
+[10:50:51] [DIAG] up=2389s loopN=746245 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=27675 enOk=27675 enErr=0x0
+[10:51:06] [DIAG] up=2404s loopN=750899 heap=166480 min=108268 largest=112628 dma=158744 dmaMin=100508 wifi=3 rssi=-72 enTx=27849 enOk=27849 enErr=0x0
+[10:51:21] [DIAG] up=2419s loopN=755594 heap=152088 min=108268 largest=94196 dma=144328 dmaMin=100508 wifi=3 rssi=-74 enTx=28026 enOk=28026 enErr=0x0
+[10:51:36] [DIAG] up=2434s loopN=760309 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=28200 enOk=28200 enErr=0x0
+[10:51:51] [DIAG] up=2449s loopN=765021 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=28377 enOk=28377 enErr=0x0
+[10:52:06] [DIAG] up=2464s loopN=769741 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=28551 enOk=28551 enErr=0x0
+[10:52:21] [DIAG] up=2479s loopN=774410 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=28728 enOk=28728 enErr=0x0
+[10:52:36] [DIAG] up=2494s loopN=779175 heap=155264 min=108268 largest=92148 dma=147504 dmaMin=100508 wifi=3 rssi=-74 enTx=28905 enOk=28905 enErr=0x0
+[10:52:51] [DIAG] up=2509s loopN=783878 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=29079 enOk=29079 enErr=0x0
+[10:53:06] [DIAG] up=2524s loopN=788550 heap=139128 min=108268 largest=90100 dma=131368 dmaMin=100508 wifi=3 rssi=-73 enTx=29253 enOk=29253 enErr=0x0
+[10:53:21] [DIAG] up=2539s loopN=793260 heap=166220 min=108268 largest=112628 dma=158460 dmaMin=100508 wifi=3 rssi=-73 enTx=29430 enOk=29430 enErr=0x0
+[10:53:36] [DIAG] up=2554s loopN=797937 heap=150980 min=108268 largest=92148 dma=140848 dmaMin=100508 wifi=3 rssi=-73 enTx=29607 enOk=29607 enErr=0x0
+[10:53:51] [DIAG] up=2569s loopN=802584 heap=166220 min=108268 largest=112628 dma=158460 dmaMin=100508 wifi=3 rssi=-73 enTx=29781 enOk=29781 enErr=0x0
+[10:54:06] [DIAG] up=2584s loopN=807307 heap=138752 min=108268 largest=90100 dma=130992 dmaMin=100508 wifi=3 rssi=-72 enTx=29958 enOk=29958 enErr=0x0
+[10:54:21] [DIAG] up=2599s loopN=811981 heap=166220 min=108268 largest=112628 dma=158460 dmaMin=100508 wifi=3 rssi=-73 enTx=30132 enOk=30132 enErr=0x0
+[10:54:36] [DIAG] up=2614s loopN=816723 heap=151828 min=108268 largest=96244 dma=144068 dmaMin=100508 wifi=3 rssi=-73 enTx=30309 enOk=30309 enErr=0x0
+[10:54:51] [DIAG] up=2629s loopN=821498 heap=166220 min=108268 largest=112628 dma=158460 dmaMin=100508 wifi=3 rssi=-73 enTx=30483 enOk=30483 enErr=0x0
+[10:55:06] [DIAG] up=2644s loopN=826192 heap=151828 min=108268 largest=94196 dma=144068 dmaMin=100508 wifi=3 rssi=-72 enTx=30660 enOk=30660 enErr=0x0
+[10:55:21] [DIAG] up=2659s loopN=830893 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=30837 enOk=30837 enErr=0x0
+[10:55:36] [DIAG] up=2674s loopN=835643 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=31011 enOk=31011 enErr=0x0
+[10:55:51] [DIAG] up=2689s loopN=840367 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=31188 enOk=31188 enErr=0x0
+[10:56:06] [DIAG] up=2704s loopN=845116 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=31362 enOk=31362 enErr=0x0
+[10:56:21] [DIAG] up=2719s loopN=849788 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=31539 enOk=31539 enErr=0x0
+[10:56:36] [DIAG] up=2734s loopN=854476 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=31713 enOk=31713 enErr=0x0
+[10:56:51] [DIAG] up=2749s loopN=859236 heap=152056 min=108268 largest=92148 dma=144296 dmaMin=100508 wifi=3 rssi=-74 enTx=31890 enOk=31890 enErr=0x0
+[10:57:06] [DIAG] up=2764s loopN=863892 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-72 enTx=32064 enOk=32064 enErr=0x0
+[10:57:21] [DIAG] up=2779s loopN=868510 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=32241 enOk=32241 enErr=0x0
+[10:57:36] [DIAG] up=2794s loopN=873226 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-72 enTx=32415 enOk=32415 enErr=0x0
+[10:57:51] [DIAG] up=2809s loopN=877880 heap=144628 min=108268 largest=86004 dma=136868 dmaMin=100508 wifi=3 rssi=-73 enTx=32592 enOk=32592 enErr=0x0
+[10:58:06] [DIAG] up=2824s loopN=882537 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=32766 enOk=32766 enErr=0x0
+[10:58:21] [DIAG] up=2839s loopN=887220 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=32943 enOk=32943 enErr=0x0
+[10:58:36] [DIAG] up=2854s loopN=891955 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=33117 enOk=33117 enErr=0x0
+[10:58:51] [DIAG] up=2869s loopN=896678 heap=152056 min=108268 largest=90100 dma=144296 dmaMin=100508 wifi=3 rssi=-73 enTx=33294 enOk=33294 enErr=0x0
+[10:59:06] [DIAG] up=2884s loopN=901343 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-72 enTx=33468 enOk=33468 enErr=0x0
+[10:59:21] [DIAG] up=2899s loopN=906005 heap=152088 min=108268 largest=94196 dma=144328 dmaMin=100508 wifi=3 rssi=-73 enTx=33645 enOk=33645 enErr=0x0
+[10:59:36] [DIAG] up=2914s loopN=910765 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=33819 enOk=33819 enErr=0x0
+[10:59:51] [DIAG] up=2929s loopN=915461 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=33996 enOk=33996 enErr=0x0
+[11:00:06] [DIAG] up=2945s loopN=920184 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-72 enTx=34173 enOk=34173 enErr=0x0
+[11:00:21] [DIAG] up=2960s loopN=924901 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=34347 enOk=34347 enErr=0x0
+[11:00:36] [DIAG] up=2975s loopN=929619 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=34521 enOk=34521 enErr=0x0
+[11:00:51] [DIAG] up=2990s loopN=934355 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=34698 enOk=34698 enErr=0x0
+[11:01:06] [DIAG] up=3005s loopN=939023 heap=152088 min=108268 largest=96244 dma=144328 dmaMin=100508 wifi=3 rssi=-73 enTx=34875 enOk=34875 enErr=0x0
+[11:01:21] [DIAG] up=3020s loopN=943726 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=35049 enOk=35049 enErr=0x0
+[11:01:36] [DIAG] up=3035s loopN=948521 heap=152056 min=108268 largest=92148 dma=144296 dmaMin=100508 wifi=3 rssi=-73 enTx=35226 enOk=35226 enErr=0x0
+[11:01:51] [DIAG] up=3050s loopN=953228 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=35400 enOk=35400 enErr=0x0
+[11:02:06] [DIAG] up=3065s loopN=957928 heap=148848 min=108268 largest=90100 dma=141088 dmaMin=100508 wifi=3 rssi=-72 enTx=35577 enOk=35577 enErr=0x0
+[11:02:21] [DIAG] up=3080s loopN=962655 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=35751 enOk=35751 enErr=0x0
+[11:02:36] [DIAG] up=3095s loopN=967386 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-74 enTx=35928 enOk=35928 enErr=0x0
+[11:02:51] [DIAG] up=3110s loopN=972102 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=36102 enOk=36102 enErr=0x0
+[11:03:06] [DIAG] up=3125s loopN=976737 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=36279 enOk=36279 enErr=0x0
+[11:03:21] [DIAG] up=3140s loopN=981389 heap=152056 min=108268 largest=90100 dma=144296 dmaMin=100508 wifi=3 rssi=-74 enTx=36453 enOk=36453 enErr=0x0
+[11:03:36] [DIAG] up=3155s loopN=986098 heap=152068 min=108268 largest=94196 dma=144308 dmaMin=100508 wifi=3 rssi=-73 enTx=36630 enOk=36630 enErr=0x0
+[11:03:51] [DIAG] up=3170s loopN=990720 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-73 enTx=36804 enOk=36804 enErr=0x0
+[11:04:06] [DIAG] up=3185s loopN=995392 heap=166480 min=108268 largest=112628 dma=158720 dmaMin=100508 wifi=3 rssi=-72 enTx=36981 enOk=36981 enErr=0x0
+[11:04:26] [DIAG] up=3204s loopN=999855 heap=140260 min=108268 largest=90100 dma=132500 dmaMin=100508 wifi=3 rssi=-73 enTx=37155 enOk=37155 enErr=0x0
+[11:04:41] [DIAG] up=3219s loopN=1004409 heap=137744 min=108268 largest=90100 dma=129984 dmaMin=100508 wifi=3 rssi=-69 enTx=37326 enOk=37326 enErr=0x0
+[11:04:56] [DIAG] up=3234s loopN=1009065 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=37500 enOk=37500 enErr=0x0
+[11:05:11] [DIAG] up=3249s loopN=1013709 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-70 enTx=37677 enOk=37677 enErr=0x0
+[11:05:26] [DIAG] up=3264s loopN=1018418 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-70 enTx=37851 enOk=37851 enErr=0x0
+[11:05:41] [DIAG] up=3279s loopN=1023137 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-70 enTx=38028 enOk=38028 enErr=0x0
+[11:05:56] [DIAG] up=3294s loopN=1027863 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-70 enTx=38202 enOk=38202 enErr=0x0
+[11:06:11] [DIAG] up=3309s loopN=1032464 heap=148576 min=108268 largest=92148 dma=140816 dmaMin=100508 wifi=3 rssi=-73 enTx=38379 enOk=38379 enErr=0x0
+[11:06:26] [DIAG] up=3324s loopN=1037159 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-72 enTx=38553 enOk=38553 enErr=0x0
+[11:06:41] [DIAG] up=3339s loopN=1041871 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-70 enTx=38730 enOk=38730 enErr=0x0
+[11:06:56] [DIAG] up=3354s loopN=1046518 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=38904 enOk=38904 enErr=0x0
+[11:07:11] [DIAG] up=3369s loopN=1051166 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-72 enTx=39081 enOk=39081 enErr=0x0
+[11:07:26] [DIAG] up=3384s loopN=1055826 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-72 enTx=39255 enOk=39255 enErr=0x0
+[11:07:41] [DIAG] up=3399s loopN=1060496 heap=152052 min=108268 largest=98292 dma=144292 dmaMin=100508 wifi=3 rssi=-72 enTx=39432 enOk=39432 enErr=0x0
+[11:07:56] [DIAG] up=3414s loopN=1065241 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=39606 enOk=39606 enErr=0x0
+[11:08:11] [DIAG] up=3429s loopN=1069881 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=39783 enOk=39783 enErr=0x0
+[11:08:26] [DIAG] up=3444s loopN=1074576 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=39957 enOk=39957 enErr=0x0
+[11:08:41] [DIAG] up=3459s loopN=1079207 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=40134 enOk=40134 enErr=0x0
+[11:08:56] [DIAG] up=3474s loopN=1083830 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-72 enTx=40308 enOk=40308 enErr=0x0
+[11:09:11] [DIAG] up=3489s loopN=1088470 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-69 enTx=40485 enOk=40485 enErr=0x0
+[11:09:26] [DIAG] up=3504s loopN=1093093 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=40659 enOk=40659 enErr=0x0
+[11:09:41] [DIAG] up=3519s loopN=1097810 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=40836 enOk=40836 enErr=0x0
+[11:09:56] [DIAG] up=3534s loopN=1102584 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=41010 enOk=41010 enErr=0x0
+[11:10:11] [DIAG] up=3549s loopN=1107244 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=41187 enOk=41187 enErr=0x0
+[11:10:26] [DIAG] up=3564s loopN=1111940 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=41364 enOk=41364 enErr=0x0
+[11:10:41] [DIAG] up=3579s loopN=1116684 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=41538 enOk=41538 enErr=0x0
+[11:10:56] [DIAG] up=3594s loopN=1121393 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=41715 enOk=41715 enErr=0x0
+[11:11:11] [DIAG] up=3609s loopN=1126081 heap=152052 min=108268 largest=96244 dma=144292 dmaMin=100508 wifi=3 rssi=-71 enTx=41892 enOk=41892 enErr=0x0
+[11:11:26] [DIAG] up=3624s loopN=1130776 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=42066 enOk=42066 enErr=0x0
+[11:11:41] [DIAG] up=3639s loopN=1135441 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=42243 enOk=42243 enErr=0x0
+[11:11:56] [DIAG] up=3654s loopN=1140088 heap=144204 min=108268 largest=92148 dma=136444 dmaMin=100508 wifi=3 rssi=-71 enTx=42420 enOk=42420 enErr=0x0
+[11:12:11] [DIAG] up=3669s loopN=1144765 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=42594 enOk=42594 enErr=0x0
+[11:12:26] [DIAG] up=3684s loopN=1149413 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=42768 enOk=42768 enErr=0x0
+[11:12:41] [DIAG] up=3699s loopN=1154075 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=42945 enOk=42945 enErr=0x0
+[11:12:56] [DIAG] up=3714s loopN=1158705 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=43119 enOk=43119 enErr=0x0
+[11:13:11] [DIAG] up=3729s loopN=1163380 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=43296 enOk=43296 enErr=0x0
+[11:13:26] [DIAG] up=3744s loopN=1168118 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=43470 enOk=43470 enErr=0x0
+[11:13:41] [DIAG] up=3759s loopN=1172799 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=43647 enOk=43647 enErr=0x0
+[11:13:56] [DIAG] up=3775s loopN=1177512 heap=152084 min=108268 largest=98292 dma=144324 dmaMin=100508 wifi=3 rssi=-71 enTx=43824 enOk=43824 enErr=0x0
+[11:14:11] [DIAG] up=3790s loopN=1182237 heap=166464 min=108268 largest=112628 dma=158704 dmaMin=100508 wifi=3 rssi=-71 enTx=43998 enOk=43998 enErr=0x0
+[11:14:26] [DIAG] up=3805s loopN=1187075 heap=143932 min=95120 largest=88052 dma=136172 dmaMin=87360 wifi=3 rssi=-70 enTx=44175 enOk=44037 enErr=0x3067
+[11:14:41] [DIAG] up=3820s loopN=1191987 heap=142304 min=95120 largest=88052 dma=134544 dmaMin=87360 wifi=3 rssi=-70 enTx=44352 enOk=44037 enErr=0x3067
+[11:14:56] [DIAG] up=3835s loopN=1196918 heap=143536 min=95120 largest=88052 dma=135776 dmaMin=87360 wifi=3 rssi=-71 enTx=44526 enOk=44037 enErr=0x3067
+[11:15:11] [DIAG] up=3850s loopN=1201809 heap=143132 min=95120 largest=88052 dma=135372 dmaMin=87360 wifi=3 rssi=-71 enTx=44703 enOk=44037 enErr=0x3067
+[11:15:26] [DIAG] up=3865s loopN=1206701 heap=143528 min=95120 largest=88052 dma=135768 dmaMin=87360 wifi=3 rssi=-71 enTx=44880 enOk=44037 enErr=0x3067
+[11:15:41] [DIAG] up=3880s loopN=1211614 heap=142720 min=95120 largest=88052 dma=134960 dmaMin=87360 wifi=3 rssi=-71 enTx=45054 enOk=44037 enErr=0x3067
+[11:15:56] [DIAG] up=3895s loopN=1216459 heap=143536 min=95120 largest=88052 dma=135776 dmaMin=87360 wifi=3 rssi=-71 enTx=45231 enOk=44037 enErr=0x3067
+[11:16:11] [DIAG] up=3910s loopN=1221328 heap=142704 min=95120 largest=88052 dma=134944 dmaMin=87360 wifi=3 rssi=-70 enTx=45408 enOk=44037 enErr=0x3067
+[11:16:26] [DIAG] up=3925s loopN=1226267 heap=143540 min=95120 largest=88052 dma=135780 dmaMin=87360 wifi=3 rssi=-71 enTx=45582 enOk=44037 enErr=0x3067
+[11:16:41] [DIAG] up=3940s loopN=1231172 heap=143120 min=95120 largest=88052 dma=135360 dmaMin=87360 wifi=3 rssi=-71 enTx=45759 enOk=44037 enErr=0x3067
+[11:16:56] [DIAG] up=3955s loopN=1236096 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-71 enTx=45936 enOk=44037 enErr=0x3067
+[11:17:11] [DIAG] up=3970s loopN=1240984 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-71 enTx=46110 enOk=44037 enErr=0x3067
+[11:17:26] [DIAG] up=3985s loopN=1245844 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=46287 enOk=44037 enErr=0x3067
+[11:17:41] [DIAG] up=4000s loopN=1250723 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=46464 enOk=44037 enErr=0x3067
+[11:17:56] [DIAG] up=4015s loopN=1255661 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=46638 enOk=44037 enErr=0x3067
+[11:18:11] [DIAG] up=4030s loopN=1260575 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=46815 enOk=44037 enErr=0x3067
+[11:18:26] [DIAG] up=4045s loopN=1265453 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=46992 enOk=44037 enErr=0x3067
+[11:18:41] [DIAG] up=4060s loopN=1270368 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=47169 enOk=44037 enErr=0x3067
+[11:18:56] [DIAG] up=4075s loopN=1275269 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=47343 enOk=44037 enErr=0x3067
+[11:19:11] [DIAG] up=4090s loopN=1280141 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=47520 enOk=44037 enErr=0x3067
+[11:19:27] [DIAG] up=4105s loopN=1285071 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=47697 enOk=44037 enErr=0x3067
+[11:19:41] [DIAG] up=4120s loopN=1289938 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=47871 enOk=44037 enErr=0x3067
+[11:19:57] [DIAG] up=4135s loopN=1294843 heap=144340 min=95120 largest=88052 dma=136580 dmaMin=87360 wifi=3 rssi=-70 enTx=48048 enOk=44037 enErr=0x3067
+[11:20:12] [DIAG] up=4150s loopN=1299786 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=48225 enOk=44037 enErr=0x3067
+[11:20:27] [DIAG] up=4165s loopN=1304696 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=48399 enOk=44037 enErr=0x3067
+[11:20:42] [DIAG] up=4180s loopN=1309591 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=48576 enOk=44037 enErr=0x3067
+[11:20:57] [DIAG] up=4195s loopN=1314502 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=48753 enOk=44037 enErr=0x3067
+[11:21:12] [DIAG] up=4210s loopN=1319396 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=48930 enOk=44037 enErr=0x3067
+[11:21:27] [DIAG] up=4225s loopN=1324299 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=49104 enOk=44037 enErr=0x3067
+[11:21:42] [DIAG] up=4240s loopN=1329257 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=49281 enOk=44037 enErr=0x3067
+[11:21:57] [DIAG] up=4255s loopN=1334157 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=49455 enOk=44037 enErr=0x3067
+[11:22:12] [DIAG] up=4270s loopN=1339001 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=49632 enOk=44037 enErr=0x3067
+[11:22:27] [DIAG] up=4285s loopN=1343926 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=49809 enOk=44037 enErr=0x3067
+[11:22:42] [DIAG] up=4300s loopN=1348832 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-70 enTx=49986 enOk=44037 enErr=0x3067
+[11:22:57] [DIAG] up=4315s loopN=1353742 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-69 enTx=50160 enOk=44037 enErr=0x3067
+[11:23:12] [DIAG] up=4330s loopN=1358687 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-68 enTx=50337 enOk=44037 enErr=0x3067
+[11:23:27] [DIAG] up=4345s loopN=1363594 heap=144348 min=95120 largest=88052 dma=136620 dmaMin=87360 wifi=3 rssi=-69 enTx=50514 enOk=44037 enErr=0x3067
+[11:23:42] [DIAG] up=4360s loopN=1368454 heap=144348 min=95120 largest=88052 dma=136588 dmaMin=87360 wifi=3 rssi=-68 enTx=50688 enOk=44037 enErr=0x3067
+Traceback (most recent call last):
+  File "/Users/matteo/.platformio/penv/lib/python3.11/site-packages/serial/serialposix.py", line 575, in read
+    buf = os.read(self.fd, size - len(read))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 6] Device not configured
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 6, in <module>
+  File "/Users/matteo/.platformio/penv/lib/python3.11/site-packages/serial/serialposix.py", line 581, in read
+    raise SerialException('read failed: {}'.format(e))
+serial.serialutil.SerialException: read failed: [Errno 6] Device not configured

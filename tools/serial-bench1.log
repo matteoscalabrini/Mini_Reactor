@@ -1,0 +1,26 @@
+serial logger attached
+[17:05:58] [CMD] run start: target=36.0C rpm=8.0 dur=0min name='bench-heapmon'
+[17:11:17] [470560][E][AsyncWebSocket.cpp:427] _queueMessage(): Too many messages queued: closing connection
+[17:12:20] [533717][E][AsyncWebSocket.cpp:427] _queueMessage(): Too many messages queued: closing connection
+[17:12:36] [WIFI] connection lost
+[17:12:36] [WIFI] connecting to 'SparkJump' ...
+[17:12:39] [WIFI] connected, IP 10.99.77.119
+serial logger attached (run 3)
+[17:15:08] [WEB] server up on port 80
+[17:15:08] [ESPNOW] enabled — bound to A4:CB:8F:D6:4B:38
+[17:15:08] 
+[17:15:08] [RUN] reactor idle — control via browser.
+[17:15:09] [WIFI] connected, IP 10.99.77.119
+Traceback (most recent call last):
+  File "/Users/matteo/.platformio/penv/lib/python3.14/site-packages/serial/serialposix.py", line 575, in read
+    buf = os.read(self.fd, size - len(read))
+OSError: [Errno 6] Device not configured
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 6, in <module>
+    line = s.readline()
+  File "/Users/matteo/.platformio/penv/lib/python3.14/site-packages/serial/serialposix.py", line 581, in read
+    raise SerialException('read failed: {}'.format(e))
+serial.serialutil.SerialException: read failed: [Errno 6] Device not configured

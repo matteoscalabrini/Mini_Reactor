@@ -1,0 +1,63 @@
+serial logger attached (self-heal test)
+[12:48:08]     reactor_log.csv      709
+[12:48:08]     runs                 <dir>0
+[12:48:08]     .Spotlight-V100      <dir>0
+[12:48:08]     .fseventsd           <dir>0
+[12:48:08]   read/write test: PASS
+[12:48:08] [Heater] LEDC attached on GPIO40 @ 1000Hz/10bit
+[12:48:08] [  9078][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKp NOT_FOUND
+[12:48:08] [  9086][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKi NOT_FOUND
+[12:48:08] [  9094][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: holdKd NOT_FOUND
+[12:48:08] [  9102][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKp NOT_FOUND
+[12:48:08] [  9110][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKi NOT_FOUND
+[12:48:08] [  9119][E][Preferences.cpp:539] getBytesLength(): nvs_get_blob len fail: heatKd NOT_FOUND
+[12:48:08] 
+[12:48:08] [TMC2209] Bringing up UART driver ...
+[12:48:08]   connected, version 0x21
+[12:48:08] [WIFI] connecting to 'DFL IoT' ...
+[12:48:09] [WEB] SPIFFS mounted, index.html found
+[12:48:09] [WEB] server up on port 80
+[12:48:09] [ESPNOW] enabled — bound to 28:84:85:91:EE:84
+[12:48:09] 
+[12:48:09] [RUN] reactor idle — control via browser.
+[12:48:11] [WIFI] connected, IP 10.77.77.250
+[12:48:14] [DIAG] up=15s loopN=1676 heap=180780 min=170100 largest=135156 dma=173020 dmaMin=162340 wifi=3 rssi=-71 enTx=66 enOk=66 enErr=0x0
+[12:48:29] [DIAG] up=30s loopN=5864 heap=180404 min=167724 largest=135156 dma=172644 dmaMin=159964 wifi=3 rssi=-73 enTx=243 enOk=243 enErr=0x0
+[12:48:37] [CMD] debug wifi kick — forcing WiFi-stack recovery
+[12:48:37] [WIFI] TX path wedged (associated, no TX landing) — restarting WiFi stack
+[12:48:37] [WIFI] connecting to 'DFL IoT' ...
+[12:48:37] [ESPNOW] re-initialized after WiFi stack recovery
+[12:48:40] [WIFI] connected, IP 10.77.77.250
+[12:48:44] [DIAG] up=45s loopN=10160 heap=180696 min=166588 largest=135156 dma=172936 dmaMin=158828 wifi=3 rssi=-69 enTx=414 enOk=414 enErr=0x0
+[12:48:59] [DIAG] up=60s loopN=14352 heap=180696 min=166588 largest=135156 dma=172936 dmaMin=158828 wifi=3 rssi=-70 enTx=591 enOk=591 enErr=0x0
+[12:49:14] [DIAG] up=75s loopN=18566 heap=180428 min=166588 largest=135156 dma=172668 dmaMin=158828 wifi=3 rssi=-70 enTx=768 enOk=768 enErr=0x0
+[12:49:29] [DIAG] up=90s loopN=23393 heap=180696 min=166588 largest=135156 dma=172936 dmaMin=158828 wifi=3 rssi=-70 enTx=945 enOk=945 enErr=0x0
+[12:49:44] [DIAG] up=105s loopN=28420 heap=170824 min=134796 largest=110580 dma=163064 dmaMin=127036 wifi=3 rssi=-72 enTx=1122 enOk=1122 enErr=0x0
+[12:49:57] [CMD] run start: target=36.0C rpm=8.0 dur=0min name=''
+[12:49:59] [DIAG] up=120s loopN=33197 heap=165988 min=126136 largest=112628 dma=158228 dmaMin=118376 wifi=3 rssi=-69 enTx=1302 enOk=1302 enErr=0x0
+[12:50:14] [DIAG] up=135s loopN=37804 heap=166020 min=126136 largest=112628 dma=158260 dmaMin=118376 wifi=3 rssi=-70 enTx=1476 enOk=1476 enErr=0x0
+[12:50:29] [DIAG] up=150s loopN=42401 heap=166020 min=126136 largest=96244 dma=158260 dmaMin=118376 wifi=3 rssi=-69 enTx=1650 enOk=1650 enErr=0x0
+[12:50:34] [CMD] run start: target=36.0C rpm=8.0 dur=0min name='selfheal-safety-test'
+[12:50:42] [CMD] debug wifi kick — forcing WiFi-stack recovery
+[12:50:42] [WIFI] TX path wedged (associated, no TX landing) — restarting WiFi stack
+[12:50:43] [WIFI] connecting to 'DFL IoT' ...
+[12:50:43] [ESPNOW] re-initialized after WiFi stack recovery
+[12:50:44] [DIAG] up=165s loopN=46632 heap=175880 min=126068 largest=114676 dma=168120 dmaMin=118308 wifi=0 rssi=-70 enTx=1812 enOk=1812 enErr=0x0
+[12:50:44] [WIFI] connected, IP 10.77.77.250
+[12:50:59] [DIAG] up=180s loopN=51377 heap=165824 min=126068 largest=114676 dma=158064 dmaMin=118308 wifi=3 rssi=-69 enTx=1986 enOk=1986 enErr=0x0
+[12:51:14] [DIAG] up=195s loopN=55955 heap=165824 min=124840 largest=102388 dma=158096 dmaMin=117080 wifi=3 rssi=-68 enTx=2157 enOk=2157 enErr=0x0
+[12:51:29] [DIAG] up=210s loopN=60611 heap=137928 min=124840 largest=94196 dma=130168 dmaMin=117080 wifi=3 rssi=-71 enTx=2328 enOk=2328 enErr=0x0
+[12:51:44] [DIAG] up=225s loopN=65262 heap=147440 min=124840 largest=96244 dma=139680 dmaMin=117080 wifi=3 rssi=-70 enTx=2499 enOk=2499 enErr=0x0
+[12:52:02] [DIAG] up=242s loopN=69150 heap=140364 min=124840 largest=94196 dma=132604 dmaMin=117080 wifi=3 rssi=-68 enTx=2646 enOk=2646 enErr=0x0
+[12:52:17] [DIAG] up=257s loopN=73583 heap=163856 min=117136 largest=100340 dma=156096 dmaMin=109376 wifi=3 rssi=-68 enTx=2811 enOk=2811 enErr=0x0
+[12:52:32] [DIAG] up=272s loopN=78174 heap=163856 min=117136 largest=110580 dma=156096 dmaMin=109376 wifi=3 rssi=-68 enTx=2985 enOk=2985 enErr=0x0
+[12:52:47] [DIAG] up=287s loopN=82717 heap=159184 min=117136 largest=94196 dma=151424 dmaMin=109376 wifi=3 rssi=-67 enTx=3159 enOk=3159 enErr=0x0
+[12:53:02] [DIAG] up=302s loopN=87297 heap=163920 min=117136 largest=100340 dma=156160 dmaMin=109376 wifi=3 rssi=-68 enTx=3330 enOk=3330 enErr=0x0
+[12:53:17] [DIAG] up=317s loopN=91873 heap=163920 min=117136 largest=110580 dma=156160 dmaMin=109376 wifi=3 rssi=-70 enTx=3504 enOk=3504 enErr=0x0
+[12:53:32] [DIAG] up=332s loopN=96423 heap=163920 min=117136 largest=110580 dma=156160 dmaMin=109376 wifi=3 rssi=-68 enTx=3675 enOk=3675 enErr=0x0
+[12:53:47] [DIAG] up=347s loopN=100968 heap=163920 min=117136 largest=100340 dma=156160 dmaMin=109376 wifi=3 rssi=-67 enTx=3849 enOk=3849 enErr=0x0
+[12:54:02] [DIAG] up=362s loopN=105545 heap=163920 min=117136 largest=110580 dma=156160 dmaMin=109376 wifi=3 rssi=-67 enTx=4023 enOk=4023 enErr=0x0
+[12:54:17] [DIAG] up=377s loopN=110104 heap=163920 min=117136 largest=100340 dma=156160 dmaMin=109376 wifi=3 rssi=-67 enTx=4194 enOk=4194 enErr=0x0
+[12:54:32] [DIAG] up=392s loopN=114696 heap=163920 min=117136 largest=110580 dma=156160 dmaMin=109376 wifi=3 rssi=-70 enTx=4368 enOk=4368 enErr=0x0
+[12:54:47] [DIAG] up=407s loopN=119204 heap=163920 min=117136 largest=98292 dma=156160 dmaMin=109376 wifi=3 rssi=-69 enTx=4539 enOk=4539 enErr=0x0
+[12:55:02] [DIAG] up=422s loopN=123773 heap=163920 min=117136 largest=110580 dma=156160 dmaMin=109376 wifi=3 rssi=-71 enTx=4713 enOk=4713 enErr=0x0
