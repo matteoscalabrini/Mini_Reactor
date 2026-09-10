@@ -223,11 +223,20 @@ ui::ReactorSnapshot buildUiSnapshot() {
   s.heaterDutyPct = t.heaterDutyPct;
   s.elapsedSec = t.elapsedSec;
   s.wifiConnected = g_wifi.staConnected();
+  // WiFi strings + RSSI cached at the OLED redraw rate: this runs every tick
+  // (~2-3 ms) and WiFi.SSID() / ipAddress() each allocate a String while
+  // RSSI() is a driver call — pure heap churn at ~400 Hz for a 4 Hz panel.
   static String ssid, ip;       // keep backing storage alive for the const char*
-  ssid = WiFi.SSID(); ip = g_wifi.ipAddress();
+  static int8_t rssi = 0;
+  static uint32_t lastNetMs = 0;
+  if (millis() - lastNetMs >= AppConfig::Ui::kRedrawIntervalMs) {
+    lastNetMs = millis();
+    ssid = WiFi.SSID(); ip = g_wifi.ipAddress();
+    rssi = s.wifiConnected ? WiFi.RSSI() : 0;
+  }
   s.wifiSsid = ssid.c_str();
   s.ip = ip.c_str();
-  s.rssi = g_wifi.staConnected() ? WiFi.RSSI() : 0;
+  s.rssi = rssi;
   s.sdMounted = g_sd.mounted();
   s.firmware = AppConfig::kFirmwareVersion;
   return s;
@@ -268,6 +277,11 @@ void requestPd() {
 //   - caps refreshed but still no 12V PDO → source can't do 12V; stop until re-plug
 // GET_SRC_CAP restarts the PD negotiation, so pairing it back-to-back with
 // REQUEST_PD makes the two exchanges collide and the source Hard Reset (VBUS→0V).
+// Last PD status read by pdReconcile (1 Hz) — the status build reads this cache
+// instead of hitting the I2C bus on every rebuild.
+Husb238::Status g_pdStatus;
+bool g_pdStatusOk = false;
+
 void pdReconcile() {
   static uint32_t lastMs = 0;
   static bool at12 = false;
@@ -276,8 +290,9 @@ void pdReconcile() {
   const uint32_t now = millis();
   if (now - lastMs < AppConfig::Pd::kReconcilePeriodMs) return;
   lastMs = now;
-  Husb238::Status s;
-  if (!g_pd.refreshStatus(s)) return;                    // I2C hiccup; retry next period
+  g_pdStatusOk = g_pd.refreshStatus(g_pdStatus);
+  if (!g_pdStatusOk) return;                             // I2C hiccup; retry next period
+  const Husb238::Status& s = g_pdStatus;
   if (!s.attached) {                                     // unplugged: re-arm for next attach
     at12 = false; capsAsked = false; no12V = false;
     return;
@@ -299,6 +314,26 @@ void pdReconcile() {
     Serial.println(F("[HUSB238] source offers no 12V PDO — +12V rail stays off"));
     no12V = true;
   }
+}
+
+// TMC2209 diagnostics cached off the UART at Motor::kDiagPeriodMs. The status
+// build used to do 4 blocking single-wire UART round-trips per rebuild
+// (connected + DRV_STATUS + SG_RESULT + IOIN version); now ONE DRV_STATUS read
+// (+ SG_RESULT while running) per period, version read once at boot.
+struct MotorDiag {
+  bool connected = false;
+  uint8_t version = 0;
+  DrvStatusFlags flags;
+  uint16_t load = 0;   // StallGuard; valid only while running && connected
+};
+MotorDiag g_motorDiag;
+
+void motorDiagRefresh(uint32_t now) {
+  static uint32_t lastMs = 0;
+  if (now - lastMs < AppConfig::Motor::kDiagPeriodMs) return;
+  lastMs = now;
+  g_motorDiag.connected = g_motor.readDiag(g_motorDiag.flags);
+  g_motorDiag.load = (g_motorDiag.connected && g_reactor.running()) ? g_motor.stallGuardResult() : 0;
 }
 
 // Build the nested /api/v1 telemetry object (spec §4). P1+P2 fields;
@@ -343,8 +378,7 @@ String buildStatusJson() {
   sys["largestBlock"] = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
   sys["freeDma"]      = heap_caps_get_free_size(MALLOC_CAP_DMA);
   sys["minFreeDma"]   = heap_caps_get_minimum_free_size(MALLOC_CAP_DMA);
-  Husb238::Status ps;
-  sys["vbus"] = g_pd.refreshStatus(ps) ? voltageCodeStr(ps.voltage) : "?";
+  sys["vbus"] = g_pdStatusOk ? voltageCodeStr(g_pdStatus.voltage) : "?";  // 1 Hz cache (pdReconcile)
   sys["sdMounted"] = g_sd.mounted();
 
   JsonObject th = doc["thermal"].to<JsonObject>();
@@ -409,14 +443,14 @@ String buildStatusJson() {
   disc["currentMa"] = g_motor.currentMilliamps();
   disc["microsteps"] = g_motor.microstepsValue();
   disc["enabled"] = g_motor.enabledState();
-  const bool drvConnected = g_motor.connected();
-  const DrvStatusFlags dflags = drvConnected ? g_motor.driverFlags() : DrvStatusFlags{};
+  const bool drvConnected = g_motorDiag.connected;          // 1 Hz cache (motorDiagRefresh)
+  const DrvStatusFlags dflags = g_motorDiag.flags;
   // load: StallGuard, only meaningful while running + linked.
-  if (t.running && drvConnected) disc["load"] = g_motor.stallGuardResult();
+  if (t.running && drvConnected) disc["load"] = g_motorDiag.load;
   else disc["load"] = nullptr;
   JsonObject drv = disc["driver"].to<JsonObject>();
   char ver[8];
-  snprintf(ver, sizeof(ver), "0x%02X", g_motor.version());
+  snprintf(ver, sizeof(ver), "0x%02X", g_motorDiag.version);
   drv["version"] = ver;
   drv["connected"] = drvConnected;
   JsonObject dfl = drv["flags"].to<JsonObject>();
@@ -556,11 +590,13 @@ void begin() {
   // Control hardware: thermistor + heater (PID), then the motor.
   g_thermal.begin();
   Serial.println(F("\n[TMC2209] Bringing up UART driver ..."));
-  if (g_motor.begin()) {
-    Serial.printf("  connected, version 0x%02X\n", g_motor.version());
+  g_motorDiag.connected = g_motor.begin();
+  g_motorDiag.version = g_motor.version();   // read once; cached for telemetry
+  if (g_motorDiag.connected) {
+    Serial.printf("  connected, version 0x%02X\n", g_motorDiag.version);
   } else {
     Serial.printf("  NOT responding (version 0x%02X) — check +12V and UART\n",
-                  g_motor.version());
+                  g_motorDiag.version);
   }
 
   // Process state (loads persisted setpoints) — does not auto-start a run.
@@ -610,12 +646,14 @@ void tick() {
     }
   }
 
-  // Rebuild status/scan JSON at ~10 Hz; apply commands + push WS every loop.
+  // Rebuild status/scan JSON at the WS push rate (~4 Hz — building faster than
+  // it can be pushed was wasted work); apply commands + push WS every loop.
   static uint32_t lastStatusMs = 0;
   static String statusJson = "{}";
   static String scanJson = "{\"scanning\":false,\"networks\":[]}";
   const uint32_t now = millis();
-  if (now - lastStatusMs >= 100) {
+  motorDiagRefresh(now);   // TMC UART poll, self-gated to kDiagPeriodMs
+  if (now - lastStatusMs >= AppConfig::Web::kWsPushPeriodMs) {
     lastStatusMs = now;
     statusJson = buildStatusJson();
     scanJson = g_wifi.scanJson();

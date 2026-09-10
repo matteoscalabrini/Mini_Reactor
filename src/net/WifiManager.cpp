@@ -18,6 +18,11 @@ WifiManager::WifiManager(const Config& config) : cfg_(config) {}
 
 void WifiManager::begin() {
   WiFi.persistent(false);
+  // Hostname BEFORE mode(): Arduino-ESP32 3.x only pushes the stored name into
+  // the STA netif inside WiFi.mode() when STA comes up (WiFiGeneric.cpp,
+  // esp_netif_set_hostname); setHostname() itself just stores the string. The
+  // old order let DHCP register the auto "esp32s3-XXXXXX" name on first boot.
+  WiFi.setHostname(cfg_.hostname);
   WiFi.mode(WIFI_STA);
   // Modem power-save must stay OFF. With PS on (Arduino default) a weak link
   // makes the STA miss DTIM delivery windows: the AP's buffered unicast to us
@@ -27,7 +32,6 @@ void WifiManager::begin() {
   // -82dBm; PS off = clean soak at the same RSSI. Espressif also requires PS
   // off for reliable ESP-NOW RX (the HUB link).
   WiFi.setSleep(false);
-  WiFi.setHostname(cfg_.hostname);
   WiFi.setAutoReconnect(false);  // we manage reconnection ourselves
 
   WifiWatchdog::Config wc;
@@ -64,9 +68,9 @@ void WifiManager::recoverStack() {
   WiFi.disconnect(false, false);
   WiFi.mode(WIFI_OFF);
   delay(100);
+  WiFi.setHostname(cfg_.hostname);  // before mode() — see begin()
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
-  WiFi.setHostname(cfg_.hostname);
   wasConnected_ = false;
   staLostMs_ = 0;
   connecting_ = false;

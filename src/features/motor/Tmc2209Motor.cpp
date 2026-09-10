@@ -96,10 +96,12 @@ uint32_t Tmc2209Motor::drvStatus() { return driver_.DRV_STATUS(); }
 
 uint16_t Tmc2209Motor::stallGuardResult() { return driver_.SG_RESULT(); }
 
-DrvStatusFlags Tmc2209Motor::driverFlags() {
-  DrvStatusFlags f = decodeDrvStatus(driver_.DRV_STATUS());
-  f.stall = digitalRead(cfg_.pinDiag) != 0;
-  return f;
+bool Tmc2209Motor::readDiag(DrvStatusFlags& out) {
+  const uint32_t raw = driver_.DRV_STATUS();
+  const bool connected = raw != 0 && raw != 0xFFFFFFFFu;  // == test_connection()==0
+  out = connected ? decodeDrvStatus(raw) : DrvStatusFlags{};
+  if (connected) out.stall = digitalRead(cfg_.pinDiag) != 0;
+  return connected;
 }
 
 int32_t Tmc2209Motor::vactualForMicrostepHz(float microstepsPerSecond) {

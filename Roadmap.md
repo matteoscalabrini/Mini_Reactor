@@ -113,8 +113,14 @@ app code; WS/AsyncTCP library layer (AsyncTCP 3.3.2 / ESPAsyncWebServer 3.6.0) i
       native tests now model the real cadence (6 cases incl. a named regression). Plus:
       1 Hz broadcast Probe when no HUB is bound (detection no longer HUB-only), credentials
       persisted only when changed (NVS wear), Settings WIFI line shows "· N self-heals".
-- [ ] Hardening pass from audit (remaining): hostname-before-mode, cache TMC/PD reads out of
-      the 10 Hz status build, status build at push rate
+- [x] Hardening pass from audit (2026-09-10): `setHostname()` moved BEFORE `WiFi.mode()`
+      (Arduino 3.x applies it only inside mode() when STA comes up — first boot registered
+      `esp32s3-XXXXXX` with DHCP); TMC2209 diag (link + DRV_STATUS + SG_RESULT) fused into
+      one UART read at 1 Hz (`Motor::kDiagPeriodMs`, was 4 round-trips per rebuild) and
+      version read once at boot; HUSB238 status reused from the 1 Hz `pdReconcile` read;
+      status JSON rebuilt at the WS push rate (`kWsPushPeriodMs`, 4 Hz) instead of 10 Hz;
+      OLED snapshot's `WiFi.SSID()`/`ipAddress()`/`RSSI()` cached at `Ui::kRedrawIntervalMs`
+      (were two String allocs + a driver call on EVERY ~3 ms tick)
 
 ## Backlog / Future
 

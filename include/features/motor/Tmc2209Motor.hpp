@@ -118,10 +118,12 @@ class Tmc2209Motor {
    * load). Only meaningful while the motor is moving. One UART read. */
   uint16_t stallGuardResult();
 
-  /* driverFlags() — Decoded DRV_STATUS (one UART read) with `stall` filled from
-   * the DIAG pin. Note: DIAG/stall requires StallGuard (SGTHRS) tuning to be
-   * meaningful — out of scope here; it reads the raw pin level. */
-  DrvStatusFlags driverFlags();
+  /* readDiag() — ONE DRV_STATUS UART read that yields both the link check
+   * (TMCStepper's test_connection() semantics: 0 / 0xFFFFFFFF = no driver) and
+   * the decoded flags, with `stall` filled from the DIAG pin. Returns connected;
+   * `out` is cleared when not connected. Note: DIAG/stall requires StallGuard
+   * (SGTHRS) tuning to be meaningful — it reads the raw pin level. */
+  bool readDiag(DrvStatusFlags& out);
 
   /* Underlying TMCStepper object for advanced use. */
   TMC2209Stepper& driver() { return driver_; }

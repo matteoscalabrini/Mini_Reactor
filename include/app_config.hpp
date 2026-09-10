@@ -86,6 +86,10 @@ static constexpr uint16_t kMicrosteps       = 16;
 static constexpr uint16_t kStepsPerRev = 200;  // full steps/rev, direct 1:1 drivetrain
 // Demo spin speed in microsteps/second (~1 rev/s at 200 steps * 16 microsteps).
 static constexpr float    kSpinMicrostepHz  = 3200.0f;
+// Telemetry poll of DRV_STATUS (+ SG_RESULT while running) over the single-wire
+// UART. Cached for the status build — reading it inline was 4 blocking UART
+// round-trips per 100 ms status rebuild.
+static constexpr uint32_t kDiagPeriodMs     = 1000;
 }  // namespace Motor
 
 // ── Heater MOSFET (Q1, low-side NMOS), driven by LEDC PWM ─────────────────────

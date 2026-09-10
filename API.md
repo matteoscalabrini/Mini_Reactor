@@ -45,7 +45,9 @@ payload directly instead of `{ok:true}`. File downloads return the raw file.
 ## Telemetry
 
 ### `GET /api/v1/status`
-Returns the cached status document (rebuilt in the loop ~10 Hz). This is the single
+Returns the cached status document (rebuilt in the loop at the WS push rate,
+~4 Hz). `system.vbus`, `disc.load` and `disc.driver.*` come from a 1 Hz bus poll
+(HUSB238 I2C, TMC2209 UART) cached off the status build. This is the single
 source of truth for all live state. Shape:
 
 ```jsonc
